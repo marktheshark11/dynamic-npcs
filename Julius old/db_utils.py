@@ -3,8 +3,8 @@ from langchain_community.embeddings import OllamaEmbeddings
 
 # Database connection
 driver = GraphDatabase.driver(
-    "LÄGG IN DIN NEO4J CONNECTION STRING HÄR", 
-    auth=("neo4j", "LÖSENORD HÄR")
+    "neo4j+s://7ab9efca.databases.neo4j.io", 
+    auth=("neo4j", "9k6CKG5Mei8KtoVKtZqbre3EZBbuWRQ_SPzRkNGINpE")
 )
 
 # Embedding model
