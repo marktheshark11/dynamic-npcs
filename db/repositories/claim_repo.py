@@ -1,0 +1,147 @@
+from .base import BaseRepository
+from ..models import Claim
+from ..services import EmbeddingService
+
+
+class ClaimRepo(BaseRepository):
+    """CRUD operations for CLAIM nodes. Auto-generates IDs and embeddings."""
+
+    def __init__(self, driver, embedding_service: EmbeddingService) -> None:
+        super().__init__(driver)
+        self._embedding = embedding_service
+
+    def _next_claim_id(self) -> str:
+        """Get next available claim ID (C1, C2, C3, ...)."""
+        records = self._run(
+            "MATCH (c:CLAIM) "
+            "WHERE c.claim_id IS NOT NULL AND c.claim_id STARTS WITH 'C' "
+            "RETURN c.claim_id AS claim_id"
+        )
+        if not records:
+            return "C1"
+
+        numbers = []
+        for r in records:
+            try:
+                numbers.append(int(r["claim_id"][1:]))
+            except ValueError:
+                continue
+
+        return f"C{max(numbers) + 1}" if numbers else "C1"
+
+    def create(self, content: str, claim_type: str | None = None) -> Claim:
+        embedding = self._embedding.embed(content)
+        claim_id = self._next_claim_id()
+
+        params: dict = {
+            "claim_id": claim_id,
+            "content": content,
+            "embedding": embedding,
+        }
+
+        set_parts = []
+        if claim_type:
+            set_parts.append("c.type = $type")
+            params["type"] = claim_type
+
+        set_clause = f" SET {', '.join(set_parts)}" if set_parts else ""
+        query = (
+            "CREATE (c:CLAIM {claim_id: $claim_id, content: $content, embedding: $embedding})"
+            f"{set_clause} RETURN c.claim_id AS claim_id"
+        )
+        self._run(query, **params)
+        return Claim(claim_id=claim_id, content=content, type=claim_type,
+                     embedding=embedding)
+
+    def list_all(self) -> list[Claim]:
+        records = self._run(
+            "MATCH (c:CLAIM) "
+            "RETURN c.claim_id AS claim_id, c.content AS content, "
+            "c.type AS type "
+            "ORDER BY c.claim_id"
+        )
+        return [
+            Claim(
+                claim_id=r["claim_id"],
+                content=r["content"],
+                type=r["type"],
+            )
+            for r in records
+        ]
+
+    def get_by_id(self, claim_id: str) -> Claim | None:
+        record = self._run_single(
+            "MATCH (c:CLAIM {claim_id: $claim_id}) "
+            "RETURN c.claim_id AS claim_id, c.content AS content, "
+            "c.type AS type",
+            claim_id=claim_id,
+        )
+        if not record:
+            return None
+        return Claim(
+            claim_id=record["claim_id"],
+            content=record["content"],
+            type=record["type"],
+        )
+
+    def update(self, claim_id: str, content: str | None = None,
+               claim_type: str | None = ...) -> bool:
+        """Update a claim. Use None for 'no change', empty string to remove a property.
+
+        Note: claim_type uses sentinel default (...) to distinguish
+        'not provided' from 'set to None'.
+        """
+        record = self._run_single(
+            "MATCH (c:CLAIM {claim_id: $claim_id}) RETURN c",
+            claim_id=claim_id,
+        )
+        if not record:
+            return False
+
+        updates = []
+        params: dict = {"claim_id": claim_id}
+
+        if content is not None:
+            embedding = self._embedding.embed(content)
+            updates.append("c.content = $content")
+            updates.append("c.embedding = $embedding")
+            params["content"] = content
+            params["embedding"] = embedding
+
+        if claim_type is not ...:
+            if claim_type is None or claim_type == "":
+                updates.append("c.type = null")
+            else:
+                updates.append("c.type = $type")
+                params["type"] = claim_type
+
+        if not updates:
+            return False
+
+        query = f"MATCH (c:CLAIM {{claim_id: $claim_id}}) SET {', '.join(updates)} RETURN c"
+        self._run(query, **params)
+        return True
+
+    def delete(self, claim_id: str) -> tuple[bool, int]:
+        """Delete a claim and all HAS_OPINION relations pointing to it.
+
+        Returns (success, opinion_count).
+        """
+        record = self._run_single(
+            "MATCH (c:CLAIM {claim_id: $claim_id}) "
+            "OPTIONAL MATCH ()-[r:HAS_OPINION]->(c) "
+            "RETURN c.content AS content, count(r) AS opinion_count",
+            claim_id=claim_id,
+        )
+        if not record or not record["content"]:
+            return False, 0
+
+        opinion_count = record["opinion_count"]
+        self._run(
+            "MATCH (c:CLAIM {claim_id: $claim_id}) "
+            "OPTIONAL MATCH ()-[r:HAS_OPINION]->(c) "
+            "OPTIONAL MATCH (c)-[ref:REFERENCE]-() "
+            "DELETE r, ref, c",
+            claim_id=claim_id,
+        )
+        return True, opinion_count

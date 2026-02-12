@@ -1,15 +1,50 @@
-from db_utils import driver, get_all_npcs, select_from_menu, create_query_embedding
+import os
+from dotenv import load_dotenv
+from neo4j import GraphDatabase
+from langchain_community.embeddings import OllamaEmbeddings
+
+# Setup
+load_dotenv()
+db_user = os.getenv("NEO4J_USER")
+db_password = os.getenv("NEO4J_PASSWORD")
+db_uri = os.getenv('NEO4J_URI')
+
+if (db_uri):
+  driver = GraphDatabase.driver(db_uri, auth=(db_user, db_password))
+embed_model = OllamaEmbeddings(model="mxbai-embed-large")
+
+# Helper functions
+def create_query_embedding(text):
+    """Skapa en embedding-vektor för en sökfråga."""
+    return embed_model.embed_query(f"Represent this sentence for searching relevant passages: {text}")
+
+def select_from_menu(prompt, options):
+    """Visa en meny och låt användaren välja."""
+    print(f"\n{prompt}")
+    for i, option in enumerate(options, 1):
+        print(f"  {i}. {option}")
+    
+    while True:
+        choice = input(f"Ange nummer (1-{len(options)}): ")
+        if choice.isdigit() and 1 <= int(choice) <= len(options):
+            return options[int(choice) - 1]
+        print("Ogiltigt val, försök igen.")
+
+def get_all_npcs():
+    """Hämta alla NPC-namn från databasen."""
+    with driver.session() as session:
+        result = session.run("MATCH (n:NPC) RETURN n.name AS name ORDER BY n.name")
+        return [record["name"] for record in result]
 
 # =============================================================================
 # RENDERING: Modifiera claim-text baserat på HAS_OPINION (belief_in/openness)
 # =============================================================================
 
-def render_claim(content, negative, belief_in, openness):
+def render_claim(content, belief_in, openness):
     """
     Rendera en claim baserat på HAS_OPINION relation (belief_in och openness).
     
     belief_in:
-      - Negativt värde → använd negative-texten
       - |värde| 0.7-1.0 → ingen modifiering
       - |värde| 0.3-0.6 → prefix "Det är möjligt att "
       - |värde| 0.0-0.2 → prefix "Det är oklart ifall "
@@ -24,12 +59,7 @@ def render_claim(content, negative, belief_in, openness):
       - |värde| 0.3-0.6 → suffix "men det nekar du"
       - |värde| 0.0-0.2 → suffix "vilket du undviker att prata om"
     """
-    # Välj rätt text baserat på belief_in
-    belief_is_negative = belief_in is not None and belief_in < 0
-    if belief_is_negative:
-        text = negative if negative else content
-    else:
-        text = content
+    text = content
     
     # Hantera None-värden
     b_value = abs(belief_in) if belief_in is not None else 1.0
@@ -84,7 +114,7 @@ def get_accessible_claim_ids(npc_name):
             WITH collect(DISTINCT c1) + collect(DISTINCT c2) AS claims
             UNWIND claims AS c
             WITH c WHERE c IS NOT NULL AND c.embedding IS NOT NULL
-            RETURN DISTINCT id(c) AS id
+            RETURN DISTINCT elementId(c) AS id
         """, npc_name=npc_name)
         return [r["id"] for r in result]
 
@@ -100,10 +130,9 @@ def find_top_claims(npc_name, query, top_k=5):
         result = session.run("""
             CALL db.index.vector.queryNodes('claim_index', $top_k * 3, $query_vector)
             YIELD node, score
-            WHERE id(node) IN $accessible_ids
-            RETURN id(node) AS id, 
+            WHERE elementId(node) IN $accessible_ids
+            RETURN elementId(node) AS id, 
                    node.content AS content, 
-                   node.veracity AS veracity,
                    node.type AS type,
                    score
             LIMIT $top_k
@@ -112,7 +141,6 @@ def find_top_claims(npc_name, query, top_k=5):
         return [{
             "id": r["id"], 
             "content": r["content"], 
-            "veracity": r["veracity"],
             "type": r["type"],  # None eller "relation"
             "score": r["score"]
         } for r in result]
@@ -128,10 +156,10 @@ def get_constants_from_claims(claim_ids):
     
     with driver.session() as session:
         result = session.run("""
-            MATCH (c:CLAIM) WHERE id(c) IN $claim_ids
+            MATCH (c:CLAIM) WHERE elementId(c) IN $claim_ids
             MATCH (c)-[:REFERENCE]->(target)
             WHERE target:NPC OR target:PLACE OR target:OBJECT
-            RETURN DISTINCT labels(target)[0] AS type, target.name AS name, id(target) AS id
+            RETURN DISTINCT labels(target)[0] AS type, target.name AS name, elementId(target) AS id
         """, claim_ids=claim_ids)
         return [{"type": r["type"], "name": r["name"], "id": r["id"]} for r in result]
 
@@ -154,13 +182,12 @@ def find_relation_claims(npc_name, constant_ids, min_refs=2):
             
             // Räkna hur många av våra konstanter denna claim refererar till
             MATCH (c)-[:REFERENCE]->(target)
-            WHERE id(target) IN $constant_ids
+            WHERE elementId(target) IN $constant_ids
             WITH c, count(DISTINCT target) AS ref_count
             WHERE ref_count >= $min_refs
             
-            RETURN id(c) AS id, 
+            RETURN elementId(c) AS id, 
                    c.content AS content, 
-                   c.veracity AS veracity,
                    c.type AS type,
                    ref_count
         """, npc_name=npc_name, constant_ids=constant_ids, min_refs=min_refs)
@@ -168,7 +195,6 @@ def find_relation_claims(npc_name, constant_ids, min_refs=2):
         return [{
             "id": r["id"],
             "content": r["content"],
-            "veracity": r["veracity"],
             "type": r["type"],
             "score": 0.0  # Ingen semantisk score för dessa
         } for r in result]
@@ -199,7 +225,7 @@ def get_reference_chain(claim_id, npc_name):
     with driver.session() as session:
         result = session.run("""
             MATCH path = (start:CLAIM)-[:REFERENCE*0..5]->(ref:CLAIM)
-            WHERE id(start) = $claim_id
+            WHERE elementId(start) = $claim_id
             WITH ref, length(path) AS depth
             ORDER BY depth DESC
             
@@ -211,9 +237,8 @@ def get_reference_chain(claim_id, npc_name):
                  COALESCE(o.belief_in, go.belief_in) AS belief_in,
                  COALESCE(o.openness, go.openness) AS openness
             
-            RETURN DISTINCT id(ref) AS id, 
+            RETURN DISTINCT elementId(ref) AS id, 
                    ref.content AS content, 
-                   ref.negative AS negative,
                    ref.type AS type, 
                    depth,
                    belief_in,
@@ -223,7 +248,6 @@ def get_reference_chain(claim_id, npc_name):
         return [{
             "id": r["id"], 
             "content": r["content"], 
-            "negative": r["negative"],
             "type": r["type"], 
             "depth": r["depth"],
             "belief_in": r["belief_in"],
@@ -270,7 +294,6 @@ def build_claim_chains(claims, npc_name):
         for c in chain:
             rendered = render_claim(
                 c["content"],
-                c["negative"],
                 c["belief_in"],
                 c["openness"]
             )
@@ -283,7 +306,6 @@ def build_claim_chains(claims, npc_name):
         
         chain_metadata.append({
             "content": combined,
-            "veracity": claim["veracity"],
             "is_relation": has_relation,
             "chain_length": len(chain)
         })
@@ -407,6 +429,86 @@ def main():
     print("GENERERAD PROMPT:")
     print("=" * 50)
     print(prompt)
+    
+    driver.close()
+
+def get_prompt_test():
+  print("=" * 50)
+  print("         HITTA INFO")
+  print("=" * 50)
+  
+  # Välj NPC
+  npcs = get_all_npcs()
+  if not npcs:
+      print("\n⚠ Inga NPCs hittades")
+      return
+  
+  npc_name = select_from_menu("Välj karaktär:", npcs)
+  question = input("\nSkriv din fråga: ")
+  
+  print("\n" + "-" * 50)
+  
+  # STEG 1: Semantisk sökning
+  print("Steg 1: Söker efter relevanta claims...")
+  top_claims = find_top_claims(npc_name, question, top_k=3)
+  
+  if not top_claims:
+      print("⚠ Inga claims hittades")
+      return
+  
+  print(f"  → Hittade {len(top_claims)} grund-claims:")
+  print("-" * 40)
+  for i, c in enumerate(top_claims, 1):
+      tag = "[REL]" if c["type"] == "relation" else "[INF]"
+      print(f"  {i}. {tag} (id:{c['id']}, score:{c['score']:.3f})")
+      print(f"     {c['content']}")
+  print("-" * 40)
+  
+  # STEG 2: Hitta konstanter och relation-claims
+  print("\nSteg 2: Söker efter relation-claims...")
+  claim_ids = [c["id"] for c in top_claims]
+  constants = get_constants_from_claims(claim_ids)
+  constant_ids = [c["id"] for c in constants]
+  
+  print(f"  → Konstanter: {', '.join(c['name'] for c in constants) if constants else 'inga'}")
+  
+  relation_claims = find_relation_claims(npc_name, constant_ids, min_refs=2)
+  print(f"  → Hittade {len(relation_claims)} relation-claims:")
+  if relation_claims:
+      print("-" * 40)
+      for i, c in enumerate(relation_claims, 1):
+          print(f"  {i}. (id:{c['id']}, refs:{c.get('ref_count', '?')})")
+          print(f"     {c['content']}")
+      print("-" * 40)
+  
+  # STEG 3: Kombinera och ta bort dubbletter
+  print("\nSteg 3: Tar bort dubbletter...")
+  all_claims = top_claims + relation_claims
+  unique_claims = remove_duplicates(all_claims)
+  print(f"  → {len(unique_claims)} unika claims")
+  
+  # STEG 4: Gruppera i kedjor och rendera
+  print("\nSteg 4: Grupperar i referenskedjor och renderar...")
+  chain_metadata = build_claim_chains(unique_claims, npc_name)
+  print(f"  → {len(chain_metadata)} kedjor genererade")
+  
+  # STEG 5 & 6: Separera och visa
+  non_rel = [c for c in chain_metadata if not c["is_relation"]]
+  rel = [c for c in chain_metadata if c["is_relation"]]
+  
+  print(f"\nSteg 5: Non-relation claims ({len(non_rel)} st):")
+  for c in non_rel:
+      chain_tag = f" [kedja: {c['chain_length']}]" if c["chain_length"] > 1 else ""
+      print(f"  - {c['content'][:70]}...{chain_tag}")
+  
+  print(f"\nSteg 6: Relation claims ({len(rel)} st):")
+  for c in rel:
+      chain_tag = f" [kedja: {c['chain_length']}]" if c["chain_length"] > 1 else ""
+      print(f"  - {c['content'][:70]}...{chain_tag}")
+  
+  # Bygg och visa prompt
+  prompt = build_prompt(npc_name, chain_metadata, question)
+  return prompt  
 
 if __name__ == "__main__":
     main()

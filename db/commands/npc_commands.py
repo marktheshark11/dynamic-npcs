@@ -1,0 +1,91 @@
+from .base import Command
+from ..repositories import NPCRepo
+from ..models import NPC
+from ..ui import InputHelpers
+
+
+class CreateNPCCommand(Command):
+    def __init__(self, repo: NPCRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Skapa en ny NPC"
+
+    def execute(self) -> None:
+        id_val = self._ui.prompt("id")
+        name_val = self._ui.prompt("namn")
+        age_val = self._ui.prompt_int("alder")
+        personality_val = self._ui.prompt("personlighet")
+        backstory_val = self._ui.prompt("backstory")
+
+        npc = NPC(id=id_val, name=name_val, age=age_val, personality=personality_val, backstory=backstory_val)
+        self._repo.create(npc)
+        self._ui.display.success(f"NPC '{name_val}' skapad")
+
+
+class EditNPCCommand(Command):
+    def __init__(self, repo: NPCRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Redigera en NPC"
+
+    def execute(self) -> None:
+        npcs = self._repo.list_all()
+        selected = self._ui.select_from_list(npcs, NPC.display_str, "Alla NPCs")
+        if not selected:
+            return
+
+        name_val = self._ui.prompt_optional("namn")
+        age_val = self._ui.prompt_optional_int("alder")
+        personality_val = self._ui.prompt_optional("personlighet")
+        backstory_val = self._ui.prompt_optional("backstory")
+
+        if self._repo.update(selected.id, name_val, age_val, personality_val, backstory_val):
+            self._ui.display.success(f"NPC '{selected.id}' uppdaterad")
+        else:
+            self._ui.display.error("Inga andringar gjorda")
+
+
+class DeleteNPCCommand(Command):
+    def __init__(self, repo: NPCRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Ta bort en NPC"
+
+    def execute(self) -> None:
+        npcs = self._repo.list_all()
+        selected = self._ui.select_from_list(npcs, NPC.display_str, "Alla NPCs")
+        if not selected:
+            return
+
+        if self._ui.confirm(f"Ta bort NPC '{selected.name}'?"):
+            if self._repo.delete(selected.id):
+                self._ui.display.success(f"NPC '{selected.name}' borttagen")
+            else:
+                self._ui.display.error("Kunde inte ta bort NPC")
+
+
+class ListNPCsCommand(Command):
+    def __init__(self, repo: NPCRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Visa alla NPCs"
+
+    def execute(self) -> None:
+        npcs = self._repo.list_all()
+        if not npcs:
+            self._ui.display.error("Inga NPCs hittades")
+            return
+        self._ui.display.header("Alla NPCs")
+        self._ui.display.list_items(npcs, NPC.display_str)
