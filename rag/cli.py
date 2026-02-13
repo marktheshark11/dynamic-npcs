@@ -11,6 +11,7 @@ from neo4j import GraphDatabase
 from langchain_community.embeddings import OllamaEmbeddings
 
 from .pipeline import RAGPipeline
+from services import NPCService
 
 def select_from_menu(prompt, options):
     print(f"\n{prompt}")
@@ -19,13 +20,8 @@ def select_from_menu(prompt, options):
     while True:
         choice = input(f"Ange nummer (1-{len(options)}): ")
         if choice.isdigit() and 1 <= int(choice) <= len(options):
-            return options[int(choice) - 1]
+            return int(choice) - 1
         print("Ogiltigt val, försök igen.")
-
-def get_all_npcs(driver):
-    with driver.session() as session:
-        result = session.run("MATCH (n:NPC) RETURN n.name AS name ORDER BY n.name")
-        return [record["name"] for record in result]
 
 def main():
     load_dotenv()
@@ -38,24 +34,34 @@ def main():
     driver = GraphDatabase.driver(db_uri, auth=(db_user, db_password))
     embed_model = OllamaEmbeddings(model="mxbai-embed-large")
     pipeline = RAGPipeline(driver, embed_model)
+    npc_service = NPCService(driver)
     print("=" * 50)
     print("         HITTA INFO")
     print("=" * 50)
-    npcs = get_all_npcs(driver)
+    npcs = npc_service.list_npcs()
     if not npcs:
         print("\n⚠ Inga NPCs hittades")
         return
-    npc_name = select_from_menu("Välj karaktär:", npcs)
+
+    options = [f"{npc['name']} ({npc['id']})" for npc in npcs]
+    selected_index = select_from_menu("Välj karaktär:", options)
+    npc_id = npcs[selected_index]["id"]
     question = input("\nSkriv din fråga: ")
     print("\n" + "-" * 50)
-    prompt, chain_metadata = pipeline.run(npc_name, question)
-    if not prompt:
+    prompt_result, chain_metadata = pipeline.run(npc_id, question)
+    if not prompt_result:
         print("⚠ Inga claims hittades")
         return
     print("\n" + "=" * 50)
     print("GENERERAD PROMPT:")
     print("=" * 50)
-    print(prompt)
+    print(prompt_result.flat_prompt)
+
+    print("\n" + "=" * 50)
+    print("CHAT MESSAGES:")
+    print("=" * 50)
+    for message in prompt_result.messages:
+        print(f"[{message['role']}]\n{message['content']}\n")
     driver.close()
 
 if __name__ == "__main__":
