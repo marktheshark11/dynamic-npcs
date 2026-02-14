@@ -1,4 +1,8 @@
-from langchain_community.embeddings import OllamaEmbeddings
+from typing import Protocol
+
+
+class EmbeddingModel(Protocol):
+    def embed_query(self, text: str) -> list[float]: ...
 
 
 class EmbeddingService:
@@ -8,7 +12,7 @@ class EmbeddingService:
     without touching repositories or commands.
     """
 
-    def __init__(self, model: OllamaEmbeddings) -> None:
+    def __init__(self, model: EmbeddingModel) -> None:
         self._model = model
 
     def embed(self, text: str) -> list[float]:

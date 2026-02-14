@@ -4,3 +4,4 @@ uvicorn[standard]
 python-dotenv
 neo4j
 langchain_community
+huggingface_hub

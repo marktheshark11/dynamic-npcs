@@ -6,12 +6,10 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, _root)
     __package__ = "rag"
 
-from dotenv import load_dotenv
-from neo4j import GraphDatabase
-from langchain_community.embeddings import OllamaEmbeddings
+from db.config import Config
 
 from .pipeline import RAGPipeline
-from services import NPCService
+from services.npc_service import NPCService
 
 def select_from_menu(prompt, options):
     print(f"\n{prompt}")
@@ -24,15 +22,9 @@ def select_from_menu(prompt, options):
         print("Ogiltigt val, försök igen.")
 
 def main():
-    load_dotenv()
-    db_user = os.getenv("NEO4J_USER")
-    db_password = os.getenv("NEO4J_PASSWORD")
-    db_uri = os.getenv('NEO4J_URI')
-    if not db_uri:
-        print("NEO4J_URI saknas!")
-        return
-    driver = GraphDatabase.driver(db_uri, auth=(db_user, db_password))
-    embed_model = OllamaEmbeddings(model="mxbai-embed-large")
+    config = Config.from_env()
+    driver = config.driver
+    embed_model = config.embed_model
     pipeline = RAGPipeline(driver, embed_model)
     npc_service = NPCService(driver)
     print("=" * 50)
@@ -62,7 +54,7 @@ def main():
     print("=" * 50)
     for message in prompt_result.messages:
         print(f"[{message['role']}]\n{message['content']}\n")
-    driver.close()
+    config.close()
 
 if __name__ == "__main__":
     main()

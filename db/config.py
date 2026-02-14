@@ -1,13 +1,14 @@
 import os
 from dotenv import load_dotenv
 from neo4j import GraphDatabase, Driver
-from langchain_community.embeddings import OllamaEmbeddings
+
+from db.services.hf_embeddings import HuggingFaceEmbeddings
 
 
 class Config:
     """Application configuration. Loads environment and creates shared resources."""
 
-    def __init__(self, driver: Driver, embed_model: OllamaEmbeddings) -> None:
+    def __init__(self, driver: Driver, embed_model: HuggingFaceEmbeddings) -> None:
         self.driver = driver
         self.embed_model = embed_model
 
@@ -25,8 +26,13 @@ class Config:
                 "Saknar NEO4J_URI, NEO4J_USER eller NEO4J_PASSWORD i .env"
             )
 
+        hf_token = os.getenv("HF_TOKEN")
+        if not hf_token:
+            raise RuntimeError("Missing HF_TOKEN in environment")
+
         driver = GraphDatabase.driver(db_uri, auth=(db_user, db_password))
-        embed_model = OllamaEmbeddings(model="mxbai-embed-large")
+        embedding_model = os.getenv("EMBED_MODEL", "mixedbread-ai/mxbai-embed-large-v1")
+        embed_model = HuggingFaceEmbeddings(model=embedding_model, api_key=hf_token)
 
         return cls(driver=driver, embed_model=embed_model)
 

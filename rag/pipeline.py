@@ -15,8 +15,6 @@ class RAGPipeline:
 
         # Steg 1: Semantisk sökning
         top_claims = self.core.find_top_claims(npc_id, question, top_k=top_k)
-        if not top_claims:
-            return None, []
         # Steg 2: Hitta konstanter och relation-claims
         claim_ids = [c["id"] for c in top_claims]
         constants = self.core.get_constants_from_claims(claim_ids)

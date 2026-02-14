@@ -1,4 +1,3 @@
-import argparse
 import os
 import sys
 
@@ -7,28 +6,9 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, _root)
     __package__ = "rag"
 
-from dotenv import load_dotenv
-from langchain_community.embeddings import OllamaEmbeddings
-from neo4j import GraphDatabase
+from db.config import Config
 from chat_service import ChatService
 from npc_service import NPCService
-# from . import ChatService, NPCService
-
-
-# def _build_parser():
-#     parser = argparse.ArgumentParser(description="Run NPC RAG + prompt + Groq chat flow")
-#     parser.add_argument("--list-npcs", action="store_true", help="List all NPCs and exit")
-#     parser.add_argument("--npc-id", help="NPC id to use")
-#     parser.add_argument("--question", help="Question to ask the NPC")
-#     parser.add_argument("--model", default="llama-3.3-70b-versatile", help="Groq model name")
-#     parser.add_argument("--top-k", type=int, default=3, help="Top semantic claims to retrieve")
-#     parser.add_argument("--min-refs", type=int, default=2, help="Min refs for relation claims")
-#     parser.add_argument(
-#         "--prompt-only",
-#         action="store_true",
-#         help="Build and print prompt/messages only, do not call Groq",
-#     )
-#     return parser
 
 
 def _select_npc_interactive(npcs):
@@ -44,16 +24,9 @@ def _select_npc_interactive(npcs):
 
 
 def main():
-    load_dotenv()
-    db_uri = os.getenv("NEO4J_URI")
-    db_user = os.getenv("NEO4J_USER")
-    db_password = os.getenv("NEO4J_PASSWORD")
-
-    if not db_uri:
-        raise SystemExit("Missing NEO4J_URI in environment")
-
-    driver = GraphDatabase.driver(db_uri, auth=(db_user, db_password))
-    embed_model = OllamaEmbeddings(model="mxbai-embed-large")
+    config = Config.from_env()
+    driver = config.driver
+    embed_model = config.embed_model
 
     try:
         npc_service = NPCService(driver)
@@ -73,14 +46,14 @@ def main():
             question=question,
         )
         if not result:
-            print("No response (NPC not found or no claims).")
+            print("No response.")
             return
 
         print("\n=== NPC Response ===")
         print(result)
         print(result["response"])
     finally:
-        driver.close()
+        config.close()
 
 
 if __name__ == "__main__":

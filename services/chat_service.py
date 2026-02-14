@@ -18,7 +18,6 @@ class ChatService:
             top_k=top_k,
             min_refs=min_refs,
         )
-        print(prompt_result)
         if not prompt_result:
             return None
 
