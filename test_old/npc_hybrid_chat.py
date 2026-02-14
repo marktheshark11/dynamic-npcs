@@ -1,5 +1,5 @@
 # hybrid_npc_chat.py
-from llms.groq import chat
+from llms.llm_groq import chat
 from db_neo4j import ex_query
 from npc_chat import get_npc_context, build_npc_system_prompt
 from query_rag import query_rag, DATABASE_SCHEMA

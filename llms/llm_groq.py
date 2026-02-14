@@ -1,7 +1,7 @@
-from groq import Groq
 from dotenv import load_dotenv
 import os
 from typing import Any
+from groq import Groq
 
 load_dotenv()
 

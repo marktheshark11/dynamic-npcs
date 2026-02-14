@@ -10,7 +10,7 @@ class ChatService:
         return self.pipeline.run(npc_id, question, top_k=top_k, min_refs=min_refs)
 
     def ask_npc(self, npc_id, question, model=None, top_k=3, min_refs=2):
-        from llms.groq import chat as groq_chat
+        from llms.llm_groq import chat as groq_chat
 
         prompt_result, chain_metadata = self.build_prompt(
             npc_id,
