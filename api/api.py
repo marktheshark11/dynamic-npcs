@@ -1,7 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,8 +15,11 @@ from services.chat_service import ChatService
 async def lifespan(app: FastAPI):
     config = Config.from_env()
     api_key = os.getenv("API_KEY")
+    groq_api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise RuntimeError("Missing API_KEY in environment")
+    if not groq_api_key:
+        raise RuntimeError("Missing GROQ_API_KEY in environment")
 
     app.state.config = config
     app.state.api_key = api_key
@@ -71,10 +74,13 @@ async def health_check():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_chat_service)):
-    result = chat_service.ask_npc(npc_id=payload.npc_id, question=payload.message)
-    if not result:
-        return ChatResponse(npc_id=payload.npc_id, response="No response")
-    return ChatResponse(npc_id=payload.npc_id, response=result["response"])
+    try:
+        result = chat_service.ask_npc(npc_id=payload.npc_id, question=payload.message)
+        if not result:
+            return ChatResponse(npc_id=payload.npc_id, response="No response")
+        return ChatResponse(npc_id=payload.npc_id, response=result["response"])
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 if __name__ == "__main__":
