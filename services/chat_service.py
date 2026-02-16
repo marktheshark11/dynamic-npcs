@@ -6,17 +6,15 @@ class ChatService:
         self.pipeline = RAGPipeline(driver, embed_model)
         self.default_model = default_model
 
-    def build_prompt(self, npc_id, question, top_k=3, min_refs=2):
-        return self.pipeline.run(npc_id, question, top_k=top_k, min_refs=min_refs)
+    def build_prompt(self, npc_id, question):
+        return self.pipeline.run(npc_id, question,)
 
-    def ask_npc(self, npc_id, question, model=None, top_k=3, min_refs=2):
+    def ask_npc(self, npc_id, question, model=None):
         from llms.llm_groq import chat as groq_chat
 
         prompt_result, chain_metadata = self.build_prompt(
             npc_id,
             question,
-            top_k=top_k,
-            min_refs=min_refs,
         )
         if not prompt_result:
             return None

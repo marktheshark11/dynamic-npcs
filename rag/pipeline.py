@@ -7,7 +7,7 @@ class RAGPipeline:
         self.core = RAGCore(driver, embed_model)
         self.prompt_builder = PromptBuilder()
 
-    def run(self, npc_id, question, top_k=3, min_refs=2):
+    def run(self, npc_id, question, top_k=7, min_refs=1):
         npc_row = self.core.get_npc_profile(npc_id)
         if not npc_row:
             return None, []
