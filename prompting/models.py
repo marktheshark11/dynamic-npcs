@@ -17,7 +17,7 @@ class NPCProfile:
 class PromptPolicy:
     brevity_instruction: str = "Divergera inte från ämnet."
     character_instruction: str = "Hall dig till din karaktar."
-    truthfulness_instruction: str = "Om information saknas, sag det tydligt."
+    truthfulness_instruction: str = "Om information saknas, kommentera inte vidare. Svara bara på det du vet."
     extra_rules: list[str] = field(default_factory=list)
 
 
