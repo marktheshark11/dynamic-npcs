@@ -146,17 +146,53 @@ class EditClaimCommand(Command):
             "Ny type",
         )
         if type_choice == "relation":
-            new_type = "relation"
+            update_ok = self._repo.update(
+                selected.claim_id,
+                content=new_content,
+                claim_type="relation",
+            )
         elif type_choice == "ta bort type":
-            new_type = ""
+            update_ok = self._repo.update(
+                selected.claim_id,
+                content=new_content,
+                claim_type="",
+            )
         else:
-            new_type = ...  # sentinel: no change
+            update_ok = self._repo.update(selected.claim_id, content=new_content)
 
-        if self._repo.update(selected.claim_id, content=new_content,
-                             claim_type=new_type):
+        if update_ok:
             self._ui.display.success(f"CLAIM {selected.claim_id} uppdaterad")
         else:
             self._ui.display.error("Inga andringar gjorda")
+
+
+class ReindexClaimIdsCommand(Command):
+    def __init__(self, repo: ClaimRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Ratta till CLAIM-IDn"
+
+    def execute(self) -> None:
+        claims = self._repo.list_all()
+        if not claims:
+            self._ui.display.error("Inga CLAIMs hittades")
+            return
+
+        if not self._ui.confirm("Ratta till CLAIM-IDn till C1, C2, C3 utan gap?"):
+            return
+
+        changes = self._repo.reindex_claim_ids()
+        if not changes:
+            self._ui.display.info("CLAIM-IDn var redan i ratt ordning utan gap")
+            return
+
+        self._ui.display.success(f"Rattade till {len(changes)} CLAIM-IDn")
+        self._ui.display.header("Andringar")
+        for old_id, new_id in changes:
+            self._ui.display.info(f"{old_id} -> {new_id}")
 
 
 class DeleteClaimCommand(Command):

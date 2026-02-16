@@ -7,7 +7,8 @@ from .repositories import (
 from .commands import (
     CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, ListNPCsCommand,
     CreateGroupCommand, DeleteGroupCommand, ListGroupsCommand,
-    CreateClaimCommand, EditClaimCommand, DeleteClaimCommand, ListClaimsCommand,
+    CreateClaimCommand, EditClaimCommand, DeleteClaimCommand,
+    ListClaimsCommand, ReindexClaimIdsCommand,
     CreateObjectCommand, CreatePlaceCommand, ListConstantsCommand,
     CreateOpinionCommand, EditOpinionCommand,
     DeleteOpinionCommand, ListOpinionsCommand,
@@ -67,6 +68,7 @@ class App:
                 EditClaimCommand(self._claim_repo, ui),
                 DeleteClaimCommand(self._claim_repo, ui),
                 ListClaimsCommand(self._claim_repo, ui),
+                ReindexClaimIdsCommand(self._claim_repo, ui),
             ]),
             SubMenu("Konstanter (Objekt/Platser)", [
                 CreateObjectCommand(self._constant_repo, ui),

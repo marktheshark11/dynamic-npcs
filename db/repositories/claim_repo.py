@@ -3,6 +3,9 @@ from ..models import Claim
 from ..services import EmbeddingService
 
 
+_NO_CHANGE = object()
+
+
 class ClaimRepo(BaseRepository):
     """CRUD operations for CLAIM nodes. Auto-generates IDs and embeddings."""
 
@@ -53,14 +56,21 @@ class ClaimRepo(BaseRepository):
         return Claim(claim_id=claim_id, content=content, type=claim_type,
                      embedding=embedding)
 
+    @staticmethod
+    def _claim_sort_key(claim_id: str | None) -> tuple[int, int, str]:
+        if claim_id and claim_id.startswith("C"):
+            numeric_part = claim_id[1:]
+            if numeric_part.isdigit():
+                return (0, int(numeric_part), claim_id)
+        return (1, 0, claim_id or "")
+
     def list_all(self) -> list[Claim]:
         records = self._run(
             "MATCH (c:CLAIM) "
             "RETURN c.claim_id AS claim_id, c.content AS content, "
-            "c.type AS type "
-            "ORDER BY c.claim_id"
+            "c.type AS type"
         )
-        return [
+        claims = [
             Claim(
                 claim_id=r["claim_id"],
                 content=r["content"],
@@ -68,6 +78,58 @@ class ClaimRepo(BaseRepository):
             )
             for r in records
         ]
+        claims.sort(key=lambda c: self._claim_sort_key(c.claim_id))
+        return claims
+
+    def reindex_claim_ids(self) -> list[tuple[str, str]]:
+        """Renumber claim IDs to contiguous C1..Cn in current sort order.
+
+        Returns a list of (old_id, new_id) for changed IDs.
+        """
+        records = self._run(
+            "MATCH (c:CLAIM) "
+            "RETURN elementId(c) AS eid, c.claim_id AS claim_id"
+        )
+        if not records:
+            return []
+
+        sorted_records = sorted(
+            records,
+            key=lambda r: self._claim_sort_key(r["claim_id"]),
+        )
+
+        updates: list[dict[str, str]] = []
+        for idx, record in enumerate(sorted_records, 1):
+            old_id = record["claim_id"] or ""
+            new_id = f"C{idx}"
+            if old_id != new_id:
+                updates.append({
+                    "eid": record["eid"],
+                    "old_id": old_id,
+                    "new_id": new_id,
+                })
+
+        if not updates:
+            return []
+
+        for idx, item in enumerate(updates, 1):
+            tmp_id = f"__TMP_CLAIM_{idx}"
+            self._run(
+                "MATCH (c:CLAIM) WHERE elementId(c) = $eid "
+                "SET c.claim_id = $tmp_id",
+                eid=item["eid"],
+                tmp_id=tmp_id,
+            )
+
+        for item in updates:
+            self._run(
+                "MATCH (c:CLAIM) WHERE elementId(c) = $eid "
+                "SET c.claim_id = $new_id",
+                eid=item["eid"],
+                new_id=item["new_id"],
+            )
+
+        return [(item["old_id"], item["new_id"]) for item in updates]
 
     def get_by_id(self, claim_id: str) -> Claim | None:
         record = self._run_single(
@@ -85,7 +147,7 @@ class ClaimRepo(BaseRepository):
         )
 
     def update(self, claim_id: str, content: str | None = None,
-               claim_type: str | None = ...) -> bool:
+               claim_type: str | None | object = _NO_CHANGE) -> bool:
         """Update a claim. Use None for 'no change', empty string to remove a property.
 
         Note: claim_type uses sentinel default (...) to distinguish
@@ -108,7 +170,7 @@ class ClaimRepo(BaseRepository):
             params["content"] = content
             params["embedding"] = embedding
 
-        if claim_type is not ...:
+        if claim_type is not _NO_CHANGE:
             if claim_type is None or claim_type == "":
                 updates.append("c.type = null")
             else:

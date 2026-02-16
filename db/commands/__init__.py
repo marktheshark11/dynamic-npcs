@@ -1,7 +1,10 @@
 from .base import Command
 from .npc_commands import CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, ListNPCsCommand
 from .group_commands import CreateGroupCommand, DeleteGroupCommand, ListGroupsCommand
-from .claim_commands import CreateClaimCommand, EditClaimCommand, DeleteClaimCommand, ListClaimsCommand
+from .claim_commands import (
+    CreateClaimCommand, EditClaimCommand,
+    DeleteClaimCommand, ListClaimsCommand, ReindexClaimIdsCommand,
+)
 from .constant_commands import CreateObjectCommand, CreatePlaceCommand, ListConstantsCommand
 from .opinion_commands import (
     CreateOpinionCommand, EditOpinionCommand,
@@ -23,7 +26,8 @@ __all__ = [
     "Command",
     "CreateNPCCommand", "EditNPCCommand", "DeleteNPCCommand", "ListNPCsCommand",
     "CreateGroupCommand", "DeleteGroupCommand", "ListGroupsCommand",
-    "CreateClaimCommand", "EditClaimCommand", "DeleteClaimCommand", "ListClaimsCommand",
+    "CreateClaimCommand", "EditClaimCommand", "DeleteClaimCommand",
+    "ListClaimsCommand", "ReindexClaimIdsCommand",
     "CreateObjectCommand", "CreatePlaceCommand", "ListConstantsCommand",
     "CreateOpinionCommand", "EditOpinionCommand",
     "DeleteOpinionCommand", "ListOpinionsCommand",
