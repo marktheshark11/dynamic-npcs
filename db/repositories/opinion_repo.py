@@ -89,3 +89,28 @@ class OpinionRepo(BaseRepository):
             """
         record = self._run_single(query, entity_id=entity_id, claim_id=claim_id)
         return record is not None and record["deleted"] > 0
+
+    def update(self, entity_id: str, entity_type: str, claim_id: str,
+               belief_in: float, openness: float) -> bool:
+        """Update belief_in and openness for an existing HAS_OPINION relation."""
+        if entity_type == "NPC":
+            query = """
+            MATCH (npc:NPC {id: $entity_id})-[o:HAS_OPINION]->(c:CLAIM {claim_id: $claim_id})
+            SET o.belief_in = $belief_in, o.openness = $openness
+            RETURN o
+            """
+        else:
+            query = """
+            MATCH (g:GROUP {name: $entity_id})-[o:HAS_OPINION]->(c:CLAIM {claim_id: $claim_id})
+            SET o.belief_in = $belief_in, o.openness = $openness
+            RETURN o
+            """
+
+        record = self._run_single(
+            query,
+            entity_id=entity_id,
+            claim_id=claim_id,
+            belief_in=belief_in,
+            openness=openness,
+        )
+        return record is not None

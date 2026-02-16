@@ -1,12 +1,22 @@
 from .base import Command
-from ..repositories import ClaimRepo
-from ..models import Claim
+from ..repositories import (
+    ClaimRepo, NPCRepo, GroupRepo, ConstantRepo, OpinionRepo, RelationRepo,
+)
+from ..models import NPC, Group, Claim
 from ..ui import InputHelpers
 
 
 class CreateClaimCommand(Command):
-    def __init__(self, repo: ClaimRepo, ui: InputHelpers) -> None:
-        self._repo = repo
+    def __init__(self, claim_repo: ClaimRepo, npc_repo: NPCRepo,
+                 group_repo: GroupRepo, constant_repo: ConstantRepo,
+                 opinion_repo: OpinionRepo, relation_repo: RelationRepo,
+                 ui: InputHelpers) -> None:
+        self._claim_repo = claim_repo
+        self._npc_repo = npc_repo
+        self._group_repo = group_repo
+        self._constant_repo = constant_repo
+        self._opinion_repo = opinion_repo
+        self._relation_repo = relation_repo
         self._ui = ui
 
     @property
@@ -18,8 +28,97 @@ class CreateClaimCommand(Command):
         is_relation = self._ui.confirm("Ar detta en relations-claim?")
         claim_type = "relation" if is_relation else None
 
-        claim = self._repo.create(content, claim_type=claim_type)
+        claim = self._claim_repo.create(content, claim_type=claim_type)
         self._ui.display.success(f"CLAIM {claim.claim_id} skapad: '{content}'")
+
+        self._add_opinions_to_claim(claim)
+        self._add_references_from_claim(claim)
+
+    def _add_opinions_to_claim(self, claim: Claim) -> None:
+        while self._ui.confirm("Vill du lagga till en opinion till denna CLAIM?"):
+            entity_type = self._ui.select_option(["NPC", "GROUP"], "Valj entitetstyp")
+            if not entity_type:
+                self._ui.display.error("Ingen opinion skapad")
+                continue
+
+            if entity_type == "NPC":
+                npcs = self._npc_repo.list_all()
+                entity = self._ui.select_from_list(npcs, NPC.short_str, "Valj NPC")
+                if not entity:
+                    self._ui.display.error("Ingen opinion skapad")
+                    continue
+                entity_id = entity.id
+            else:
+                groups = self._group_repo.list_all()
+                entity = self._ui.select_from_list(groups, Group.display_str, "Valj grupp")
+                if not entity:
+                    self._ui.display.error("Ingen opinion skapad")
+                    continue
+                entity_id = entity.name
+
+            belief_in = self._ui.prompt_float("belief_in")
+            openness = self._ui.prompt_float("openness")
+
+            if self._opinion_repo.create(entity_id, entity_type, claim.claim_id,
+                                         belief_in, openness):
+                self._ui.display.success(
+                    f"HAS_OPINION: {entity_id} -> {claim.claim_id} "
+                    f"(belief: {belief_in}, openness: {openness})"
+                )
+            else:
+                self._ui.display.error(
+                    "Kunde inte skapa opinion. Kontrollera att entiteten finns."
+                )
+
+    def _add_references_from_claim(self, claim: Claim) -> None:
+        while self._ui.confirm("Vill du lagga till en reference fran denna CLAIM?"):
+            target_type = self._ui.select_option(
+                ["NPC", "CLAIM", "OBJECT", "PLACE"], "Maltyp"
+            )
+            if not target_type:
+                self._ui.display.error("Ingen reference skapad")
+                continue
+
+            if target_type == "NPC":
+                npcs = self._npc_repo.list_all()
+                npc = self._ui.select_from_list(npcs, NPC.short_str, "Valj NPC")
+                if not npc:
+                    self._ui.display.error("Ingen reference skapad")
+                    continue
+                target_name = npc.name
+            elif target_type == "CLAIM":
+                claims = [
+                    c for c in self._claim_repo.list_all()
+                    if c.claim_id != claim.claim_id
+                ]
+                target_claim = self._ui.select_from_list(
+                    claims, Claim.short_str, "Valj CLAIM (mal)"
+                )
+                if not target_claim:
+                    self._ui.display.error("Ingen reference skapad")
+                    continue
+                target_name = target_claim.claim_id
+            elif target_type == "OBJECT":
+                objects = self._constant_repo.list_objects()
+                obj = self._ui.select_from_list(objects, lambda o: o.name, "Valj OBJECT")
+                if not obj:
+                    self._ui.display.error("Ingen reference skapad")
+                    continue
+                target_name = obj.name
+            else:
+                places = self._constant_repo.list_places()
+                place = self._ui.select_from_list(places, lambda p: p.name, "Valj PLACE")
+                if not place:
+                    self._ui.display.error("Ingen reference skapad")
+                    continue
+                target_name = place.name
+
+            if self._relation_repo.create_reference(claim.claim_id, target_name, target_type):
+                self._ui.display.success(
+                    f"REFERENCE: {claim.claim_id} -> [{target_type}] {target_name}"
+                )
+            else:
+                self._ui.display.error("Kunde inte skapa referens")
 
 
 class EditClaimCommand(Command):

@@ -9,7 +9,8 @@ from .commands import (
     CreateGroupCommand, DeleteGroupCommand, ListGroupsCommand,
     CreateClaimCommand, EditClaimCommand, DeleteClaimCommand, ListClaimsCommand,
     CreateObjectCommand, CreatePlaceCommand, ListConstantsCommand,
-    CreateOpinionCommand, DeleteOpinionCommand, ListOpinionsCommand,
+    CreateOpinionCommand, EditOpinionCommand,
+    DeleteOpinionCommand, ListOpinionsCommand,
     CreateStructuralRelationCommand,
     CreateReferenceCommand, CreateMembershipCommand, DeleteMembershipCommand,
     CreateMysteryCommand, DeleteMysteryCommand, ListMysteriesCommand,
@@ -54,7 +55,15 @@ class App:
                 ListGroupsCommand(self._group_repo, ui),
             ]),
             SubMenu("Claims", [
-                CreateClaimCommand(self._claim_repo, ui),
+                CreateClaimCommand(
+                    self._claim_repo,
+                    self._npc_repo,
+                    self._group_repo,
+                    self._constant_repo,
+                    self._opinion_repo,
+                    self._relation_repo,
+                    ui,
+                ),
                 EditClaimCommand(self._claim_repo, ui),
                 DeleteClaimCommand(self._claim_repo, ui),
                 ListClaimsCommand(self._claim_repo, ui),
@@ -68,6 +77,10 @@ class App:
                 CreateOpinionCommand(
                     self._npc_repo, self._group_repo,
                     self._claim_repo, self._opinion_repo, ui,
+                ),
+                EditOpinionCommand(
+                    self._npc_repo, self._group_repo,
+                    self._opinion_repo, ui,
                 ),
                 DeleteOpinionCommand(
                     self._npc_repo, self._group_repo,

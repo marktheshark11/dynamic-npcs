@@ -60,6 +60,70 @@ class CreateOpinionCommand(Command):
             )
 
 
+class EditOpinionCommand(Command):
+    def __init__(self, npc_repo: NPCRepo, group_repo: GroupRepo,
+                 opinion_repo: OpinionRepo, ui: InputHelpers) -> None:
+        self._npc_repo = npc_repo
+        self._group_repo = group_repo
+        self._opinion_repo = opinion_repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Redigera en opinion-koppling"
+
+    def execute(self) -> None:
+        entity_type = self._ui.select_option(["NPC", "GROUP"], "Valj entitetstyp")
+        if not entity_type:
+            return
+
+        if entity_type == "NPC":
+            npcs = self._npc_repo.list_all()
+            selected = self._ui.select_from_list(npcs, NPC.short_str, "Valj NPC")
+            if not selected:
+                return
+            entity_id = selected.id
+        else:
+            groups = self._group_repo.list_all()
+            selected = self._ui.select_from_list(groups, Group.display_str, "Valj grupp")
+            if not selected:
+                return
+            entity_id = selected.name
+
+        opinions = self._opinion_repo.list_for_entity(entity_id, entity_type)
+        if not opinions:
+            self._ui.display.error("Inga opinions hittades")
+            return
+
+        display_fn = lambda o: (
+            f"{o.claim_id}: {o.claim_content[:40]}... "
+            f"(belief: {o.belief_in}, openness: {o.openness})"
+        )
+        opinion = self._ui.select_from_list(opinions, display_fn, "Valj opinion")
+        if not opinion:
+            return
+
+        self._ui.display.info(f"Nuvarande belief_in: {opinion.belief_in}")
+        self._ui.display.info(f"Nuvarande openness: {opinion.openness}")
+
+        belief_in = self._ui.prompt_float("ny belief_in")
+        openness = self._ui.prompt_float("ny openness")
+
+        if self._opinion_repo.update(
+            entity_id,
+            entity_type,
+            opinion.claim_id,
+            belief_in,
+            openness,
+        ):
+            self._ui.display.success(
+                f"Opinion uppdaterad for {opinion.claim_id} "
+                f"(belief: {belief_in}, openness: {openness})"
+            )
+        else:
+            self._ui.display.error("Kunde inte uppdatera opinion")
+
+
 class DeleteOpinionCommand(Command):
     def __init__(self, npc_repo: NPCRepo, group_repo: GroupRepo,
                  opinion_repo: OpinionRepo, ui: InputHelpers) -> None:

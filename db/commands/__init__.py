@@ -3,7 +3,10 @@ from .npc_commands import CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, Li
 from .group_commands import CreateGroupCommand, DeleteGroupCommand, ListGroupsCommand
 from .claim_commands import CreateClaimCommand, EditClaimCommand, DeleteClaimCommand, ListClaimsCommand
 from .constant_commands import CreateObjectCommand, CreatePlaceCommand, ListConstantsCommand
-from .opinion_commands import CreateOpinionCommand, DeleteOpinionCommand, ListOpinionsCommand
+from .opinion_commands import (
+    CreateOpinionCommand, EditOpinionCommand,
+    DeleteOpinionCommand, ListOpinionsCommand,
+)
 from .relation_commands import (
     CreateStructuralRelationCommand,
     CreateReferenceCommand,
@@ -22,7 +25,8 @@ __all__ = [
     "CreateGroupCommand", "DeleteGroupCommand", "ListGroupsCommand",
     "CreateClaimCommand", "EditClaimCommand", "DeleteClaimCommand", "ListClaimsCommand",
     "CreateObjectCommand", "CreatePlaceCommand", "ListConstantsCommand",
-    "CreateOpinionCommand", "DeleteOpinionCommand", "ListOpinionsCommand",
+    "CreateOpinionCommand", "EditOpinionCommand",
+    "DeleteOpinionCommand", "ListOpinionsCommand",
     "CreateStructuralRelationCommand",
     "CreateReferenceCommand", "CreateMembershipCommand", "DeleteMembershipCommand",
     "CreateMysteryCommand", "DeleteMysteryCommand", "ListMysteriesCommand",
