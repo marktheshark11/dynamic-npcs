@@ -50,7 +50,10 @@ def main():
             return
 
         print("\n=== NPC Response ===")
-        print(result)
+        for messages in result['messages']:
+            print(messages['role'])
+            print(messages['content'])
+        # print(result['messages'])
         print(result["response"])
     finally:
         config.close()

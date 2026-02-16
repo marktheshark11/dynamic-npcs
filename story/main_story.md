@@ -51,31 +51,75 @@
 ### Del 1: Uppladdning och ankomst
 - ~Ca en vecka före mordnatten: Pamela och Nils anländer till ön för sommarvistelse.
 - ~Morddagen kl 14:00-15:00: Beatrice och Wilhelm anländer till ön (storystart).
-- ~Morddagen kl 14:00-15:00: Mariana möter Beatrice och Wilhelm på bryggan.
-- ~Samtidigt: Pamela och Nils är kvar i slottet vid ankomsten.
-- Första scen efter ankomst: stel hälsning mellan Beatrice och Pamela; de låtsas vara trevliga men spänningen är tydlig.
-- ~14:20, stora hallen: Kort välkomstsamtal där alla håller god ton men testar varandra.
-- Samtalspunkt: Nils frågar stelt om resan och kommenterar att "nu behöver vi ordning vid middagen".
-- Samtalspunkt: Pamela säger att hon "redan har planerat en lugn kväll", vilket Beatrice tolkar som kontrollbehov.
-- Samtalspunkt: Wilhelm försöker lätta upp stämningen med skämt om familjens formella stil; ingen skrattar riktigt.
-- Undertext: Beatrice och Wilhelm känner att Pamela tagit för stor plats i huset; Beatrice håller respektfull ton mot Nils men blir tydligt triggad av Pamela.
+- ~Morddagen kl 14:00-15:00: Mariana möter Beatrice och Wilhelm på bryggan och kramar dem.
+
+Mariana, Beatrice och Wilhelm går upp till slottet och möts upp av Lord Nils och Pamela i slotts-hallen. Pamela meddelar att välkomstdrink serveras klockan 16:40 vid matbordet.
+
+Efter välkomsten går Beatrice och Wilhelm och lämnar sina väskor i deras rum och är på sina rum tills 16:40
+
+Mariana går till köket och börjar förebereda middagen. 
+
+Lord Nils går till sitt arbetsrum och sitter där tills 16:40
+
+Pamela förbereder drinkarna men blir avbruten av ett samtal. Hon går upp till sitt rum och tar samtalet. Hon går därefter ner till köket och avslutar drinkarna. 
+
+Vid 16:40 får Samtliga gäster varsin drink serverad. 
+
+Lord Nils välkomnar barnen och håller sitt tal. "Ni undrar varför jag har bjudit in alla er för denna helg. Information har kommit in som har gjort att jag behövt se över mitt testamente....."
+
+Herr Bergström anländer och avbryter Herr Nils tal som aldrig avslutas. Han är sen men blir välkomnad av familjen. 
+
 
 ### Del 2: Middagen
-- ~18:00: Middagen börjar.
+- ~17:00: Middagen börjar.
+
+Lord Nils sätter sig vid bordets ände. Beatrice och Wilhelm sitter på Lord Nils höger sida, Beatrice sitter närmast och Wilhelm längst bort. Pamela och Herr Bergström sitter på Lord Nils högra sida. Pamela sitter närmast och Herr Bergström längst bort. 
+
+Mariana kommer in matrummet och serverar middagen. Gästerna bjuds på Boeuf Wellington. 
+
+Stämningen under middagen är stel och det avbrutna talet ligger på folks hjärnor. 
+
+Herr Bergström drar ett skämt om ett nytt startup företag han har hört talats om, Pamela skrattar lite väl högt åt skämtet och delar blickar med varandra. Resterande middagsgäster noterar detta.
+
+Pamela och Herr Bergström frågar Wilhelm om hur det går på rehabcentret. Wilhelm konstaterar att han gjort framgång. 
+
+Beatrice - ??
+
+Lord Nils - ??
+
+Lägg till saker de säger under middagen..
+
+
 - Vid bordet: Nils, Pamela, Beatrice och Wilhelm (Herr Bergström ansluter från närliggande ö).
 - Mariana Martinez arbetar och rör sig mellan matsalen och köket under middagen.
-- Tonläge: social fasad utåt, men tydlig underliggande spänning.
 
-### Del 3: Mordet på Nils
+### Del 3: Efter middagen:
+
+- 20:00
+
+Mariana går och lägger sig och vilar efter att ha städat och diskat.
+
+Lord Nils och Herr Bergström mot arbetsrummet. Det hörs högljudda diskussioner genom slottets korridorer. 
+
+Pamela säger att hon känner sig dålig efter middagen och går och lägger sig. Hon vill inte bli störd. Det hon faktiskt gör är att "piffar" till sig. 
+
+Wilhelm går till sitt rum och tar substanser.
+
+Beatrice sätter sig i biblioteket och jobbar.
+
+### Del 4: Mordet på Nils
+
+Lord Nils kallar på Beatrice upp till arbetsrummet. 
+
 - ~22:00: Nils avslöjar för Beatrice att hon inte är hans biologiska dotter.
 - ~22:00: Beatrice knuffar stolen i affekt; Nils faller baklänges, slår i huvudet och dör.
 - Strax efter: Mariana hör smällen, går in, tar kontroll och skyddar Beatrice.
 - Senare under natten: Mariana arrangerar scenen för att peka mot Pamela (parfym + penna planteras).
 - ~05:00: Mariana "hittar" kroppen och startar det officiella narrativet.
 
-### Del 4: Efter Mordet
+### Del 5: Efter Mordet
 
-### Del 5: Kroppen hittas
+### Del 6: Kroppen hittas
 
 ## Perspektiv per karaktär (händelser i ordning)
 
@@ -147,3 +191,8 @@ Använd formatet:
 - [ ] Exakt händelsekedja i Del 4: Arvet
 - [ ] Perspektivlistor i tidsordning för Pamela, Bergström, Wilhelm
 - [ ] Första officiella versionen av dödsorsaken
+
+
+
+
+

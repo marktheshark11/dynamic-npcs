@@ -17,9 +17,10 @@ class InputHelpers:
         """Prompt for a non-empty string."""
         while True:
             value = input(f"{label}: ").strip()
-            if value:
-                return value
-            self.display.error("Vardet far inte vara tomt")
+            if not value:
+                value = ''
+            return value
+            # self.display.error("Vardet far inte vara tomt")
 
     def prompt_optional(self, label: str) -> Optional[str]:
         """Prompt for an optional string (empty = None)."""

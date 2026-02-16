@@ -11,6 +11,14 @@ from pydantic import BaseModel
 from db.config import Config
 from services.chat_service import ChatService
 
+class ChatResponse(BaseModel):
+    npc_id: str
+    response: str
+
+class ChatRequest(BaseModel):
+    npc_id: str
+    message: str
+    
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config = Config.from_env()
@@ -48,13 +56,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class ChatResponse(BaseModel):
-    npc_id: str
-    response: str
-
-class ChatRequest(BaseModel):
-    npc_id: str
-    message: str
 
 @app.middleware("http")
 async def check_api_key(request: Request, call_next: RequestResponseEndpoint) -> Response:

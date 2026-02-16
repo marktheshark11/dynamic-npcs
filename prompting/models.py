@@ -15,7 +15,7 @@ class NPCProfile:
 
 @dataclass
 class PromptPolicy:
-    brevity_instruction: str = "Svara kortfattat."
+    brevity_instruction: str = "Divergera inte från ämnet."
     character_instruction: str = "Hall dig till din karaktar."
     truthfulness_instruction: str = "Om information saknas, sag det tydligt."
     extra_rules: list[str] = field(default_factory=list)

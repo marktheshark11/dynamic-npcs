@@ -53,6 +53,7 @@ def main():
     print("CHAT MESSAGES:")
     print("=" * 50)
     for message in prompt_result.messages:
+        # print(message)
         print(f"[{message['role']}]\n{message['content']}\n")
     config.close()
 

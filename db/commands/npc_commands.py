@@ -18,9 +18,9 @@ class CreateNPCCommand(Command):
         name_val = self._ui.prompt("namn")
         age_val = self._ui.prompt_int("alder")
         personality_val = self._ui.prompt("personlighet")
-        backstory_val = self._ui.prompt("backstory")
+        status_val = self._ui.prompt("status (levande, dod, okand)")
 
-        npc = NPC(id=id_val, name=name_val, age=age_val, personality=personality_val, backstory=backstory_val)
+        npc = NPC(id=id_val, name=name_val, age=age_val, personality=personality_val, status=status_val)
         self._repo.create(npc)
         self._ui.display.success(f"NPC '{name_val}' skapad")
 
@@ -43,9 +43,9 @@ class EditNPCCommand(Command):
         name_val = self._ui.prompt_optional("namn")
         age_val = self._ui.prompt_optional_int("alder")
         personality_val = self._ui.prompt_optional("personlighet")
-        backstory_val = self._ui.prompt_optional("backstory")
+        status_val = self._ui.prompt_optional("status (levande, dod, okand)")
 
-        if self._repo.update(selected.id, name_val, age_val, personality_val, backstory_val):
+        if self._repo.update(selected.id, name_val, age_val, personality_val, status_val):
             self._ui.display.success(f"NPC '{selected.id}' uppdaterad")
         else:
             self._ui.display.error("Inga andringar gjorda")

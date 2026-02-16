@@ -7,10 +7,10 @@ class NPC:
     name: str
     age: int
     personality: str
-    backstory: str
+    status: str
 
     def display_str(self) -> str:
-        return f"ID: {self.id}, Namn: {self.name}, Alder: {self.age}, Personlighet: {self.personality}, Backstory: {self.backstory}"
+        return f"ID: {self.id}, Namn: {self.name}, Alder: {self.age}, Personlighet: {self.personality}, Status: {self.status}"
 
     def short_str(self) -> str:
         return f"ID: {self.id}, Namn: {self.name}"

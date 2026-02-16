@@ -8,14 +8,14 @@ class NPCRepo(BaseRepository):
     def create(self, npc: NPC) -> None:
         self._run(
             "MERGE (npc:NPC {id: $id}) "
-            "SET npc.name = $name, npc.age = $age, npc.personality = $personality, npc.backstory = $backstory",
-            id=npc.id, name=npc.name, age=npc.age, personality=npc.personality, backstory=npc.backstory,
+            "SET npc.name = $name, npc.age = $age, npc.personality = $personality, npc.status = $status",
+            id=npc.id, name=npc.name, age=npc.age, personality=npc.personality, status=npc.status,
         )
 
     def get_by_id(self, id: str) -> NPC | None:
         record = self._run_single(
             "MATCH (npc:NPC {id: $id}) "
-            "RETURN npc.id AS id, npc.name AS name, npc.age AS age, npc.personality AS personality, npc.backstory AS backstory",
+            "RETURN npc.id AS id, npc.name AS name, npc.age AS age, npc.personality AS personality, npc.status AS status",
             id=id,
         )
         if not record:
@@ -25,22 +25,22 @@ class NPCRepo(BaseRepository):
             name=record["name"],
             age=record["age"],
             personality=record["personality"],
-            backstory=record["backstory"]
+            status=record["status"]
         )
 
     def list_all(self) -> list[NPC]:
         records = self._run(
             "MATCH (npc:NPC) "
-            "RETURN npc.id AS id, npc.name AS name, npc.age AS age, npc.personality AS personality, npc.backstory AS backstory "
+            "RETURN npc.id AS id, npc.name AS name, npc.age AS age, npc.personality AS personality, npc.status AS status "
             "ORDER BY npc.id"
         )
         return [
-            NPC(id=r["id"], name=r["name"], age=r["age"], personality=r["personality"], backstory=r["backstory"])
+            NPC(id=r["id"], name=r["name"], age=r["age"], personality=r["personality"], status=r["status"])
             for r in records
         ]
 
     def update(self, id: str, name: str | None = None, age: int | None = None,
-               personality: str | None = None, backstory: str | None = None) -> bool:
+               personality: str | None = None, status: str | None = None) -> bool:
         set_clauses = []
         params: dict = {"id": id}
 
@@ -53,9 +53,12 @@ class NPCRepo(BaseRepository):
         if personality is not None:
             set_clauses.append("npc.personality = $personality")
             params["personality"] = personality
-        if backstory is not None:
-            set_clauses.append("npc.backstory = $backstory")
-            params["backstory"] = backstory
+        if status is not None:
+            set_clauses.append("npc.status = $status")
+            params["status"] = status
+        # if status is not None:
+        #     set_clauses.append("npc.status = $status")
+        #     params["status"] = status
 
         if not set_clauses:
             return False
