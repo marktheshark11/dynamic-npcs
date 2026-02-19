@@ -2,10 +2,10 @@ from .builder import PromptBuilder
 from .models import (
     NPCProfile,
     PromptBuildResult,
-    PromptPolicy,
     PromptRequest,
     RAGContext,
 )
+from .policy import DEFAULT_CHARACTER_RULES, PromptPolicy
 
 __all__ = [
     "PromptBuilder",
@@ -14,4 +14,5 @@ __all__ = [
     "PromptPolicy",
     "PromptRequest",
     "RAGContext",
+    "DEFAULT_CHARACTER_RULES",
 ]

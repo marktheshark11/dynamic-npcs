@@ -1,10 +1,10 @@
 from .models import (
     NPCProfile,
     PromptBuildResult,
-    PromptPolicy,
     PromptRequest,
     RAGContext,
 )
+from .policy import PromptPolicy
 from .sections import BehaviorSection, ContextSection, IdentitySection, TaskSection
 
 
