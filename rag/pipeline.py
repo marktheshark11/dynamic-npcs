@@ -1,45 +1,68 @@
 from .core import RAGCore
-from .utils import remove_duplicates
 from prompting import NPCProfile, PromptBuilder, PromptRequest, RAGContext
+
 
 class RAGPipeline:
     def __init__(self, driver, embed_model):
         self.core = RAGCore(driver, embed_model)
-        self.prompt_builder = PromptBuilder()
+        self.prompt_builder = PromptBuilder() 
 
-    def run(self, npc_id, question, top_k=5, min_refs=1):
-        npc_row = self.core.get_npc_profile(npc_id)
-        if not npc_row:
-            return None, []
-        npc_name = npc_row.get("name") or npc_id
-
-        # Steg 1: Semantisk sökning
+    def run(self, npc_id, question, top_k=7):
+        # 1. Grundsökning (Semantisk)
         top_claims = self.core.find_top_claims(npc_id, question, top_k=top_k)
-        # Steg 2: Hitta konstanter och relation-claims
-        claim_ids = [c["id"] for c in top_claims]
-        constants = self.core.get_constants_from_claims(claim_ids)
-        constant_ids = [c["id"] for c in constants]
-        relation_claims = self.core.find_relation_claims(npc_id, constant_ids, min_refs=min_refs)
-        # Steg 3: Kombinera och ta bort dubbletter
-        all_claims = top_claims + relation_claims
-        unique_claims = remove_duplicates(all_claims)
-        # Steg 4: Gruppera i kedjor och rendera
-        chain_metadata = self.core.build_claim_chains(unique_claims, npc_id)
-        # Steg 5 & 6: Bygg strukturerad prompt (messages-first)
-        non_relation = [c["content"] for c in chain_metadata if not c["is_relation"]]
-        relation = [c["content"] for c in chain_metadata if c["is_relation"]]
+        
+        # 2. Expandera för att hitta konstanter (PLACE, OBJECT, NPC, MYSTERY)
+        initial_ids = [c["id"] for c in top_claims]
+        all_expanded_claims, constants = self.core.expand_from_claims(initial_ids)
+        constant_ids = [c["id"] for c in constants if c["id"]]
+        
+        # 3. Hitta alla "kandidater" för relationer utifrån dina 4 kriterier:
+        rel_candidates = self.core.find_relational_candidates(npc_id, constant_ids)
+        rel_candidate_ids = {c["id"] for c in rel_candidates}
+        
+        # 4. Slå ihop allt och bygg kedjor (Logisk pussling)
+        all_unique = {c["id"]: c for c in (top_claims + all_expanded_claims + rel_candidates)}
+        chains = self.core.build_claim_chains(list(all_unique.values()), npc_id)
+        
+        # 5. Sortera: Kedjor > 1 eller fakta -> knowledge. Enstaka relationer -> relation_claims.
+        knowledge_final = []
+        relation_final = []
+        
+        for chain in chains:
+            # REGEL 1: Serier (längd > 1) går ALLTID till knowledge för kontext
+            if chain["chain_length"] > 1:
+                knowledge_final.append(chain["content"])
+            else:
+                # REGEL 2: Endast fristående claims där typen är exakt "relation" 
+                # går till relation_claims. Allt annat hamnar i knowledge.
+                if chain.get("has_relation_type") == True:
+                    relation_final.append(chain["content"])
+                else:
+                    knowledge_final.append(chain["content"])
+
+        # 6. Paketera för LLM-prompten
+        context = RAGContext(
+            knowledge_claims=knowledge_final,
+            relation_claims=relation_final,
+            metadata=constants
+        )
+        
+        npc_data = self.core.get_npc_profile(npc_id)
+        if not npc_data:
+            raise ValueError(f"NPC with ID '{npc_id}' not found.")
 
         profile = NPCProfile(
-            name=npc_name,
-            roleplay_as=npc_name,
-            personality=npc_row.get("personality"),
-            backstory=npc_row.get("backstory"),
+            name=npc_data["name"],
+            personality=npc_data.get("personality", ""),
+            backstory=npc_data.get("backstory", "")
         )
-        rag_context = RAGContext(
-            knowledge_claims=non_relation,
-            relation_claims=relation,
-            metadata=chain_metadata,
+
+        request = PromptRequest(question=question)
+
+        prompt_result = self.prompt_builder.build(
+            profile=profile,
+            rag_context=context,
+            request=request
         )
-        request = PromptRequest(question=question, answer_prefix=f"{npc_name.upper()}:")
-        prompt_result = self.prompt_builder.build(profile, rag_context, request)
-        return prompt_result, chain_metadata
+
+        return prompt_result, chains
