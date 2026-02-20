@@ -1,12 +1,12 @@
 from dotenv import load_dotenv
 import os
-from typing import Any
 from groq import Groq
 
 load_dotenv()
 
 # Initialize Groq client
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
 
 def chat(
     message: str | None = None,
@@ -15,13 +15,13 @@ def chat(
 ) -> str:
     """
     Send a message to the AI and get a response.
-    
+
     Args:
         message: The message to send to the AI
         model: The model to use (default: llama-3.3-70b-versatile)
                Other options: mixtral-8x7b-32768, gemma2-9b-it
         messages: Optional chat messages array with role/content
-    
+
     Returns:
         The AI's response as a string
     """

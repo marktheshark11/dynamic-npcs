@@ -82,6 +82,7 @@ class RAGCore:
                 YIELD node, score
                 WHERE elementId(node) IN $accessible_ids
                 RETURN elementId(node) AS id, 
+                        node.claim_id AS claim_id,
                        node.content AS content, 
                        node.type AS type,
                        score
@@ -89,6 +90,7 @@ class RAGCore:
             """, query_vector=query_embedding, accessible_ids=accessible_ids, top_k=top_k)
             return [{
                 "id": r["id"],
+                "claim_id": r["claim_id"],
                 "content": r["content"],
                 "type": r["type"],
                 "score": r["score"]
@@ -169,6 +171,7 @@ class RAGCore:
                      COALESCE(o.openness, go.openness) AS openness
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.content AS content,
+                       ref.claim_id AS claim_id,
                        ref.type AS type,
                        depth,
                        belief_in,
@@ -185,6 +188,7 @@ class RAGCore:
                      o.belief_in AS belief_in,
                      o.openness AS openness
                 RETURN DISTINCT elementId(ref) AS id,
+                        ref.claim_id AS claim_id,
                        ref.content AS content,
                        ref.type AS type,
                        depth,
@@ -196,6 +200,7 @@ class RAGCore:
             result = session.run(query, claim_id=claim_id, npc_id=npc_id)
             return [{
                 "id": r["id"],
+                "claim_id": r["claim_id"],
                 "content": r["content"],
                 "type": r["type"],
                 "depth": r["depth"],
@@ -227,6 +232,7 @@ class RAGCore:
             rendered_parts = []
             for c in chain:
                 rendered = Rendering.render_claim_static(
+                    c["claim_id"],
                     c["content"],
                     c["belief_in"],
                     c["openness"]

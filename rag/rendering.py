@@ -1,7 +1,7 @@
 class Rendering:
     @staticmethod
-    def render_claim_static(content, belief_in, openness):
-        text = content
+    def render_claim_static(c_id, content, belief_in, openness):
+        text = f"<{c_id}> {content}"
         b_value = abs(belief_in) if belief_in is not None else 1.0
         o_value = abs(openness) if openness is not None else 0.5
         opposite_signs = False
