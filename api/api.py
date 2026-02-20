@@ -21,6 +21,16 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None
     new_conversation: bool = False
+
+
+class ConversationSummaryRequest(BaseModel):
+    conversation_id: str
+
+
+class ConversationSummaryResponse(BaseModel):
+    conversation_id: str
+    summary: str
+    exchange_count: int
     
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -92,6 +102,27 @@ async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_cha
             conversation_id=result.get("conversation_id"),
             response=result["response"],
         )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/conversations/summarize", response_model=ConversationSummaryResponse)
+async def summarize_conversation(
+    payload: ConversationSummaryRequest,
+    chat_service: ChatService = Depends(get_chat_service),
+):
+    try:
+        result = chat_service.summarize_conversation(payload.conversation_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        return ConversationSummaryResponse(
+            conversation_id=result["conversation_id"],
+            summary=result["summary"],
+            exchange_count=result["exchange_count"],
+        )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

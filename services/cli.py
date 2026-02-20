@@ -37,6 +37,20 @@ def _select_conversation_mode() -> str:
         print("Invalid selection, try again.")
 
 
+def _summarize_and_print(chat_service: ChatService, conversation_id: str | None) -> None:
+    if not conversation_id:
+        return
+
+    result = chat_service.summarize_conversation(conversation_id)
+    if not result:
+        print(f"Could not summarize conversation: {conversation_id}")
+        return
+
+    print("\n=== Conversation Summary ===")
+    print(f"Conversation ID: {result['conversation_id']}")
+    print(result["summary"])
+
+
 def main():
     config = Config.from_env()
     driver = config.driver
@@ -72,8 +86,10 @@ def main():
 
             lowered = question.lower()
             if lowered == "exit":
+                _summarize_and_print(chat_service, conversation_id)
                 break
             if lowered == "new":
+                _summarize_and_print(chat_service, conversation_id)
                 conversation_id = None
                 next_turn_new_conversation = True
                 print("Starting a new conversation on your next question.")

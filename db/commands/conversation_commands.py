@@ -76,3 +76,34 @@ class DeleteAllConversationsCommand(Command):
             return
 
         self._ui.display.success(f"Tog bort {deleted_count} konversationer")
+
+
+class SummarizeConversationCommand(Command):
+    def __init__(self, repo: ConversationRepo, chat_service, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._chat_service = chat_service
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Summera en konversation"
+
+    def execute(self) -> None:
+        conversations = self._repo.list_conversations()
+        selected = self._ui.select_from_list(
+            conversations,
+            _conversation_display,
+            "Valj konversation att summera",
+        )
+        if not selected:
+            return
+
+        conversation_id = selected["conv_id"]
+        result = self._chat_service.summarize_conversation(conversation_id)
+        if not result:
+            self._ui.display.error("Kunde inte summera konversationen")
+            return
+
+        self._ui.display.success(f"Konversation '{conversation_id}' summerad")
+        self._ui.display.info("Sammanfattning:")
+        self._ui.display.info(result["summary"])

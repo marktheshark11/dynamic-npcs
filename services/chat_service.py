@@ -38,6 +38,67 @@ class ChatService:
                 break
         return updated_messages
 
+    @staticmethod
+    def _format_all_exchanges_for_summary(exchanges):
+        if not exchanges:
+            return "(Inga exchanges i konversationen)"
+
+        lines = []
+        for exchange in exchanges:
+            turn_index = exchange.get("turn_index")
+            player_text = exchange.get("player_text") or ""
+            npc_text = exchange.get("npc_text") or ""
+            lines.append(f"Turn {turn_index} - Detektiven: {player_text}")
+            lines.append(f"Turn {turn_index} - NPC: {npc_text}")
+        return "\n".join(lines)
+
+    def summarize_conversation(self, conversation_id, model=None):
+        from llms.llm_groq import chat as groq_chat
+
+        conversation = self.conversation_repo.get_conversation(conversation_id)
+        if not conversation:
+            return None
+
+        exchanges = self.conversation_repo.list_exchanges(conversation_id)
+        transcript = self._format_all_exchanges_for_summary(exchanges)
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Du summerar en konversation mellan en detektiv och dig själv. "
+                    "Skriv en kort, tydlig sammanfattning på svenska i max 3 meningar från ditt perspektiv. "
+                    "Ta med allt som skulle vara viktigt för karaktären. "
+                    "Undvik fluff och upprepningar."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Konversation: {conversation_id}\n"
+                    f"NPC ID: {conversation.get('npc_id')}\n\n"
+                    f"{transcript}"
+                ),
+            },
+        ]
+
+        summary = groq_chat(
+            messages=messages,
+            model=model or self.default_model,
+        ).strip()
+        if not summary:
+            summary = "Ingen sammanfattning kunde genereras."
+
+        updated = self.conversation_repo.update_summary(conversation_id, summary)
+        if not updated:
+            return None
+
+        return {
+            "conversation_id": conversation_id,
+            "summary": summary,
+            "exchange_count": len(exchanges),
+        }
+
     def _resolve_conversation_id(self, npc_id, conversation_id=None, new_conversation=False):
         if new_conversation or not conversation_id:
             return self.conversation_repo.create_conversation(npc_id)

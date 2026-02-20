@@ -18,8 +18,10 @@ from .commands import (
     LinkClaimToMysteryCommand, UnlinkClaimFromMysteryCommand,
     ListClaimsByMysteryCommand,
     ListConversationsCommand, DeleteConversationCommand, DeleteAllConversationsCommand,
+    SummarizeConversationCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
+from services.chat_service import ChatService
 
 
 class App:
@@ -38,6 +40,7 @@ class App:
         self._relation_repo = RelationRepo(config.driver)
         self._mystery_repo = MysteryRepo(config.driver)
         self._conversation_repo = ConversationRepo(config.driver)
+        self._chat_service = ChatService(config.driver, config.embed_model)
 
         # UI
         self._ui = InputHelpers()
@@ -126,6 +129,7 @@ class App:
             ]),
             SubMenu("Konversationer", [
                 ListConversationsCommand(self._conversation_repo, ui),
+                SummarizeConversationCommand(self._conversation_repo, self._chat_service, ui),
                 DeleteConversationCommand(self._conversation_repo, ui),
                 DeleteAllConversationsCommand(self._conversation_repo, ui),
             ]),

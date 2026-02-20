@@ -25,6 +25,7 @@ from .conversation_commands import (
     ListConversationsCommand,
     DeleteConversationCommand,
     DeleteAllConversationsCommand,
+    SummarizeConversationCommand,
 )
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "LinkClaimToMysteryCommand", "UnlinkClaimFromMysteryCommand",
     "ListClaimsByMysteryCommand",
     "ListConversationsCommand", "DeleteConversationCommand", "DeleteAllConversationsCommand",
+    "SummarizeConversationCommand",
 ]

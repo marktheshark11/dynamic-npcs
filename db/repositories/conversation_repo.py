@@ -48,17 +48,19 @@ class ConversationRepo(BaseRepository):
     def get_conversation(self, conversation_id: str) -> dict | None:
         record = self._run_single(
             "MATCH (c:CONVERSATION {conv_id: $conversation_id}) "
-            "RETURN c.conv_id AS conv_id, c.npc_id AS npc_id, "
-            "c.created_at AS created_at",
+            "RETURN properties(c) AS props",
             conversation_id=conversation_id,
         )
         if not record:
             return None
+        props = record.get("props") or {}
         return {
-            "conv_id": record["conv_id"],
-            "npc_id": record["npc_id"],
-            "created_at": record.get("created_at"),
-            "ended_at": None,
+            "conv_id": props.get("conv_id"),
+            "npc_id": props.get("npc_id"),
+            "created_at": props.get("created_at"),
+            "ended_at": props.get("ended_at"),
+            "summary": props.get("summary"),
+            "summary_updated_at": props.get("summary_updated_at"),
         }
 
     def append_exchange(self, conversation_id: str, player_text: str, npc_text: str) -> str | None:
@@ -207,3 +209,14 @@ class ConversationRepo(BaseRepository):
         self._run("MATCH (e:EXCHANGE) DETACH DELETE e")
         self._run("MATCH (c:CONVERSATION) DETACH DELETE c")
         return count
+
+    def update_summary(self, conversation_id: str, summary: str) -> bool:
+        record = self._run_single(
+            "MATCH (c:CONVERSATION {conv_id: $conversation_id}) "
+            "SET c.summary = $summary, c.summary_updated_at = $updated_at "
+            "RETURN c.conv_id AS conv_id",
+            conversation_id=conversation_id,
+            summary=summary,
+            updated_at=_now_utc_iso(),
+        )
+        return record is not None
