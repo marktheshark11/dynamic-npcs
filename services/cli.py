@@ -23,6 +23,20 @@ def _select_npc_interactive(npcs):
         print("Invalid selection, try again.")
 
 
+def _select_conversation_mode() -> str:
+    print("\nConversation mode:")
+    print("  1. Start new conversation")
+    print("  2. Continue existing conversation")
+
+    while True:
+        value = input("Choose mode (1-2): ").strip()
+        if value == "1":
+            return "new"
+        if value == "2":
+            return "continue"
+        print("Invalid selection, try again.")
+
+
 def main():
     config = Config.from_env()
     driver = config.driver
@@ -39,22 +53,58 @@ def main():
             return
 
         npc_id = _select_npc_interactive(npcs)
-        question = input("Question: ").strip()
+        mode = _select_conversation_mode()
+        conversation_id = None
+        next_turn_new_conversation = mode == "new"
 
-        result = chat_service.ask_npc(
-            npc_id=npc_id,
-            question=question,
-        )
-        if not result:
-            print("No response.")
-            return
+        if mode == "continue":
+            value = input("Conversation ID (leave empty to start new): ").strip()
+            if value:
+                conversation_id = value
+            else:
+                next_turn_new_conversation = True
 
-        print("\n=== NPC Response ===")
-        for messages in result['messages']:
-            print(messages['role'])
-            print(messages['content'])
-        # print(result['messages'])
-        print(result["response"])
+        while True:
+            question = input("Question (new/exit): ").strip()
+
+            if not question:
+                continue
+
+            lowered = question.lower()
+            if lowered == "exit":
+                break
+            if lowered == "new":
+                conversation_id = None
+                next_turn_new_conversation = True
+                print("Starting a new conversation on your next question.")
+                continue
+
+            result = chat_service.ask_npc(
+                npc_id=npc_id,
+                question=question,
+                conversation_id=conversation_id,
+                new_conversation=next_turn_new_conversation,
+            )
+            next_turn_new_conversation = False
+
+            if not result:
+                print("No response.")
+                continue
+
+            previous_conversation_id = conversation_id
+            conversation_id = result.get("conversation_id")
+
+            print("\n=== NPC Response ===")
+            for messages in result['messages']:
+                print(messages['role'])
+                print(messages['content'])
+            print(result["response"])
+
+            if conversation_id:
+                if previous_conversation_id and previous_conversation_id != conversation_id:
+                    print(f"Conversation switched to: {conversation_id}")
+                else:
+                    print(f"Conversation ID: {conversation_id}")
     finally:
         config.close()
 

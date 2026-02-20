@@ -2,7 +2,7 @@ from .config import Config
 from .services import EmbeddingService
 from .repositories import (
     NPCRepo, GroupRepo, ClaimRepo, ConstantRepo, OpinionRepo, RelationRepo,
-    MysteryRepo,
+    MysteryRepo, ConversationRepo,
 )
 from .commands import (
     CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, ListNPCsCommand,
@@ -17,6 +17,7 @@ from .commands import (
     CreateMysteryCommand, DeleteMysteryCommand, ListMysteriesCommand,
     LinkClaimToMysteryCommand, UnlinkClaimFromMysteryCommand,
     ListClaimsByMysteryCommand,
+    ListConversationsCommand, DeleteConversationCommand, DeleteAllConversationsCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
 
@@ -36,6 +37,7 @@ class App:
         self._opinion_repo = OpinionRepo(config.driver)
         self._relation_repo = RelationRepo(config.driver)
         self._mystery_repo = MysteryRepo(config.driver)
+        self._conversation_repo = ConversationRepo(config.driver)
 
         # UI
         self._ui = InputHelpers()
@@ -121,6 +123,11 @@ class App:
                     self._mystery_repo, self._claim_repo, ui,
                 ),
                 ListClaimsByMysteryCommand(self._mystery_repo, ui),
+            ]),
+            SubMenu("Konversationer", [
+                ListConversationsCommand(self._conversation_repo, ui),
+                DeleteConversationCommand(self._conversation_repo, ui),
+                DeleteAllConversationsCommand(self._conversation_repo, ui),
             ]),
         ])
 

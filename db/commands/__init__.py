@@ -21,6 +21,11 @@ from .mystery_commands import (
     LinkClaimToMysteryCommand, UnlinkClaimFromMysteryCommand,
     ListClaimsByMysteryCommand,
 )
+from .conversation_commands import (
+    ListConversationsCommand,
+    DeleteConversationCommand,
+    DeleteAllConversationsCommand,
+)
 
 __all__ = [
     "Command",
@@ -36,4 +41,5 @@ __all__ = [
     "CreateMysteryCommand", "DeleteMysteryCommand", "ListMysteriesCommand",
     "LinkClaimToMysteryCommand", "UnlinkClaimFromMysteryCommand",
     "ListClaimsByMysteryCommand",
+    "ListConversationsCommand", "DeleteConversationCommand", "DeleteAllConversationsCommand",
 ]

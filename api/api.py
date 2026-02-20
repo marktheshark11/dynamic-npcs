@@ -13,11 +13,14 @@ from services.chat_service import ChatService
 
 class ChatResponse(BaseModel):
     npc_id: str
+    conversation_id: str | None = None
     response: str
 
 class ChatRequest(BaseModel):
     npc_id: str
     message: str
+    conversation_id: str | None = None
+    new_conversation: bool = False
     
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -76,10 +79,19 @@ async def health_check():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_chat_service)):
     try:
-        result = chat_service.ask_npc(npc_id=payload.npc_id, question=payload.message)
+        result = chat_service.ask_npc(
+            npc_id=payload.npc_id,
+            question=payload.message,
+            conversation_id=payload.conversation_id,
+            new_conversation=payload.new_conversation,
+        )
         if not result:
             return ChatResponse(npc_id=payload.npc_id, response="No response")
-        return ChatResponse(npc_id=payload.npc_id, response=result["response"])
+        return ChatResponse(
+            npc_id=payload.npc_id,
+            conversation_id=result.get("conversation_id"),
+            response=result["response"],
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
