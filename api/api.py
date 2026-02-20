@@ -72,6 +72,9 @@ app.add_middleware(
 
 @app.middleware("http")
 async def check_api_key(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
     if request.url.path in {"/health", "/docs", "/openapi.json", "/redoc"}:
         return await call_next(request)
 
