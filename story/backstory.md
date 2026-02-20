@@ -16,3 +16,15 @@ Silvia Wolmarsson växte upp med starkt socialt kapital men också egna principe
 
 ## Beatrice Wolmarsson
 
+
+
+## Herr Bergström
+Herr Bergström kommer från en välbeställd men inte adlig familj. Ändå har han hela sitt vuxna liv rört sig i just de kretsarna, och lärt sig att passa in utan att någonsin riktigt tillhöra.
+
+Han byggde sin advokatbyrå genom hårt arbete och en förmåga att vara exakt den person klienten behöver: diskret, pålitlig och aldrig nyfiken på mer än nödvändigt. Det var så han vann Nils förtroende. Det som började som ett professionellt förhållande har med åren blivit något som liknar vänskap, mest på Nils villkor, men Bergström har aldrig haft något emot det.
+
+Som Nils personliga advokat är han den som vet mest om familjens ekonomi, testamente och juridik. En tyst makt han sällan behöver påminna någon om.
+
+Hans sommarhus på Mjölkö ligger en kort seglats från Söderskär, och det är där han träffade Pamela. Sedan dess har de en relation som förs bakom Nils rygg, instoppad i kanterna av möten och middagar där Bergström egentligen är på plats i egenskap av advokat. Han förstår precis vad som står på spel. Han gör det ändå.
+
+Utåt är han charmig och bekväm att ha i rummet, alltid med rätt skämt vid rätt tillfälle. Men han är inte varm, och hans lojalitet har alltid ett pris. Han har en god känsla för när vinden börjar vända.
