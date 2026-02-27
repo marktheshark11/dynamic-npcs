@@ -127,26 +127,32 @@ class ChatService:
             "exchange_count": len(exchanges),
         }
 
-    def _resolve_conversation_id(self, npc_id, conversation_id=None, new_conversation=False):
-        if new_conversation or not conversation_id:
-            return self.conversation_repo.create_conversation(npc_id)
+    def _resolve_conversation_id(self, npc_id, conversation_id=None, player_id=None):
+        if not conversation_id:
+            return self.conversation_repo.create_conversation(npc_id, player_id=player_id)
 
         existing = self.conversation_repo.get_conversation(conversation_id)
         if not existing:
-            return self.conversation_repo.create_conversation(npc_id)
+            return self.conversation_repo.create_conversation(npc_id, player_id=player_id)
 
         if existing["npc_id"] != npc_id:
-            return self.conversation_repo.create_conversation(npc_id)
+            return self.conversation_repo.create_conversation(npc_id, player_id=player_id)
+
+        if player_id and existing.get("player_id") and existing.get("player_id") != player_id:
+            return self.conversation_repo.create_conversation(npc_id, player_id=player_id)
+
+        if player_id and not existing.get("player_id"):
+            self.conversation_repo.link_player(conversation_id, player_id)
 
         return conversation_id
 
-    def ask_npc(self, npc_id, question, model=None, conversation_id=None, new_conversation=False, player_id=None):
+    def ask_npc(self, npc_id, question, model=None, conversation_id=None, player_id=None):
         from llms.llm_groq import chat as groq_chat
 
         resolved_conversation_id = self._resolve_conversation_id(
             npc_id=npc_id,
             conversation_id=conversation_id,
-            new_conversation=new_conversation,
+            player_id=player_id,
         )
         if not resolved_conversation_id:
             return None

@@ -43,3 +43,25 @@ class EditPlayerCommand(Command):
             self._ui.display.success(f"Player '{selected.player_id}' uppdaterad")
         else:
             self._ui.display.error("Inga andringar gjorda")
+
+
+class DeletePlayerCommand(Command):
+    def __init__(self, repo: PlayerRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Ta bort en player"
+
+    def execute(self) -> None:
+        players = self._repo.list_all()
+        selected = self._ui.select_from_list(players, Player.display_str, "Alla players")
+        if not selected:
+            return
+
+        if self._ui.confirm(f"Ta bort player '{selected.player_id}'?"):
+            if self._repo.delete(selected.player_id):
+                self._ui.display.success(f"Player '{selected.player_id}' borttagen")
+            else:
+                self._ui.display.error("Kunde inte ta bort player")

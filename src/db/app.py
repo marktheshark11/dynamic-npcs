@@ -19,7 +19,7 @@ from .commands import (
     ListClaimsByMysteryCommand,
     ListConversationsCommand, DeleteConversationCommand, DeleteAllConversationsCommand,
     SummarizeConversationCommand,
-    CreatePlayerCommand, EditPlayerCommand,
+    CreatePlayerCommand, EditPlayerCommand, DeletePlayerCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
 from services.chat_service import ChatService
@@ -139,6 +139,7 @@ class App:
             SubMenu("Player", [
                 CreatePlayerCommand(self._player_repo, ui),
                 EditPlayerCommand(self._player_repo, ui),
+                DeletePlayerCommand(self._player_repo, ui),
             ]),
         ])
 

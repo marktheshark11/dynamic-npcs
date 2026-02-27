@@ -75,3 +75,24 @@ class PlayerRepo(BaseRepository):
         query = f"MATCH (p:PLAYER {{player_id: $player_id}}) SET {', '.join(set_clauses)} RETURN p"
         record = self._run_single(query, **params)
         return record is not None
+
+    def delete(self, player_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "RETURN p.player_id AS player_id",
+            player_id=player_id,
+        )
+        if not record:
+            return False
+
+        self._run(
+            "MATCH (p:PLAYER {player_id: $player_id})-[:HAS_CONVERSATION]->(c:CONVERSATION) "
+            "SET c.player_id = NULL",
+            player_id=player_id,
+        )
+        self._run(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "DETACH DELETE p",
+            player_id=player_id,
+        )
+        return True

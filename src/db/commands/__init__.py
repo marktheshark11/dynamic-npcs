@@ -28,7 +28,7 @@ from .conversation_commands import (
     DeleteAllConversationsCommand,
     SummarizeConversationCommand,
 )
-from .player_commands import CreatePlayerCommand, EditPlayerCommand
+from .player_commands import CreatePlayerCommand, EditPlayerCommand, DeletePlayerCommand
 
 __all__ = [
     "Command",
@@ -46,5 +46,5 @@ __all__ = [
     "ListClaimsByMysteryCommand",
     "ListConversationsCommand", "DeleteConversationCommand", "DeleteAllConversationsCommand",
     "SummarizeConversationCommand",
-    "CreatePlayerCommand", "EditPlayerCommand",
+    "CreatePlayerCommand", "EditPlayerCommand", "DeletePlayerCommand",
 ]

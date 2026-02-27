@@ -28,16 +28,22 @@ class ConversationRepo(BaseRepository):
 
         return f"conv_{max_num + 1}"
 
-    def create_conversation(self, npc_id: str) -> str | None:
+    def create_conversation(self, npc_id: str, player_id: str | None = None) -> str | None:
         conversation_id = self._next_conversation_id()
         record = self._run_single(
             "MATCH (npc:NPC {id: $npc_id}) "
+            "OPTIONAL MATCH (player:PLAYER {player_id: $player_id}) "
             "CREATE (c:CONVERSATION {"
             "conv_id: $conversation_id, npc_id: $npc_id, created_at: $created_at"
             "}) "
             "CREATE (npc)-[:HAS_CONVERSATION]->(c) "
+            "FOREACH (_ IN CASE WHEN player IS NULL THEN [] ELSE [1] END | "
+            "CREATE (player)-[:HAS_CONVERSATION]->(c) "
+            "SET c.player_id = player.player_id"
+            ") "
             "RETURN c.conv_id AS conv_id",
             npc_id=npc_id,
+            player_id=player_id,
             conversation_id=conversation_id,
             created_at=_now_utc_iso(),
         )
@@ -57,11 +63,24 @@ class ConversationRepo(BaseRepository):
         return {
             "conv_id": props.get("conv_id"),
             "npc_id": props.get("npc_id"),
+            "player_id": props.get("player_id"),
             "created_at": props.get("created_at"),
             "ended_at": props.get("ended_at"),
             "summary": props.get("summary"),
             "summary_updated_at": props.get("summary_updated_at"),
         }
+
+    def link_player(self, conversation_id: str, player_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (c:CONVERSATION {conv_id: $conversation_id}) "
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "MERGE (p)-[:HAS_CONVERSATION]->(c) "
+            "SET c.player_id = $player_id "
+            "RETURN c.conv_id AS conv_id",
+            conversation_id=conversation_id,
+            player_id=player_id,
+        )
+        return record is not None
 
     def append_exchange(self, conversation_id: str, player_text: str, npc_text: str) -> str | None:
         conversation_exists = self._run_single(
@@ -156,6 +175,7 @@ class ConversationRepo(BaseRepository):
             "OPTIONAL MATCH (c)-[:FIRST_EXCHANGE]->(first:EXCHANGE) "
             "OPTIONAL MATCH (first)-[:NEXT*0..]->(e:EXCHANGE) "
             "RETURN c.conv_id AS conv_id, c.npc_id AS npc_id, c.created_at AS created_at, "
+            "c.player_id AS player_id, "
             "count(DISTINCT e) AS exchange_count "
             "ORDER BY c.created_at DESC"
         )
@@ -163,6 +183,30 @@ class ConversationRepo(BaseRepository):
             {
                 "conv_id": r["conv_id"],
                 "npc_id": r["npc_id"],
+                "player_id": r.get("player_id"),
+                "created_at": r.get("created_at"),
+                "exchange_count": r.get("exchange_count", 0),
+            }
+            for r in records
+        ]
+
+    def list_for_npc_and_player(self, npc_id: str, player_id: str) -> list[dict]:
+        records = self._run(
+            "MATCH (npc:NPC {id: $npc_id})-[:HAS_CONVERSATION]->(c:CONVERSATION) "
+            "MATCH (player:PLAYER {player_id: $player_id})-[:HAS_CONVERSATION]->(c) "
+            "OPTIONAL MATCH (c)-[:FIRST_EXCHANGE]->(first:EXCHANGE) "
+            "OPTIONAL MATCH (first)-[:NEXT*0..]->(e:EXCHANGE) "
+            "RETURN c.conv_id AS conv_id, c.npc_id AS npc_id, c.player_id AS player_id, c.created_at AS created_at, "
+            "count(DISTINCT e) AS exchange_count "
+            "ORDER BY c.created_at DESC",
+            npc_id=npc_id,
+            player_id=player_id,
+        )
+        return [
+            {
+                "conv_id": r["conv_id"],
+                "npc_id": r["npc_id"],
+                "player_id": r.get("player_id"),
                 "created_at": r.get("created_at"),
                 "exchange_count": r.get("exchange_count", 0),
             }

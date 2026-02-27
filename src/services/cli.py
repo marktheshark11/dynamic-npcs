@@ -7,7 +7,7 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "rag"
 
 from db.config import Config
-from db.repositories import NPCRepo
+from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
 from chat_service import ChatService
 
 
@@ -37,6 +37,82 @@ def _select_conversation_mode() -> str:
         print("Invalid selection, try again.")
 
 
+def _select_player_mode() -> str:
+    print("\nPlayer mode:")
+    print("  1. Create new player")
+    print("  2. Use existing player")
+
+    while True:
+        value = input("Choose player mode (1-2): ").strip()
+        if value == "1":
+            return "new"
+        if value == "2":
+            return "existing"
+        print("Invalid selection, try again.")
+
+
+def _select_existing_player(player_repo: PlayerRepo):
+    players = player_repo.list_all()
+    if not players:
+        print("No players found. Create a new player instead.")
+        return None
+
+    print("\nAvailable Players:")
+    for idx, player in enumerate(players, 1):
+        print(f"  {idx}. {player.display_str()}")
+
+    while True:
+        value = input(f"Select player (1-{len(players)}): ").strip()
+        if value.isdigit() and 1 <= int(value) <= len(players):
+            return players[int(value) - 1]
+        print("Invalid selection, try again.")
+
+
+def _create_new_player(player_repo: PlayerRepo):
+    while True:
+        name = input("Player name: ").strip()
+        if name:
+            break
+        print("Name cannot be empty.")
+
+    while True:
+        appearance = input("Player appearance: ").strip()
+        if appearance:
+            break
+        print("Appearance cannot be empty.")
+
+    player = player_repo.create(name=name, appearance=appearance)
+    print(f"Created player: {player.display_str()}")
+    return player
+
+
+def _select_existing_conversation(
+    conversation_repo: ConversationRepo,
+    npc_id: str,
+    player_id: str,
+):
+    conversations = conversation_repo.list_for_npc_and_player(
+        npc_id=npc_id,
+        player_id=player_id,
+    )
+    if not conversations:
+        print("No existing conversations for this player and NPC. A new one will be created.")
+        return None
+
+    print("\nExisting conversations for selected player + NPC:")
+    for idx, conversation in enumerate(conversations, 1):
+        print(
+            f"  {idx}. {conversation['conv_id']} | created: {conversation.get('created_at')} "
+            f"| exchanges: {conversation.get('exchange_count', 0)}"
+        )
+
+    while True:
+        value = input(f"Select conversation (1-{len(conversations)}): ").strip()
+        if value.isdigit() and 1 <= int(value) <= len(conversations):
+            return conversations[int(value) - 1]["conv_id"]
+        print("Invalid selection, try again.")
+
+
 def _summarize_and_print(chat_service: ChatService, conversation_id: str | None) -> None:
     if not conversation_id:
         return
@@ -58,6 +134,8 @@ def main():
 
     try:
         npc_repo = NPCRepo(driver)
+        player_repo = PlayerRepo(driver)
+        conversation_repo = ConversationRepo(driver)
         chat_service = ChatService(driver, embed_model)
 
         npcs = npc_repo.list_for_selection()
@@ -67,16 +145,25 @@ def main():
             return
 
         npc_id = _select_npc_interactive(npcs)
+        player_mode = _select_player_mode()
+        if player_mode == "new":
+            selected_player = _create_new_player(player_repo)
+        else:
+            selected_player = _select_existing_player(player_repo)
+            if not selected_player:
+                selected_player = _create_new_player(player_repo)
+
+        player_id = selected_player.player_id
+
         mode = _select_conversation_mode()
         conversation_id = None
-        next_turn_new_conversation = mode == "new"
 
         if mode == "continue":
-            value = input("Conversation ID (leave empty to start new): ").strip()
-            if value:
-                conversation_id = value
-            else:
-                next_turn_new_conversation = True
+            conversation_id = _select_existing_conversation(
+                conversation_repo=conversation_repo,
+                npc_id=npc_id,
+                player_id=player_id,
+            )
 
         while True:
             question = input("Question (new/exit): ").strip()
@@ -91,17 +178,15 @@ def main():
             if lowered == "new":
                 _summarize_and_print(chat_service, conversation_id)
                 conversation_id = None
-                next_turn_new_conversation = True
                 print("Starting a new conversation on your next question.")
                 continue
 
             result = chat_service.ask_npc(
                 npc_id=npc_id,
                 question=question,
+                player_id=player_id,
                 conversation_id=conversation_id,
-                new_conversation=next_turn_new_conversation,
             )
-            next_turn_new_conversation = False
 
             if not result:
                 print("No response.")

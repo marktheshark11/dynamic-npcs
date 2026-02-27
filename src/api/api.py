@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from db.config import Config
 from services.chat_service import ChatService
+from db.repositories import PlayerRepo
 
 class ChatResponse(BaseModel):
     npc_id: str
@@ -21,7 +22,6 @@ class ChatRequest(BaseModel):
     message: str
     player_id: str | None = None
     conversation_id: str | None = None
-    new_conversation: bool = False
 
 
 class ConversationSummaryRequest(BaseModel):
@@ -32,6 +32,17 @@ class ConversationSummaryResponse(BaseModel):
     conversation_id: str
     summary: str
     exchange_count: int
+
+
+class CreatePlayerRequest(BaseModel):
+    name: str
+    appearance: str
+
+
+class CreatePlayerResponse(BaseModel):
+    player_id: str
+    name: str
+    appearance: str
     
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,6 +71,10 @@ app = FastAPI(
 
 def get_chat_service(request: Request) -> ChatService:
     return request.app.state.chat_service
+
+
+def get_config(request: Request) -> Config:
+    return request.app.state.config
 
 # Enable CORS for web frontend integration
 app.add_middleware(
@@ -98,7 +113,6 @@ async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_cha
             question=payload.message,
             player_id=payload.player_id,
             conversation_id=payload.conversation_id,
-            new_conversation=payload.new_conversation,
         )
         if not result:
             return ChatResponse(npc_id=payload.npc_id, response="No response")
@@ -128,6 +142,27 @@ async def summarize_conversation(
         )
     except HTTPException:
         raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/players", response_model=CreatePlayerResponse)
+async def create_player(payload: CreatePlayerRequest, config: Config = Depends(get_config)):
+    name = payload.name.strip()
+    appearance = payload.appearance.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name cannot be empty")
+    if not appearance:
+        raise HTTPException(status_code=400, detail="appearance cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        player = player_repo.create(name=name, appearance=appearance)
+        return CreatePlayerResponse(
+            player_id=player.player_id,
+            name=player.name,
+            appearance=player.appearance,
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
