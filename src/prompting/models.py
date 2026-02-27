@@ -11,6 +11,7 @@ class NPCProfile:
     personality: str | None = None
     backstory: str | None = None
     roleplay_as: str | None = None
+    story_background: str | None = None
 
 
 @dataclass

@@ -12,6 +12,8 @@ class IdentitySection:
             lines.append(f"Personlighet: {profile.personality}")
         if profile.backstory:
             lines.append(f"Bakgrund: {profile.backstory}")
+        if profile.story_background:
+            lines.append(f"Vad som har hänt: {profile.story_background}")
         # lines.append("“Svara kort. Max 1–2 meningar. Ingen självbiografi.”)")
         return "\n".join(lines)
 

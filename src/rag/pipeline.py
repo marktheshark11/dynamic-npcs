@@ -54,7 +54,8 @@ class RAGPipeline:
         profile = NPCProfile(
             name=npc_data["name"],
             personality=npc_data.get("personality", ""),
-            backstory=npc_data.get("backstory", "")
+            backstory=npc_data.get("backstory", ""),
+            story_background=npc_data.get("story_background", "")
         )
 
         request = PromptRequest(question=question)

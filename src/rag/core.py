@@ -27,7 +27,7 @@ class RAGCore:
         with self.driver.session() as session:
             record = session.run(
                 "MATCH (n:NPC {id: $npc_id}) "
-                "RETURN n.name AS name, n.personality AS personality, n.backstory AS backstory "
+                "RETURN n.name AS name, n.personality AS personality, n.backstory AS backstory, n.story_background AS story_background "
                 "LIMIT 1",
                 npc_id=npc_id,
             ).single()
@@ -37,6 +37,7 @@ class RAGCore:
                 "name": record["name"],
                 "personality": record.get("personality"),
                 "backstory": record.get("backstory"),
+                "story_background": record.get("story_background"),
             }
 
     def find_top_claims(self, npc_id, query, top_k=5):
