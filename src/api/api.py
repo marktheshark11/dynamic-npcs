@@ -19,6 +19,7 @@ class ChatResponse(BaseModel):
 class ChatRequest(BaseModel):
     npc_id: str
     message: str
+    player_id: str | None = None
     conversation_id: str | None = None
     new_conversation: bool = False
 
@@ -95,6 +96,7 @@ async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_cha
         result = chat_service.ask_npc(
             npc_id=payload.npc_id,
             question=payload.message,
+            player_id=payload.player_id,
             conversation_id=payload.conversation_id,
             new_conversation=payload.new_conversation,
         )

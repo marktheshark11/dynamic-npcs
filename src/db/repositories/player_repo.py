@@ -28,6 +28,20 @@ class PlayerRepo(BaseRepository):
         )
         return Player(player_id=player_id, name=name, appearance=appearance)
 
+    def get_profile_by_id(self, player_id: str) -> dict | None:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "RETURN p.name AS name, p.appearance AS appearance "
+            "LIMIT 1",
+            player_id=player_id,
+        )
+        if not record:
+            return None
+        return {
+            "name": record["name"],
+            "appearance": record.get("appearance"),
+        }
+
     def list_all(self) -> list[Player]:
         records = self._run(
             "MATCH (p:PLAYER) "

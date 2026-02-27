@@ -1,11 +1,12 @@
 from rag.pipeline import RAGPipeline
-from db.repositories import ConversationRepo
+from db.repositories import ConversationRepo, PlayerRepo
 
 
 class ChatService:
     def __init__(self, driver, embed_model, default_model="llama-3.3-70b-versatile"):
         self.pipeline = RAGPipeline(driver, embed_model)
         self.conversation_repo = ConversationRepo(driver)
+        self.player_repo = PlayerRepo(driver)
         self.default_model = default_model
 
     def build_prompt(self, npc_id, question):
@@ -35,6 +36,33 @@ class ChatService:
             if message.get("role") == "user":
                 current = message.get("content") or ""
                 message["content"] = f"{recent_block}\n\n{current}"
+                break
+        return updated_messages
+
+    @staticmethod
+    def _format_player_context(player_profile: dict) -> str:
+        name = player_profile.get("name") or "Okand"
+        appearance = player_profile.get("appearance") or "Okant"
+        return (
+            "DETTA VET DU OM DETEKTIVEN:\n"
+            f"- Namn: {name}\n"
+            f"- Utseende: {appearance}"
+        )
+
+    def _inject_player_profile(self, messages, player_id=None):
+        if not player_id:
+            return messages
+
+        player_profile = self.player_repo.get_profile_by_id(player_id)
+        if not player_profile:
+            return messages
+
+        player_block = self._format_player_context(player_profile)
+        updated_messages = [dict(message) for message in messages]
+        for message in updated_messages:
+            if message.get("role") == "user":
+                current = message.get("content") or ""
+                message["content"] = f"{player_block}\n\n{current}"
                 break
         return updated_messages
 
@@ -112,7 +140,7 @@ class ChatService:
 
         return conversation_id
 
-    def ask_npc(self, npc_id, question, model=None, conversation_id=None, new_conversation=False):
+    def ask_npc(self, npc_id, question, model=None, conversation_id=None, new_conversation=False, player_id=None):
         from llms.llm_groq import chat as groq_chat
 
         resolved_conversation_id = self._resolve_conversation_id(
@@ -134,9 +162,13 @@ class ChatService:
             prompt_result.messages,
             resolved_conversation_id,
         )
+        messages_with_full_context = self._inject_player_profile(
+            messages_with_recent_context,
+            player_id,
+        )
 
         response_text = groq_chat(
-            messages=messages_with_recent_context,
+            messages=messages_with_full_context,
             model=model or self.default_model,
         )
 
@@ -150,7 +182,7 @@ class ChatService:
             "npc_id": npc_id,
             "conversation_id": resolved_conversation_id,
             "response": response_text,
-            "messages": messages_with_recent_context,
+            "messages": messages_with_full_context,
             "flat_prompt": prompt_result.flat_prompt,
             "chain_metadata": chain_metadata,
         }
