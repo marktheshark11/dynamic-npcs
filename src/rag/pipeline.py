@@ -1,5 +1,5 @@
 from .core import RAGCore
-from prompting import NPCProfile, PromptBuilder, PromptRequest, RAGContext
+from prompt_builder import NPCProfile, PromptBuilder, PromptRequest, RAGContext
 
 
 class RAGPipeline:
