@@ -31,7 +31,7 @@ class Rendering:
     def build_prompt(self, npc_name, chain_metadata, question):
         non_relation = [c for c in chain_metadata if not c["is_relation"]]
         relation = [c for c in chain_metadata if c["is_relation"]]
-        prompt = f"SYSTEM: Du ar {npc_name}. Svara kortfattat och hall dig till din karaktar.\n\n"
+        prompt = f"SYSTEM: Du är {npc_name}. Svara kortfattat och håll dig till din karaktär.\n\n"
         prompt += "DIN KUNSKAP OM FRÅGAN:\n"
         if non_relation:
             for c in non_relation:

@@ -7,7 +7,7 @@ class IdentitySection:
     @staticmethod
     def render(profile: NPCProfile) -> str:
         role_name = profile.roleplay_as or profile.name
-        lines = [f"Du ar {role_name}."]
+        lines = [f"Du är {role_name}."]
         if profile.personality:
             lines.append(f"Personlighet: {profile.personality}")
         if profile.backstory:
@@ -39,8 +39,8 @@ class DetectiveContextSection:
         blocks = []
 
         if request.player_name or request.player_appearance:
-            player_name = request.player_name or "Okand"
-            player_appearance = request.player_appearance or "Okant"
+            player_name = request.player_name or "Okänd"
+            player_appearance = request.player_appearance or "Okänt"
             blocks.append(
                 "DETTA VET DU OM DETEKTIVEN:\n"
                 f"- Namn: {player_name}\n"
@@ -66,7 +66,7 @@ class TaskSection:
     def render(request: PromptRequest) -> str:
         suffix = request.answer_prefix or "SVAR:"
         return (
-            "ANVANDARENS FRAGA (ORDAGRANT):\n"
+            "ANVÄNDARENS FRÅGA (ORDAGRANT):\n"
             "<QUESTION>\n"
             f"{request.question}\n"
             "</QUESTION>\n"

@@ -7,6 +7,7 @@ Operational guidance for coding agents in `C:\Repos\Dynamic-NPCs`.
 - Follow existing patterns in `src/`.
 - Treat `test_old/` as legacy unless explicitly requested.
 - Preserve existing Swedish domain text unless asked to change language.
+- Use proper Swedish characters (`å`, `ä`, `ö`) in Swedish-facing text (prompts, UI labels, messages, docs).
 
 ## Project layout
 - `src/api/` - FastAPI app and HTTP middleware.
@@ -117,7 +118,7 @@ python -m db.seeds.otroheten
 - `services/chat_service.py` may collect data (player profile, recent exchanges, ids), but should not manually inject/concatenate prompt text.
 - `system` message contains all operational context and rules:
   - character identity
-  - behavior/policy rules
+  - rules/policy
   - world/RAG context
   - detective/player context
   - recent conversation context

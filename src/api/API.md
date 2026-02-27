@@ -50,7 +50,7 @@ Example request (continue existing conversation):
 ```json
 {
   "npc_id": "npc_1",
-  "message": "Beratta mer.",
+  "message": "Berätta mer.",
   "player_id": "player_1",
   "conversation_id": "conv_3"
 }
@@ -97,7 +97,7 @@ Request:
 ```json
 {
   "name": "Kalle",
-  "appearance": "Lang, brun kappa"
+  "appearance": "Lång, brun kappa"
 }
 ```
 
@@ -107,6 +107,6 @@ Response:
 {
   "player_id": "player_4",
   "name": "Kalle",
-  "appearance": "Lang, brun kappa"
+  "appearance": "Lång, brun kappa"
 }
 ```
