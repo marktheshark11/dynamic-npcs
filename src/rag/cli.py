@@ -7,9 +7,9 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "rag"
 
 from db.config import Config
+from db.repositories import NPCRepo
 
 from .pipeline import RAGPipeline
-from services.npc_service import NPCService
 
 def select_from_menu(prompt, options):
     print(f"\n{prompt}")
@@ -26,11 +26,11 @@ def main():
     driver = config.driver
     embed_model = config.embed_model
     pipeline = RAGPipeline(driver, embed_model)
-    npc_service = NPCService(driver)
+    npc_repo = NPCRepo(driver)
     print("=" * 50)
     print("         HITTA INFO")
     print("=" * 50)
-    npcs = npc_service.list_npcs()
+    npcs = npc_repo.list_for_selection()
     if not npcs:
         print("\n⚠ Inga NPCs hittades")
         return

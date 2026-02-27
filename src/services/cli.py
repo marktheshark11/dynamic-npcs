@@ -7,8 +7,8 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "rag"
 
 from db.config import Config
+from db.repositories import NPCRepo
 from chat_service import ChatService
-from npc_service import NPCService
 
 
 def _select_npc_interactive(npcs):
@@ -57,10 +57,10 @@ def main():
     embed_model = config.embed_model
 
     try:
-        npc_service = NPCService(driver)
+        npc_repo = NPCRepo(driver)
         chat_service = ChatService(driver, embed_model)
 
-        npcs = npc_service.list_npcs()
+        npcs = npc_repo.list_for_selection()
 
         if not npcs:
             print("No NPCs found.")

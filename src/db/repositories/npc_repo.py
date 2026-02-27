@@ -39,6 +39,52 @@ class NPCRepo(BaseRepository):
             for r in records
         ]
 
+    def list_for_selection(self) -> list[dict]:
+        records = self._run(
+            "MATCH (n:NPC) "
+            "RETURN n.id AS id, n.name AS name, n.age AS age "
+            "ORDER BY n.name"
+        )
+        return [
+            {"id": r["id"], "name": r["name"], "age": r.get("age")}
+            for r in records
+        ]
+
+    def get_detail_by_id(self, npc_id: str) -> dict | None:
+        record = self._run_single(
+            "MATCH (n:NPC {id: $npc_id}) "
+            "RETURN n.id AS id, n.name AS name, n.age AS age, "
+            "n.personality AS personality, n.backstory AS backstory, n.story_background AS story_background "
+            "LIMIT 1",
+            npc_id=npc_id,
+        )
+        if not record:
+            return None
+        return {
+            "id": record["id"],
+            "name": record["name"],
+            "age": record.get("age"),
+            "personality": record.get("personality"),
+            "backstory": record.get("backstory"),
+            "story_background": record.get("story_background"),
+        }
+
+    def get_profile_by_id(self, npc_id: str) -> dict | None:
+        record = self._run_single(
+            "MATCH (n:NPC {id: $npc_id}) "
+            "RETURN n.name AS name, n.personality AS personality, n.backstory AS backstory, n.story_background AS story_background "
+            "LIMIT 1",
+            npc_id=npc_id,
+        )
+        if not record:
+            return None
+        return {
+            "name": record["name"],
+            "personality": record.get("personality"),
+            "backstory": record.get("backstory"),
+            "story_background": record.get("story_background"),
+        }
+
     def update(self, id: str, name: str | None = None, age: int | None = None,
                personality: str | None = None, status: str | None = None) -> bool:
         set_clauses = []

@@ -143,6 +143,7 @@ python -m db.seeds.otroheten
 
 ### Neo4j and query safety
 - Keep Cypher in repository/command layers, not scattered through UI/API code.
+- all Cypher queries must go through `db/repositories/` (or `db/commands/` for CLI command flows), never directly from `services/`, `rag/`, or API handlers.
 - Always use parameterized queries (`$param`).
 - Do not concatenate user input directly into query strings.
 - Keep schema semantics consistent with `src/db/SCHEMA.md`.

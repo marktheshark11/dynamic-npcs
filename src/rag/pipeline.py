@@ -1,28 +1,113 @@
-from .core import RAGCore
+from db.repositories import NPCRepo, RAGRepo
 from prompt_builder import NPCProfile, PromptBuilder, PromptRequest, RAGContext
 
 
 class RAGPipeline:
     def __init__(self, driver, embed_model):
-        self.core = RAGCore(driver, embed_model)
-        self.prompt_builder = PromptBuilder() 
+        self.rag_repo = RAGRepo(driver)
+        self.npc_repo = NPCRepo(driver)
+        self.embed_model = embed_model
+        self.prompt_builder = PromptBuilder()
+        self._group_support: bool | None = None
+
+    def _supports_group_membership(self) -> bool:
+        if self._group_support is not None:
+            return self._group_support
+        self._group_support = self.rag_repo.supports_group_membership()
+        return self._group_support
+
+    def _create_query_embedding(self, text: str) -> list[float]:
+        return self.embed_model.embed_query(f"Represent this sentence for searching relevant passages: {text}")
+
+    def _get_reference_chain(self, claim_id: str, npc_id: str) -> list[dict]:
+        return self.rag_repo.get_reference_chain(
+            claim_id=claim_id,
+            npc_id=npc_id,
+            include_group=self._supports_group_membership(),
+        )
+
+    def _build_claim_chains(self, claims: list[dict], npc_id: str) -> list[dict]:
+        if not claims:
+            return []
+
+        all_nodes = {}
+        adj = {}
+        potential_roots = set()
+
+        for claim in claims:
+            chain = self._get_reference_chain(claim["id"], npc_id)
+            if not chain:
+                continue
+
+            for chain_claim in chain:
+                all_nodes[chain_claim["id"]] = chain_claim
+                if chain_claim["id"] not in adj:
+                    adj[chain_claim["id"]] = []
+                potential_roots.add(chain_claim["id"])
+
+            for index in range(len(chain) - 1, 0, -1):
+                parent = chain[index]
+                child = chain[index - 1]
+                if child["id"] not in adj[parent["id"]]:
+                    adj[parent["id"]].append(child["id"])
+                if child["id"] in potential_roots:
+                    potential_roots.remove(child["id"])
+
+        final_chains = []
+        visited = set()
+
+        def dfs(node_id: str) -> list[dict]:
+            if node_id in visited:
+                return []
+            visited.add(node_id)
+            result = [all_nodes[node_id]]
+            for child_id in adj.get(node_id, []):
+                result.extend(dfs(child_id))
+            return result
+
+        for root_id in list(potential_roots):
+            if root_id in visited:
+                continue
+
+            chain_nodes = dfs(root_id)
+            if not chain_nodes:
+                continue
+
+            contents = [
+                f"<{chain_claim['claim_id']}> {chain_claim['content']}"
+                if chain_claim.get("claim_id")
+                else chain_claim["content"]
+                for chain_claim in chain_nodes
+            ]
+            ids = [chain_claim["id"] for chain_claim in chain_nodes]
+
+            final_chains.append(
+                {
+                    "content": " ".join(contents),
+                    "ids": ids,
+                    "chain_length": len(chain_nodes),
+                    "has_relation_type": any(chain_claim.get("type") == "relation" for chain_claim in chain_nodes),
+                }
+            )
+
+        return final_chains
 
     def run(self, npc_id, question, top_k=7):
         # 1. Grundsökning (Semantisk)
-        top_claims = self.core.find_top_claims(npc_id, question, top_k=top_k)
+        query_embedding = self._create_query_embedding(question)
+        top_claims = self.rag_repo.find_top_claims(npc_id=npc_id, query_vector=query_embedding, top_k=top_k)
         
         # 2. Expandera för att hitta konstanter (PLACE, OBJECT, NPC, MYSTERY)
         initial_ids = [c["id"] for c in top_claims]
-        all_expanded_claims, constants = self.core.expand_from_claims(initial_ids)
+        all_expanded_claims, constants = self.rag_repo.expand_from_claims(initial_ids)
         constant_ids = [c["id"] for c in constants if c["id"]]
         
         # 3. Hitta alla "kandidater" för relationer utifrån dina 4 kriterier:
-        rel_candidates = self.core.find_relational_candidates(npc_id, constant_ids)
-        rel_candidate_ids = {c["id"] for c in rel_candidates}
+        rel_candidates = self.rag_repo.find_relational_candidates(npc_id=npc_id, constant_ids=constant_ids)
         
         # 4. Slå ihop allt och bygg kedjor (Logisk pussling)
         all_unique = {c["id"]: c for c in (top_claims + all_expanded_claims + rel_candidates)}
-        chains = self.core.build_claim_chains(list(all_unique.values()), npc_id)
+        chains = self._build_claim_chains(list(all_unique.values()), npc_id)
         
         # 5. Sortera: Kedjor > 1 eller fakta -> knowledge. Enstaka relationer -> relation_claims.
         knowledge_final = []
@@ -47,7 +132,7 @@ class RAGPipeline:
             metadata=constants
         )
         
-        npc_data = self.core.get_npc_profile(npc_id)
+        npc_data = self.npc_repo.get_profile_by_id(npc_id)
         if not npc_data:
             raise ValueError(f"NPC with ID '{npc_id}' not found.")
 
