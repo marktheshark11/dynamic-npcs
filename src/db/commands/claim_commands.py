@@ -56,14 +56,14 @@ class CreateClaimCommand(Command):
                     continue
                 entity_id = entity.name
 
-            belief_in = self._ui.prompt_float("belief_in")
-            openness = self._ui.prompt_float("openness")
+            prefix = self._ui.prompt_optional("prefix")
+            suffix = self._ui.prompt_optional("suffix")
 
             if self._opinion_repo.create(entity_id, entity_type, claim.claim_id,
-                                         belief_in, openness):
+                                         prefix, suffix):
                 self._ui.display.success(
                     f"HAS_OPINION: {entity_id} -> {claim.claim_id} "
-                    f"(belief: {belief_in}, openness: {openness})"
+                    f"(prefix: {prefix or '-'}, suffix: {suffix or '-'})"
                 )
             else:
                 self._ui.display.error(

@@ -105,15 +105,15 @@ class RAGRepo(BaseRepository):
                 OPTIONAL MATCH (n:NPC {id: $npc_id})-[o:HAS_OPINION]->(ref)
                 OPTIONAL MATCH (n:NPC {id: $npc_id})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
                 WITH ref, depth,
-                     COALESCE(o.belief_in, go.belief_in) AS belief_in,
-                     COALESCE(o.openness, go.openness) AS openness
+                     COALESCE(o.prefix, go.prefix) AS prefix,
+                     COALESCE(o.suffix, go.suffix) AS suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.content AS content,
                        ref.claim_id AS claim_id,
                        ref.type AS type,
                        depth,
-                       belief_in,
-                       openness
+                       prefix,
+                       suffix
             """
         else:
             query = """
@@ -123,15 +123,15 @@ class RAGRepo(BaseRepository):
                 ORDER BY depth ASC
                 OPTIONAL MATCH (n:NPC {id: $npc_id})-[o:HAS_OPINION]->(ref)
                 WITH ref, depth,
-                     o.belief_in AS belief_in,
-                     o.openness AS openness
+                     o.prefix AS prefix,
+                     o.suffix AS suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        ref.content AS content,
                        ref.type AS type,
                        depth,
-                       belief_in,
-                       openness
+                       prefix,
+                       suffix
             """
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)

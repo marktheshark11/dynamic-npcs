@@ -9,15 +9,21 @@ class OpinionData:
     entity_type: str    # "NPC" or "GROUP"
     claim_id: str
     claim_content: str
-    belief_in: float
-    openness: float
+    prefix: str | None
+    suffix: str | None
 
 
 class OpinionRepo(BaseRepository):
     """CRUD operations for HAS_OPINION relations."""
 
-    def create(self, entity_id: str, entity_type: str, claim_id: str,
-               belief_in: float, openness: float) -> bool:
+    def create(
+        self,
+        entity_id: str,
+        entity_type: str,
+        claim_id: str,
+        prefix: str | None,
+        suffix: str | None,
+    ) -> bool:
         """Create a HAS_OPINION relation from NPC/GROUP to CLAIM.
 
         entity_type: 'NPC' or 'GROUP'
@@ -28,19 +34,19 @@ class OpinionRepo(BaseRepository):
             query = """
             MATCH (npc:NPC {id: $entity_id})
             MATCH (c:CLAIM {claim_id: $claim_id})
-            CREATE (npc)-[o:HAS_OPINION {belief_in: $belief_in, openness: $openness}]->(c)
+            CREATE (npc)-[o:HAS_OPINION {prefix: $prefix, suffix: $suffix}]->(c)
             RETURN o
             """
         else:
             query = """
             MATCH (g:GROUP {name: $entity_id})
             MATCH (c:CLAIM {claim_id: $claim_id})
-            CREATE (g)-[o:HAS_OPINION {belief_in: $belief_in, openness: $openness}]->(c)
+            CREATE (g)-[o:HAS_OPINION {prefix: $prefix, suffix: $suffix}]->(c)
             RETURN o
             """
         record = self._run_single(
             query, entity_id=entity_id, claim_id=claim_id,
-            belief_in=belief_in, openness=openness,
+            prefix=prefix, suffix=suffix,
         )
         return record is not None
 
@@ -50,14 +56,14 @@ class OpinionRepo(BaseRepository):
             query = """
             MATCH (npc:NPC {id: $entity_id})-[o:HAS_OPINION]->(c:CLAIM)
             RETURN npc.id AS eid, c.claim_id AS claim_id, c.content AS content,
-                   o.belief_in AS belief_in, o.openness AS openness
+                   o.prefix AS prefix, o.suffix AS suffix
             ORDER BY c.claim_id
             """
         else:
             query = """
             MATCH (g:GROUP {name: $entity_id})-[o:HAS_OPINION]->(c:CLAIM)
             RETURN g.name AS eid, c.claim_id AS claim_id, c.content AS content,
-                   o.belief_in AS belief_in, o.openness AS openness
+                   o.prefix AS prefix, o.suffix AS suffix
             ORDER BY c.claim_id
             """
         records = self._run(query, entity_id=entity_id)
@@ -67,8 +73,8 @@ class OpinionRepo(BaseRepository):
                 entity_type=entity_type,
                 claim_id=r["claim_id"],
                 claim_content=r["content"],
-                belief_in=r["belief_in"],
-                openness=r["openness"],
+                prefix=r.get("prefix"),
+                suffix=r.get("suffix"),
             )
             for r in records
         ]
@@ -90,19 +96,25 @@ class OpinionRepo(BaseRepository):
         record = self._run_single(query, entity_id=entity_id, claim_id=claim_id)
         return record is not None and record["deleted"] > 0
 
-    def update(self, entity_id: str, entity_type: str, claim_id: str,
-               belief_in: float, openness: float) -> bool:
-        """Update belief_in and openness for an existing HAS_OPINION relation."""
+    def update(
+        self,
+        entity_id: str,
+        entity_type: str,
+        claim_id: str,
+        prefix: str | None,
+        suffix: str | None,
+    ) -> bool:
+        """Update prefix and suffix for an existing HAS_OPINION relation."""
         if entity_type == "NPC":
             query = """
             MATCH (npc:NPC {id: $entity_id})-[o:HAS_OPINION]->(c:CLAIM {claim_id: $claim_id})
-            SET o.belief_in = $belief_in, o.openness = $openness
+            SET o.prefix = $prefix, o.suffix = $suffix
             RETURN o
             """
         else:
             query = """
             MATCH (g:GROUP {name: $entity_id})-[o:HAS_OPINION]->(c:CLAIM {claim_id: $claim_id})
-            SET o.belief_in = $belief_in, o.openness = $openness
+            SET o.prefix = $prefix, o.suffix = $suffix
             RETURN o
             """
 
@@ -110,7 +122,7 @@ class OpinionRepo(BaseRepository):
             query,
             entity_id=entity_id,
             claim_id=claim_id,
-            belief_in=belief_in,
-            openness=openness,
+            prefix=prefix,
+            suffix=suffix,
         )
         return record is not None
