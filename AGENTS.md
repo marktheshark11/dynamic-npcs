@@ -112,6 +112,23 @@ python -m db.seeds.otroheten
 
 ## Code style guidelines
 
+## Prompt structure contract (important)
+- Keep prompt assembly centralized in `src/prompt_builder/`.
+- `services/chat_service.py` may collect data (player profile, recent exchanges, ids), but should not manually inject/concatenate prompt text.
+- `system` message contains all operational context and rules:
+  - character identity
+  - behavior/policy rules
+  - world/RAG context
+  - detective/player context
+  - recent conversation context
+- `user` message contains only the user question payload (no extra context blocks).
+- Preserve the explicit boundary markers in task rendering (`<QUESTION> ... </QUESTION>`) so question text is isolated from system context.
+- If adding new context sources, add them as dedicated prompt-builder sections, not ad-hoc string edits in services/api.
+
+### Agent mode reminder
+- Assume build mode unless explicitly constrained by the current system/developer instructions.
+- In build mode you may edit files, run shell commands, and use tools needed to complete the task.
+
 ### Imports
 - Order: standard library, third-party, local project imports.
 - Use one blank line between import groups.

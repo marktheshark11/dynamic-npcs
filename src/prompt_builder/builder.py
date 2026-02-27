@@ -5,7 +5,13 @@ from .models import (
     RAGContext,
 )
 from .policy import PromptPolicy
-from .sections import BehaviorSection, ContextSection, IdentitySection, TaskSection
+from .sections import (
+    ContextSection,
+    DetectiveContextSection,
+    IdentitySection,
+    RulesSection,
+    TaskSection,
+)
 
 
 class PromptBuilder:
@@ -22,12 +28,16 @@ class PromptBuilder:
         effective_policy = policy or self.default_policy
 
         identity_text = IdentitySection.render(profile)
-        behavior_text = BehaviorSection.render(effective_policy)
-        context_text = ContextSection.render(rag_context)
+        rules_text = RulesSection.render(effective_policy)
+        world_context_text = ContextSection.render(rag_context)
+        detective_context_text = DetectiveContextSection.render(request)
         task_text = TaskSection.render(request)
 
-        system_text = f"{identity_text}\n\n{behavior_text}"
-        user_text = f"{context_text}\n\n{task_text}"
+        system_parts = [identity_text, rules_text, world_context_text]
+        if detective_context_text:
+            system_parts.append(detective_context_text)
+        system_text = "\n\n".join(system_parts)
+        user_text = task_text
         messages = [
             {"role": "system", "content": system_text},
             {"role": "user", "content": user_text},
@@ -39,8 +49,9 @@ class PromptBuilder:
             flat_prompt=flat_prompt,
             sections={
                 "identity": identity_text,
-                "behavior": behavior_text,
-                "context": context_text,
+                "rules": rules_text,
+                "world_context": world_context_text,
+                "detective_context": detective_context_text,
                 "task": task_text,
             },
         )

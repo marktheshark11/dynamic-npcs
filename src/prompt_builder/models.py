@@ -26,6 +26,9 @@ class PromptRequest:
     question: str
     answer_prefix: str | None = None
     locale: str = "sv"
+    player_name: str | None = None
+    player_appearance: str | None = None
+    recent_exchanges: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

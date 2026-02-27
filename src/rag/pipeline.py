@@ -92,7 +92,7 @@ class RAGPipeline:
 
         return final_chains
 
-    def run(self, npc_id, question, top_k=7):
+    def run(self, npc_id, question, top_k=7, player_profile=None, recent_exchanges=None):
         # 1. Grundsökning (Semantisk)
         query_embedding = self._create_query_embedding(question)
         top_claims = self.rag_repo.find_top_claims(npc_id=npc_id, query_vector=query_embedding, top_k=top_k)
@@ -143,7 +143,12 @@ class RAGPipeline:
             story_background=npc_data.get("story_background", "")
         )
 
-        request = PromptRequest(question=question)
+        request = PromptRequest(
+            question=question,
+            player_name=(player_profile or {}).get("name"),
+            player_appearance=(player_profile or {}).get("appearance"),
+            recent_exchanges=recent_exchanges or [],
+        )
 
         prompt_result = self.prompt_builder.build(
             profile=profile,

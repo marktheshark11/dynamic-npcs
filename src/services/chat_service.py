@@ -9,62 +9,13 @@ class ChatService:
         self.player_repo = PlayerRepo(driver)
         self.default_model = default_model
 
-    def build_prompt(self, npc_id, question):
-        return self.pipeline.run(npc_id, question,)
-
-    @staticmethod
-    def _format_recent_exchanges(exchanges):
-        if not exchanges:
-            return ""
-
-        lines = ["SENASTE SAMTAL I DENNA KONVERSATION:"]
-        for exchange in exchanges:
-            player_text = exchange.get("player_text") or ""
-            npc_text = exchange.get("npc_text") or ""
-            lines.append(f"- DETEKTIVEN: {player_text}")
-            lines.append(f"- DU: {npc_text}")
-        return "\n".join(lines)
-
-    def _inject_recent_exchanges(self, messages, conversation_id):
-        recent_exchanges = self.conversation_repo.list_exchanges(conversation_id, limit=3)
-        recent_block = self._format_recent_exchanges(recent_exchanges)
-        if not recent_block:
-            return messages
-
-        updated_messages = [dict(message) for message in messages]
-        for message in updated_messages:
-            if message.get("role") == "user":
-                current = message.get("content") or ""
-                message["content"] = f"{recent_block}\n\n{current}"
-                break
-        return updated_messages
-
-    @staticmethod
-    def _format_player_context(player_profile: dict) -> str:
-        name = player_profile.get("name") or "Okand"
-        appearance = player_profile.get("appearance") or "Okant"
-        return (
-            "DETTA VET DU OM DETEKTIVEN:\n"
-            f"- Namn: {name}\n"
-            f"- Utseende: {appearance}"
+    def build_prompt(self, npc_id, question, player_profile=None, recent_exchanges=None):
+        return self.pipeline.run(
+            npc_id,
+            question,
+            player_profile=player_profile,
+            recent_exchanges=recent_exchanges,
         )
-
-    def _inject_player_profile(self, messages, player_id=None):
-        if not player_id:
-            return messages
-
-        player_profile = self.player_repo.get_profile_by_id(player_id)
-        if not player_profile:
-            return messages
-
-        player_block = self._format_player_context(player_profile)
-        updated_messages = [dict(message) for message in messages]
-        for message in updated_messages:
-            if message.get("role") == "user":
-                current = message.get("content") or ""
-                message["content"] = f"{player_block}\n\n{current}"
-                break
-        return updated_messages
 
     @staticmethod
     def _format_all_exchanges_for_summary(exchanges):
@@ -157,24 +108,29 @@ class ChatService:
         if not resolved_conversation_id:
             return None
 
+        effective_player_id = player_id
+        if not effective_player_id:
+            conversation = self.conversation_repo.get_conversation(resolved_conversation_id)
+            if conversation:
+                effective_player_id = conversation.get("player_id")
+
+        player_profile = None
+        if effective_player_id:
+            player_profile = self.player_repo.get_profile_by_id(effective_player_id)
+
+        recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=3)
+
         prompt_result, chain_metadata = self.build_prompt(
             npc_id,
             question,
+            player_profile=player_profile,
+            recent_exchanges=recent_exchanges,
         )
         if not prompt_result:
             return None
 
-        messages_with_recent_context = self._inject_recent_exchanges(
-            prompt_result.messages,
-            resolved_conversation_id,
-        )
-        messages_with_full_context = self._inject_player_profile(
-            messages_with_recent_context,
-            player_id,
-        )
-
         response_text = groq_chat(
-            messages=messages_with_full_context,
+            messages=prompt_result.messages,
             model=model or self.default_model,
         )
 
@@ -188,7 +144,7 @@ class ChatService:
             "npc_id": npc_id,
             "conversation_id": resolved_conversation_id,
             "response": response_text,
-            "messages": messages_with_full_context,
+            "messages": prompt_result.messages,
             "flat_prompt": prompt_result.flat_prompt,
             "chain_metadata": chain_metadata,
         }
