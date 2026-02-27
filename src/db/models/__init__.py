@@ -2,6 +2,7 @@ from .npc import NPC, Group
 from .claim import Claim
 from .constant import Object, Place
 from .mystery import Mystery
+from .player import Player
 
 __all__ = [
     "NPC",
@@ -10,4 +11,5 @@ __all__ = [
     "Object",
     "Place",
     "Mystery",
+    "Player",
 ]

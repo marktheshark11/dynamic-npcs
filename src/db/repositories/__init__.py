@@ -5,6 +5,7 @@ from .opinion_repo import OpinionRepo
 from .relation_repo import RelationRepo
 from .mystery_repo import MysteryRepo
 from .conversation_repo import ConversationRepo
+from .player_repo import PlayerRepo
 
 __all__ = [
     "NPCRepo",
@@ -15,4 +16,5 @@ __all__ = [
     "RelationRepo",
     "MysteryRepo",
     "ConversationRepo",
+    "PlayerRepo",
 ]

@@ -2,7 +2,7 @@ from .config import Config
 from .services import EmbeddingService
 from .repositories import (
     NPCRepo, GroupRepo, ClaimRepo, ConstantRepo, OpinionRepo, RelationRepo,
-    MysteryRepo, ConversationRepo,
+    MysteryRepo, ConversationRepo, PlayerRepo,
 )
 from .commands import (
     CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, ListNPCsCommand,
@@ -19,6 +19,7 @@ from .commands import (
     ListClaimsByMysteryCommand,
     ListConversationsCommand, DeleteConversationCommand, DeleteAllConversationsCommand,
     SummarizeConversationCommand,
+    CreatePlayerCommand, EditPlayerCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
 from services.chat_service import ChatService
@@ -40,6 +41,7 @@ class App:
         self._relation_repo = RelationRepo(config.driver)
         self._mystery_repo = MysteryRepo(config.driver)
         self._conversation_repo = ConversationRepo(config.driver)
+        self._player_repo = PlayerRepo(config.driver)
         self._chat_service = ChatService(config.driver, config.embed_model)
 
         # UI
@@ -133,6 +135,10 @@ class App:
                 SummarizeConversationCommand(self._conversation_repo, self._chat_service, ui),
                 DeleteConversationCommand(self._conversation_repo, ui),
                 DeleteAllConversationsCommand(self._conversation_repo, ui),
+            ]),
+            SubMenu("Player", [
+                CreatePlayerCommand(self._player_repo, ui),
+                EditPlayerCommand(self._player_repo, ui),
             ]),
         ])
 
