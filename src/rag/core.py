@@ -239,7 +239,10 @@ class RAGCore:
             chain_nodes = dfs(root_id)
             if not chain_nodes: continue
 
-            contents = [c["content"] for c in chain_nodes]
+            contents = [
+                f"<{c['claim_id']}> {c['content']}" if c.get("claim_id") else c["content"]
+                for c in chain_nodes
+            ]
             ids = [c["id"] for c in chain_nodes]
             
             final_chains.append({
