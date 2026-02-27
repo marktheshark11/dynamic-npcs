@@ -236,3 +236,39 @@ class ListClaimsCommand(Command):
             return
         self._ui.display.header("Alla CLAIMs")
         self._ui.display.list_items(claims, Claim.display_str)
+
+
+class RegenerateEmbeddingsCommand(Command):
+    def __init__(self, repo: ClaimRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Regenerera embeddings for alla CLAIMs"
+
+    def execute(self) -> None:
+        if not self._ui.confirm("Detta kommer regenerera embeddings for ALLA claims. Fortsatt?"):
+            return
+
+        claims = self._repo.list_all()
+        if not claims:
+            self._ui.display.error("Inga claims att uppdatera.")
+            return
+
+        count = 0
+        total = len(claims)
+        print(f"Startar uppdatering av {total} claims...")
+
+        for claim in claims:
+            # Genom att anropa update med samma content triggar vi en ny embedding-utrakning
+            # i ClaimRepo, som nu anvander den korrigerade 'hf_embeddings.py'-logiken.
+            ok = self._repo.update(claim.claim_id, content=claim.content)
+            if ok:
+                count += 1
+                if count % 10 == 0:
+                    print(f"  Uppdaterat {count}/{total}...")
+            else:
+                print(f"  ! Misslyckades med {claim.claim_id}")
+
+        self._ui.display.success(f"Klart! {count}/{total} claims har fatt nya embeddings.")

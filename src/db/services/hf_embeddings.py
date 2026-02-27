@@ -37,11 +37,7 @@ class HuggingFaceEmbeddings:
             if not all(len(row) == width for row in rows):
                 raise RuntimeError("HF embeddings response had inconsistent vector lengths")
 
-            sums = [0.0] * width
-            for row in rows:
-                for idx, value in enumerate(row):
-                    sums[idx] += float(value)
-            count = float(len(rows))
-            return [value / count for value in sums]
+            # Always use CLS pooling (first token) as we are standardized on mxbai
+            return [float(x) for x in rows[0]]
 
         raise RuntimeError(f"Unexpected HF embeddings response format: {type(data).__name__}")

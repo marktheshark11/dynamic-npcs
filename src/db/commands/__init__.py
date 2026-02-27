@@ -4,6 +4,7 @@ from .group_commands import CreateGroupCommand, DeleteGroupCommand, ListGroupsCo
 from .claim_commands import (
     CreateClaimCommand, EditClaimCommand,
     DeleteClaimCommand, ListClaimsCommand, ReindexClaimIdsCommand,
+    RegenerateEmbeddingsCommand,
 )
 from .constant_commands import CreateObjectCommand, CreatePlaceCommand, ListConstantsCommand
 from .opinion_commands import (
@@ -33,7 +34,7 @@ __all__ = [
     "CreateNPCCommand", "EditNPCCommand", "DeleteNPCCommand", "ListNPCsCommand",
     "CreateGroupCommand", "DeleteGroupCommand", "ListGroupsCommand",
     "CreateClaimCommand", "EditClaimCommand", "DeleteClaimCommand",
-    "ListClaimsCommand", "ReindexClaimIdsCommand",
+    "ListClaimsCommand", "ReindexClaimIdsCommand", "RegenerateEmbeddingsCommand",
     "CreateObjectCommand", "CreatePlaceCommand", "ListConstantsCommand",
     "CreateOpinionCommand", "EditOpinionCommand",
     "DeleteOpinionCommand", "ListOpinionsCommand",
