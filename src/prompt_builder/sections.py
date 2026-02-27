@@ -12,10 +12,16 @@ class IdentitySection:
             lines.append(f"Personlighet: {profile.personality}")
         if profile.backstory:
             lines.append(f"Bakgrund: {profile.backstory}")
-        if profile.story_background:
-            lines.append(f"Vad som har hänt: {profile.story_background}")
         # lines.append("“Svara kort. Max 1–2 meningar. Ingen självbiografi.”)")
         return "\n".join(lines)
+
+
+class StoryBackgroundSection:
+    @staticmethod
+    def render(profile: NPCProfile) -> str:
+        if not profile.story_background:
+            return ""
+        return f"VAD SOM HAR HÄNT I BERÄTTELSEN:\n{profile.story_background}"
 
 
 class RulesSection:

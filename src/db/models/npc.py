@@ -8,9 +8,10 @@ class NPC:
     age: int
     personality: str
     status: str
+    story_background: str | None = None
 
     def display_str(self) -> str:
-        return f"ID: {self.id}, Namn: {self.name}, Alder: {self.age}, Personlighet: {self.personality}, Status: {self.status}"
+        return f"ID: {self.id}, Namn: {self.name}, Ålder: {self.age}, Personlighet: {self.personality}, Status: {self.status}"
 
     def short_str(self) -> str:
         return f"ID: {self.id}, Namn: {self.name}"

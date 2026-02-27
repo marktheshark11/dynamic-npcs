@@ -10,6 +10,7 @@ from .sections import (
     DetectiveContextSection,
     IdentitySection,
     RulesSection,
+    StoryBackgroundSection,
     TaskSection,
 )
 
@@ -29,11 +30,15 @@ class PromptBuilder:
 
         identity_text = IdentitySection.render(profile)
         rules_text = RulesSection.render(effective_policy)
+        story_background_text = StoryBackgroundSection.render(profile)
         world_context_text = ContextSection.render(rag_context)
         detective_context_text = DetectiveContextSection.render(request)
         task_text = TaskSection.render(request)
 
-        system_parts = [identity_text, rules_text, world_context_text]
+        system_parts = [identity_text, rules_text]
+        if story_background_text:
+            system_parts.append(story_background_text)
+        system_parts.append(world_context_text)
         if detective_context_text:
             system_parts.append(detective_context_text)
         system_text = "\n\n".join(system_parts)
@@ -50,6 +55,7 @@ class PromptBuilder:
             sections={
                 "identity": identity_text,
                 "rules": rules_text,
+                "story_background": story_background_text,
                 "world_context": world_context_text,
                 "detective_context": detective_context_text,
                 "task": task_text,
