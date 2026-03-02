@@ -95,6 +95,28 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
+    def find_mystery_claims(self, mystery_ids: list[str], npc_id: str) -> list[dict]:
+        """Find NPC claims that reference any of the given MYSTERY nodes (threshold=1)."""
+        records = self._run(
+            """
+            MATCH (n:NPC {id: $npc_id})
+            OPTIONAL MATCH (n)-[:HAS_OPINION]->(rc1:CLAIM)
+            OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(rc2:CLAIM)
+            WITH collect(rc1) + collect(rc2) AS all_rc
+            UNWIND all_rc AS rc
+            WITH DISTINCT rc WHERE rc IS NOT NULL
+            MATCH (rc)-[:REFERENCE]->(m:MYSTERY)
+            WHERE elementId(m) IN $mystery_ids
+            RETURN DISTINCT elementId(rc) AS id,
+                            rc.claim_id AS claim_id,
+                            rc.content AS content,
+                            rc.type AS type
+            """,
+            mystery_ids=mystery_ids,
+            npc_id=npc_id,
+        )
+        return [dict(r) for r in records]
+
     def get_reference_chain(self, claim_id: str, npc_id: str, include_group: bool) -> list[dict]:
         if include_group:
             query = """

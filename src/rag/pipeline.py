@@ -102,11 +102,15 @@ class RAGPipeline:
         all_expanded_claims, constants = self.rag_repo.expand_from_claims(initial_ids)
         constant_ids = [c["id"] for c in constants if c["id"]]
         
+        # 2b. Inkludera alla NPC-claims som delar mystery med de expanderade claimsen
+        mystery_ids = [c["id"] for c in constants if c.get("type") == "MYSTERY"]
+        mystery_claims = self.rag_repo.find_mystery_claims(mystery_ids, npc_id) if mystery_ids else []
+
         # 3. Hitta alla "kandidater" för relationer utifrån dina 4 kriterier:
         rel_candidates = self.rag_repo.find_relational_candidates(npc_id=npc_id, constant_ids=constant_ids)
-        
+
         # 4. Slå ihop allt och bygg kedjor (Logisk pussling)
-        all_unique = {c["id"]: c for c in (top_claims + all_expanded_claims + rel_candidates)}
+        all_unique = {c["id"]: c for c in (top_claims + all_expanded_claims + mystery_claims + rel_candidates)}
         chains = self._build_claim_chains(list(all_unique.values()), npc_id)
         
         # 5. Sortera: Kedjor > 1 eller fakta -> knowledge. Enstaka relationer -> relation_claims.

@@ -76,6 +76,28 @@ class PlayerRepo(BaseRepository):
         record = self._run_single(query, **params)
         return record is not None
 
+    def mark_aware_of(self, player_id: str, claim_ids: list[str]) -> int:
+        """
+        Drag AWARE_OF-pilar från spelaren till varje claim i listan.
+        Skapar bara pilen om den inte redan finns (MERGE).
+        Returnerar antalet pilar som faktiskt skapades.
+        """
+        if not claim_ids:
+            return 0
+        record = self._run_single(
+            """
+            MATCH (p:PLAYER {player_id: $player_id})
+            UNWIND $claim_ids AS cid
+            MATCH (c:CLAIM {claim_id: cid})
+            MERGE (p)-[r:AWARE_OF]->(c)
+            ON CREATE SET r.created_at = datetime()
+            RETURN count(r) AS total
+            """,
+            player_id=player_id,
+            claim_ids=claim_ids,
+        )
+        return record["total"] if record else 0
+
     def delete(self, player_id: str) -> bool:
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
