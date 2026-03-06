@@ -70,6 +70,7 @@ class App:
                     self._constant_repo,
                     self._opinion_repo,
                     self._relation_repo,
+                    self._mystery_repo,
                     ui,
                 ),
                 EditClaimCommand(self._claim_repo, ui),

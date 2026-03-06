@@ -2,7 +2,9 @@ from .base import Command
 from ..repositories import (
     ClaimRepo, NPCRepo, GroupRepo, ConstantRepo, OpinionRepo, RelationRepo,
 )
+from ..repositories.mystery_repo import MysteryRepo
 from ..models import NPC, Group, Claim
+from ..models.mystery import Mystery
 from ..ui import InputHelpers
 
 
@@ -10,6 +12,7 @@ class CreateClaimCommand(Command):
     def __init__(self, claim_repo: ClaimRepo, npc_repo: NPCRepo,
                  group_repo: GroupRepo, constant_repo: ConstantRepo,
                  opinion_repo: OpinionRepo, relation_repo: RelationRepo,
+                 mystery_repo: MysteryRepo,
                  ui: InputHelpers) -> None:
         self._claim_repo = claim_repo
         self._npc_repo = npc_repo
@@ -17,6 +20,7 @@ class CreateClaimCommand(Command):
         self._constant_repo = constant_repo
         self._opinion_repo = opinion_repo
         self._relation_repo = relation_repo
+        self._mystery_repo = mystery_repo
         self._ui = ui
 
     @property
@@ -31,8 +35,29 @@ class CreateClaimCommand(Command):
         claim = self._claim_repo.create(content, claim_type=claim_type)
         self._ui.display.success(f"CLAIM {claim.claim_id} skapad: '{content}'")
 
+        self._link_to_mystery(claim)
         self._add_opinions_to_claim(claim)
         self._add_references_from_claim(claim)
+
+    def _link_to_mystery(self, claim: Claim) -> None:
+        while self._ui.confirm("Vill du koppla denna CLAIM till ett mysterium?"):
+            mysteries = self._mystery_repo.list_all()
+            if not mysteries:
+                self._ui.display.error("Inga mysterier finns. Skapa ett mysterium först.")
+                break
+
+            mystery = self._ui.select_from_list(
+                mysteries, Mystery.display_str, "Välj mysterium"
+            )
+            if not mystery:
+                continue
+
+            if self._mystery_repo.link_claim(claim.claim_id, mystery.name):
+                self._ui.display.success(
+                    f"CLAIM {claim.claim_id} kopplad till '{mystery.name}'"
+                )
+            else:
+                self._ui.display.error("Kunde inte koppla claim till mysteriet")
 
     def _add_opinions_to_claim(self, claim: Claim) -> None:
         while self._ui.confirm("Vill du lagga till en opinion till denna CLAIM?"):
