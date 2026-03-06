@@ -99,6 +99,11 @@ class ChatService:
 
     def ask_npc(self, npc_id, question, model=None, conversation_id=None, player_id=None):
         from llms.llm_groq import chat as groq_chat
+        from llms.prompt_guard import is_malicious
+
+        refusal_message = (
+            "Jag kommer inte att svara på den typen av frågor."
+        )
 
         resolved_conversation_id = self._resolve_conversation_id(
             npc_id=npc_id,
@@ -107,6 +112,21 @@ class ChatService:
         )
         if not resolved_conversation_id:
             return None
+
+        if is_malicious(question):
+            self.conversation_repo.append_exchange(
+                conversation_id=resolved_conversation_id,
+                player_text=question,
+                npc_text=refusal_message,
+            )
+            return {
+                "npc_id": npc_id,
+                "conversation_id": resolved_conversation_id,
+                "response": refusal_message,
+                "messages": [],
+                "flat_prompt": "",
+                "chain_metadata": [],
+            }
 
         effective_player_id = player_id
         if not effective_player_id:
