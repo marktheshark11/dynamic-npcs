@@ -6,7 +6,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from db.config import Config
 from services.chat_service import ChatService
@@ -16,6 +16,7 @@ class ChatResponse(BaseModel):
     npc_id: str
     conversation_id: str | None = None
     response: str
+    used_claims: list[str] = Field(default_factory=list)
 
 class ChatRequest(BaseModel):
     npc_id: str
@@ -120,6 +121,7 @@ async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_cha
             npc_id=payload.npc_id,
             conversation_id=result.get("conversation_id"),
             response=result["response"],
+            used_claims=result.get("used_claims") or [],
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

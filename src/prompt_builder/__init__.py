@@ -5,7 +5,6 @@ from .models import (
     PromptRequest,
     RAGContext,
 )
-from .policy import DEFAULT_CHARACTER_RULES, PromptPolicy
 
 __all__ = [
     "PromptBuilder",

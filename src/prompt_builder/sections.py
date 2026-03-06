@@ -1,5 +1,4 @@
 from .models import NPCProfile, RAGContext, PromptRequest
-from .policy import PromptPolicy
 from .templates import format_bullet_list
 
 
@@ -26,9 +25,35 @@ class StoryBackgroundSection:
 
 class RulesSection:
     @staticmethod
-    def render(policy: PromptPolicy) -> str:
-        rules = policy.character_rules
-        return "REGLER:\n" + "\n".join(f"- {rule}" for rule in rules if rule)
+    def render() -> str:
+        return (
+            "REGLER (VIKTIGT):\n" +
+            "Svara kort. Ingen självbiografi. Säg inte något som du inte specifikt frågades om. \n" +
+            "Svara som en verklig person skulle göra i ett samtal. Inkludera bara information som är socialt förväntad i sammanhanget. \n" +
+            "Håll dig till din karaktär. \n" +
+            "Bara för att du har information om frågan, betyder inte att den är relevant eller att du borde säga den.\n" +
+            "Säg aldrig något som inte är direkt relevant för frågan eller samtalet eller som är socialt förväntat av frågan.\n" +
+            "Bara för att du har information om någonting, betyder inte att du ska säga det.\n" +
+            "Håll dig till samtalsämnet. Säg absolut inte saker som du inte kan backa med information.\n" +
+            "Karaktären du pratar med är en detektiv som undersöker ett mord."
+        )
+
+
+class OutputFormatSection:
+    @staticmethod
+    def render() -> str:
+        return (
+            "SVARFORMAT (viktigt):\n"
+            "- Returnera ENDAST giltig JSON med exakt nycklarna 'response' och 'used_claim_ids'.\n"
+            "- Format: {\"response\": \"...\", \"used_claim_ids\": [\"C7\", \"C52\"]}\n"
+            "- 'used_claim_ids' får bara innehålla claim-IDn du faktiskt använde i svaret.\n"
+            "- Ta bara med claim-IDn som finns i kontexten (t.ex. C7, inte <C7>).\n"
+            "- Om inget claim-ID användes: använd en tom lista [].\n"
+            "- 'used_claim_ids' får endast innehålla claim-IDn vars information faktiskt används i svaret.\n"
+            "- Om informationen inte kommer från en claim utan från bakgrundsbeskrivningen, ska inget claim-ID inkluderas.\n"
+            "- Kontrollera alltid att varje claim-ID motsvarar något som uttrycks i svaret.\n"
+            " - En claim får bara anses använd om hela claimens informationsinnehåll uttrycks i svaret. Om bara en del av claimen uttrycks, ska claimen inte tas med."
+        )
 
 
 class ContextSection:
