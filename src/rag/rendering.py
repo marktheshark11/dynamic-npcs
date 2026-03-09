@@ -1,15 +1,25 @@
 class Rendering:
     @staticmethod
-    def render_claim_static(c_id, content, prefix=None, suffix=None):
-        if prefix:
-            content = f"{prefix} {content[0].lower()}{content[1:]}" if content else content
+    def render_claim_static(
+        c_id: str | None,
+        content: str,
+        prefix: str | None = None,
+        suffix: str | None = None,
+    ) -> str:
+        text = content or ""
+
+        if prefix and text:
+            text = f"{prefix} {text[0].lower()}{text[1:]}"
+
+        parts: list[str] = []
         if c_id:
-            text = f"<{c_id}> {content}"
-        else:
-            text = content
+            parts.append(f"<{c_id}>")
+        if text:
+            parts.append(text)
         if suffix:
-            text = f"{text} [INSTRUKTION: {suffix}]"
-        return text
+            parts.append(suffix)
+
+        return " ".join(parts)
 
     def build_prompt(self, npc_name, chain_metadata, question):
         non_relation = [c for c in chain_metadata if not c["is_relation"]]

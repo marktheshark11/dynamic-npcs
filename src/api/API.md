@@ -1,10 +1,31 @@
 # Dynamic NPC Chat API
 
-All endpoints (except health/docs) require header:
-
-`x-api-key: <API_KEY>`
-
 Base URL example: `http://localhost:8000`
+
+## Authentication
+
+All endpoints except `GET /health`, `/docs`, `/redoc`, and `/openapi.json` require:
+
+```http
+x-api-key: <API_KEY>
+```
+
+If the header is missing or wrong, the API returns:
+
+```json
+{
+  "detail": "Forbidden"
+}
+```
+
+## CORS
+
+CORS is enabled with:
+
+- `allow_origins=["*"]`
+- `allow_methods=["*"]`
+- `allow_headers=["*"]`
+- `allow_credentials=false`
 
 ## GET /health
 
@@ -22,20 +43,20 @@ Response:
 
 Send a message to an NPC.
 
-Request body fields:
+Request body:
 
 - `npc_id` (string, required)
 - `message` (string, required)
 - `player_id` (string, optional)
 - `conversation_id` (string, optional)
 
-Rules:
+Behavior:
 
-- If `conversation_id` is missing, a new conversation is created.
-- If `player_id` is provided and a new conversation is created, that conversation is automatically linked to the player.
+- If `conversation_id` is omitted, a new conversation may be created.
+- If `player_id` is provided when a new conversation is created, that conversation is linked to the player.
 - If `conversation_id` is provided, the API tries to continue that conversation.
 
-Example request (new conversation, linked to player):
+Example request:
 
 ```json
 {
@@ -45,30 +66,29 @@ Example request (new conversation, linked to player):
 }
 ```
 
-Example request (continue existing conversation):
-
-```json
-{
-  "npc_id": "npc_1",
-  "message": "Berätta mer.",
-  "player_id": "player_1",
-  "conversation_id": "conv_3"
-}
-```
-
-Response:
+Example response:
 
 ```json
 {
   "npc_id": "npc_1",
   "conversation_id": "conv_3",
-  "response": "..."
+  "response": "...",
+  "used_claims": [
+    "claim_12",
+    "claim_19"
+  ]
 }
 ```
 
+Notes:
+
+- `conversation_id` may be `null` if no conversation id is returned.
+- `used_claims` is always present and defaults to an empty list.
+- If the service returns no result, the API responds with `response: "No response"`.
+
 ## POST /conversations/summarize
 
-Generate/update a short summary for one conversation.
+Generate or update a short summary for one conversation.
 
 Request:
 
@@ -88,9 +108,17 @@ Response:
 }
 ```
 
+If the conversation does not exist, the API returns:
+
+```json
+{
+  "detail": "Conversation not found"
+}
+```
+
 ## POST /players
 
-Create a new player node.
+Create a new player.
 
 Request:
 
@@ -111,9 +139,23 @@ Response:
 }
 ```
 
+Validation errors:
+
+```json
+{
+  "detail": "name cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "appearance cannot be empty"
+}
+```
+
 ## GET /players
 
-Return all player nodes.
+Return all players.
 
 Response:
 
@@ -151,10 +193,26 @@ Response:
 }
 ```
 
-If the player does not exist, the API returns:
+Validation / not found responses:
+
+```json
+{
+  "detail": "player_id cannot be empty"
+}
+```
 
 ```json
 {
   "detail": "Player not found"
+}
+```
+
+## Server errors
+
+Unexpected backend errors are returned as `500` with:
+
+```json
+{
+  "detail": "<error message>"
 }
 ```
