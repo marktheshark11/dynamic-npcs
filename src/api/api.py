@@ -44,6 +44,17 @@ class CreatePlayerResponse(BaseModel):
     player_id: str
     name: str
     appearance: str
+
+
+class PlayerResponse(BaseModel):
+    player_id: str
+    name: str
+    appearance: str
+
+
+class DeletePlayerResponse(BaseModel):
+    player_id: str
+    deleted: bool
     
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -165,6 +176,41 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
             name=player.name,
             appearance=player.appearance,
         )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/players", response_model=list[PlayerResponse])
+async def list_players(config: Config = Depends(get_config)):
+    try:
+        player_repo = PlayerRepo(config.driver)
+        players = player_repo.list_all()
+        return [
+            PlayerResponse(
+                player_id=player.player_id,
+                name=player.name,
+                appearance=player.appearance,
+            )
+            for player in players
+        ]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.delete("/players/{player_id}", response_model=DeletePlayerResponse)
+async def delete_player(player_id: str, config: Config = Depends(get_config)):
+    player_id = player_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        deleted = player_repo.delete(player_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Player not found")
+        return DeletePlayerResponse(player_id=player_id, deleted=True)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

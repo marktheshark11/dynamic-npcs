@@ -110,3 +110,51 @@ Response:
   "appearance": "Lång, brun kappa"
 }
 ```
+
+## GET /players
+
+Return all player nodes.
+
+Response:
+
+```json
+[
+  {
+    "player_id": "player_1",
+    "name": "Anna",
+    "appearance": "Röd kappa"
+  },
+  {
+    "player_id": "player_2",
+    "name": "Kalle",
+    "appearance": "Lång, brun kappa"
+  }
+]
+```
+
+## DELETE /players/{player_id}
+
+Delete one player by `player_id`.
+
+Example request:
+
+```http
+DELETE /players/player_4
+```
+
+Response:
+
+```json
+{
+  "player_id": "player_4",
+  "deleted": true
+}
+```
+
+If the player does not exist, the API returns:
+
+```json
+{
+  "detail": "Player not found"
+}
+```
