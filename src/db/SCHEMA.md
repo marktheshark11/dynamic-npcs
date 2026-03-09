@@ -39,7 +39,7 @@ A thing in the world (e.g. "Svard", "Bok").
 
 | Property | Type | Notes |
 |----------|------|-------|
-| `object_id` | string | Auto-generated for gameplay/world object identity (e.g. `object_1`, `item_1`) |
+| `object_id` | string | Stable object identity, normally set explicitly when creating the object/item (e.g. `object_brev`, `item_key`) |
 | `name` | string | Unique, capitalized |
 
 Some `OBJECT` nodes may also carry the `ITEM` label for gameplay interactions.

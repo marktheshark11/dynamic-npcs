@@ -215,7 +215,7 @@ Request:
 
 ```json
 {
-  "object_id": "item_1"
+  "object_id": "item_key"
 }
 ```
 
@@ -224,7 +224,7 @@ Response:
 ```json
 {
   "player_id": "player_1",
-  "object_id": "item_1",
+  "object_id": "item_key",
   "item_name": "Nyckel",
   "inspect_text": "En tung jarnnyckel med slottets sigill.",
   "pickupable": true,
@@ -266,7 +266,7 @@ Request:
 
 ```json
 {
-  "object_id": "item_1"
+  "object_id": "item_key"
 }
 ```
 
@@ -275,7 +275,7 @@ Response when pickup succeeds:
 ```json
 {
   "player_id": "player_1",
-  "object_id": "item_1",
+  "object_id": "item_key",
   "item_name": "Nyckel",
   "pickupable": true,
   "picked_up": true,
@@ -288,7 +288,7 @@ Response when the item exists but is not pickupable:
 ```json
 {
   "player_id": "player_1",
-  "object_id": "item_2",
+  "object_id": "item_body",
   "item_name": "Kropp",
   "pickupable": false,
   "picked_up": false,

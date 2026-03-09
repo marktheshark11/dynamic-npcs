@@ -38,23 +38,33 @@ class ConstantRepo(BaseRepository):
 
     # --- OBJECT ---
 
-    def create_object(self, name: str) -> Object:
+    def create_object(self, name: str, object_id: str | None = None) -> Object:
         self._ensure_object_ids()
         formatted = name.capitalize()
+        normalized_id = (object_id or "").strip() or None
         existing = self._run_single(
             "MATCH (o:OBJECT {name: $name}) RETURN o.object_id AS object_id, o.name AS name LIMIT 1",
             name=formatted,
         )
         if existing:
+            if normalized_id and existing["object_id"] != normalized_id:
+                raise ValueError("Det finns redan ett objekt med samma namn men annat ID")
             return Object(object_id=existing["object_id"], name=existing["name"])
 
-        object_id = self._next_object_id("object")
+        final_object_id = normalized_id or self._next_object_id("object")
+        conflicting = self._run_single(
+            "MATCH (o:OBJECT {object_id: $object_id}) RETURN o.name AS name LIMIT 1",
+            object_id=final_object_id,
+        )
+        if conflicting:
+            raise ValueError("Det finns redan ett objekt med samma ID")
+
         self._run(
             "CREATE (o:OBJECT {object_id: $object_id, name: $name})",
-            object_id=object_id,
+            object_id=final_object_id,
             name=formatted,
         )
-        return Object(object_id=object_id, name=formatted)
+        return Object(object_id=final_object_id, name=formatted)
 
     def list_objects(self) -> list[Object]:
         self._ensure_object_ids()
@@ -73,27 +83,44 @@ class ConstantRepo(BaseRepository):
         self._run("MATCH (o:OBJECT {object_id: $object_id}) DETACH DELETE o", object_id=object_id)
         return True
 
-    def create_item(self, name: str, inspect_text: str, pickupable: bool) -> Item:
+    def create_item(
+        self,
+        name: str,
+        inspect_text: str,
+        pickupable: bool,
+        object_id: str | None = None,
+    ) -> Item:
         self._ensure_object_ids()
         formatted = name.capitalize()
+        normalized_id = (object_id or "").strip() or None
         existing = self._run_single(
             "MATCH (o:OBJECT {name: $name}) "
             "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
             "LIMIT 1",
             name=formatted,
         )
-        object_id = existing["object_id"] if existing else self._next_object_id("item")
+        if existing and normalized_id and existing["object_id"] != normalized_id:
+            raise ValueError("Det finns redan ett objekt med samma namn men annat ID")
+
+        final_object_id = normalized_id or (existing["object_id"] if existing else self._next_object_id("item"))
+        conflicting = self._run_single(
+            "MATCH (o:OBJECT {object_id: $object_id}) RETURN o.name AS name LIMIT 1",
+            object_id=final_object_id,
+        )
+        if conflicting and (not existing or conflicting["name"] != formatted):
+            raise ValueError("Det finns redan ett objekt med samma ID")
+
         self._run(
             "MERGE (o:OBJECT {name: $name}) "
             "ON CREATE SET o.object_id = $object_id "
             "SET o:ITEM, o.inspect_text = $inspect_text, o.pickupable = $pickupable",
-            object_id=object_id,
+            object_id=final_object_id,
             name=formatted,
             inspect_text=inspect_text,
             pickupable=pickupable,
         )
         return Item(
-            object_id=object_id,
+            object_id=final_object_id,
             name=formatted,
             inspect_text=inspect_text,
             pickupable=pickupable,
@@ -142,6 +169,67 @@ class ConstantRepo(BaseRepository):
             return False
         self._run("MATCH (o:OBJECT:ITEM {object_id: $object_id}) DETACH DELETE o", object_id=object_id)
         return True
+
+    def update_item(
+        self,
+        current_object_id: str,
+        object_id: str | None = None,
+        name: str | None = None,
+        inspect_text: str | None = None,
+        pickupable: bool | None = None,
+    ) -> bool:
+        self._ensure_object_ids()
+        existing = self._run_single(
+            "MATCH (o:OBJECT:ITEM {object_id: $current_object_id}) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
+            "LIMIT 1",
+            current_object_id=current_object_id,
+        )
+        if not existing:
+            return False
+
+        next_object_id = (object_id or "").strip() or existing["object_id"]
+        next_name = name.capitalize() if name else existing["name"]
+
+        if next_object_id != existing["object_id"]:
+            conflicting_id = self._run_single(
+                "MATCH (o:OBJECT {object_id: $object_id}) RETURN o.name AS name LIMIT 1",
+                object_id=next_object_id,
+            )
+            if conflicting_id:
+                raise ValueError("Det finns redan ett objekt med samma ID")
+
+        if next_name != existing["name"]:
+            conflicting_name = self._run_single(
+                "MATCH (o:OBJECT {name: $name}) RETURN o.object_id AS object_id LIMIT 1",
+                name=next_name,
+            )
+            if conflicting_name and conflicting_name["object_id"] != existing["object_id"]:
+                raise ValueError("Det finns redan ett objekt med samma namn")
+
+        set_clauses = [
+            "o.object_id = $object_id",
+            "o.name = $name",
+        ]
+        params: dict[str, str | bool] = {
+            "current_object_id": current_object_id,
+            "object_id": next_object_id,
+            "name": next_name,
+        }
+
+        if inspect_text is not None:
+            set_clauses.append("o.inspect_text = $inspect_text")
+            params["inspect_text"] = inspect_text
+
+        if pickupable is not None:
+            set_clauses.append("o.pickupable = $pickupable")
+            params["pickupable"] = pickupable
+
+        record = self._run_single(
+            f"MATCH (o:OBJECT:ITEM {{object_id: $current_object_id}}) SET {', '.join(set_clauses)} RETURN o",
+            **params,
+        )
+        return record is not None
 
     # --- PLACE ---
 

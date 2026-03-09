@@ -14,8 +14,13 @@ class CreateObjectCommand(Command):
         return "Skapa ett nytt OBJECT"
 
     def execute(self) -> None:
+        object_id = self._ui.prompt("object_id")
         name = self._ui.prompt("objektnamn")
-        obj = self._repo.create_object(name)
+        try:
+            obj = self._repo.create_object(name, object_id=object_id)
+        except ValueError as exc:
+            self._ui.display.error(str(exc))
+            return
         self._ui.display.success(f"OBJECT '{obj.name}' skapad med ID '{obj.object_id}'")
 
 
@@ -44,14 +49,68 @@ class CreateItemCommand(Command):
         return "Skapa ett nytt ITEM"
 
     def execute(self) -> None:
+        object_id = self._ui.prompt("item_id")
         name = self._ui.prompt("itemnamn")
         inspect_text = self._ui.prompt("inspect_text")
         pickupable = self._ui.confirm("Ska itemet kunna plockas upp?")
-        item = self._repo.create_item(name, inspect_text, pickupable)
+        try:
+            item = self._repo.create_item(name, inspect_text, pickupable, object_id=object_id)
+        except ValueError as exc:
+            self._ui.display.error(str(exc))
+            return
         pickup_text = "pickupbart" if item.pickupable else "inspect-only"
         self._ui.display.success(
             f"ITEM '{item.name}' skapad med ID '{item.object_id}' ({pickup_text})"
         )
+
+
+class EditItemCommand(Command):
+    def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Redigera ett ITEM"
+
+    def execute(self) -> None:
+        items = self._repo.list_items()
+        selected = self._ui.select_from_list(items, Item.display_str, "Alla items")
+        if not selected:
+            return
+
+        object_id = self._ui.prompt_optional("object_id")
+        name = self._ui.prompt_optional("itemnamn")
+        inspect_text = self._ui.prompt_optional("inspect_text")
+        pickup_option = self._ui.select_option(
+            ["ingen andring", "pickupbar", "inspect-only"],
+            "Pickup-status",
+        )
+        if pickup_option is None:
+            return
+
+        pickupable: bool | None = None
+        if pickup_option == "pickupbar":
+            pickupable = True
+        elif pickup_option == "inspect-only":
+            pickupable = False
+
+        try:
+            updated = self._repo.update_item(
+                current_object_id=selected.object_id,
+                object_id=object_id,
+                name=name,
+                inspect_text=inspect_text,
+                pickupable=pickupable,
+            )
+        except ValueError as exc:
+            self._ui.display.error(str(exc))
+            return
+
+        if updated:
+            self._ui.display.success(f"ITEM '{selected.object_id}' uppdaterat")
+        else:
+            self._ui.display.error("Kunde inte uppdatera itemet")
 
 
 class DeleteObjectCommand(Command):

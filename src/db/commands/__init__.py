@@ -13,6 +13,7 @@ from .constant_commands import (
     DeleteItemCommand,
     DeleteObjectCommand,
     DeletePlaceCommand,
+    EditItemCommand,
     ListConstantsCommand,
     ListItemsCommand,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "ListClaimsCommand", "ReindexClaimIdsCommand", "RegenerateEmbeddingsCommand",
     "CreateObjectCommand", "CreatePlaceCommand", "CreateItemCommand",
     "DeleteObjectCommand", "DeletePlaceCommand", "DeleteItemCommand",
+    "EditItemCommand",
     "ListConstantsCommand", "ListItemsCommand",
     "CreateOpinionCommand", "EditOpinionCommand",
     "DeleteOpinionCommand", "ListOpinionsCommand",
