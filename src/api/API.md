@@ -207,6 +207,121 @@ Validation / not found responses:
 }
 ```
 
+## POST /players/{player_id}/items/inspect
+
+Inspect one item by `object_id` and mark it as seen for the player.
+
+Request:
+
+```json
+{
+  "object_id": "item_1"
+}
+```
+
+Response:
+
+```json
+{
+  "player_id": "player_1",
+  "object_id": "item_1",
+  "item_name": "Nyckel",
+  "inspect_text": "En tung jarnnyckel med slottets sigill.",
+  "pickupable": true,
+  "seen": true
+}
+```
+
+Validation / not found responses:
+
+```json
+{
+  "detail": "player_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "object_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "Player not found"
+}
+```
+
+```json
+{
+  "detail": "Item not found"
+}
+```
+
+## POST /players/{player_id}/items/pickup
+
+Try to pick up one item by `object_id`.
+
+Request:
+
+```json
+{
+  "object_id": "item_1"
+}
+```
+
+Response when pickup succeeds:
+
+```json
+{
+  "player_id": "player_1",
+  "object_id": "item_1",
+  "item_name": "Nyckel",
+  "pickupable": true,
+  "picked_up": true,
+  "detail": "Item upplockat"
+}
+```
+
+Response when the item exists but is not pickupable:
+
+```json
+{
+  "player_id": "player_1",
+  "object_id": "item_2",
+  "item_name": "Kropp",
+  "pickupable": false,
+  "picked_up": false,
+  "detail": "Det itemet kan inte plockas upp"
+}
+```
+
+Validation / not found responses:
+
+```json
+{
+  "detail": "player_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "object_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "Player not found"
+}
+```
+
+```json
+{
+  "detail": "Item not found"
+}
+```
+
 ## Server errors
 
 Unexpected backend errors are returned as `500` with:

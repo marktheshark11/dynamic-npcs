@@ -39,7 +39,20 @@ A thing in the world (e.g. "Svard", "Bok").
 
 | Property | Type | Notes |
 |----------|------|-------|
+| `object_id` | string | Auto-generated for gameplay/world object identity (e.g. `object_1`, `item_1`) |
 | `name` | string | Unique, capitalized |
+
+Some `OBJECT` nodes may also carry the `ITEM` label for gameplay interactions.
+
+### ITEM
+A gameplay-interactable object. Implemented as an extra label on `OBJECT` (`:OBJECT:ITEM`), so the same node can be referenced by claims and used in gameplay.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `object_id` | string | Shared object identifier on the underlying `OBJECT` node |
+| `name` | string | Shared with the underlying `OBJECT` node |
+| `inspect_text` | string | Text shown when the player inspects the item |
+| `pickupable` | bool | `true` if the player can pick it up |
 
 ### PLACE
 A location in the world (e.g. "Torget", "Kyrkan").
@@ -171,6 +184,24 @@ Membership relation. No properties.
 At query time (RAG layer), this is used to let NPCs inherit group-level opinions:
 ```
 (NPC) -[:MEMBER_OF]-> (GROUP) -[:HAS_OPINION]-> (CLAIM)
+```
+
+---
+
+### HAS_ITEM (PLAYER --> OBJECT:ITEM)
+
+Tracks that the player has picked up an item.
+
+```
+(PLAYER)-[:HAS_ITEM]->(OBJECT:ITEM)
+```
+
+### SEEN_OBJECT (PLAYER --> OBJECT:ITEM)
+
+Tracks that the player has inspected or otherwise seen an item. This is intended for gameplay gating such as unlocking future interactions or clues.
+
+```
+(PLAYER)-[:SEEN_OBJECT]->(OBJECT:ITEM)
 ```
 
 ---

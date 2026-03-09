@@ -9,7 +9,9 @@ from .commands import (
     CreateGroupCommand, DeleteGroupCommand, ListGroupsCommand,
     CreateClaimCommand, EditClaimCommand, DeleteClaimCommand,
     ListClaimsCommand, ReindexClaimIdsCommand, RegenerateEmbeddingsCommand,
-    CreateObjectCommand, CreatePlaceCommand, ListConstantsCommand,
+    CreateObjectCommand, CreatePlaceCommand, CreateItemCommand,
+    DeleteObjectCommand, DeletePlaceCommand, DeleteItemCommand,
+    ListConstantsCommand, ListItemsCommand,
     CreateOpinionCommand, EditOpinionCommand,
     DeleteOpinionCommand, ListOpinionsCommand,
     CreateStructuralRelationCommand,
@@ -20,6 +22,7 @@ from .commands import (
     ListConversationsCommand, DeleteConversationCommand, DeleteAllConversationsCommand,
     SummarizeConversationCommand,
     CreatePlayerCommand, EditPlayerCommand, DeletePlayerCommand,
+    InspectItemCommand, PickupItemCommand, ListPlayerInventoryCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
 from services.chat_service import ChatService
@@ -81,8 +84,13 @@ class App:
             ]),
             SubMenu("Konstanter (Objekt/Platser)", [
                 CreateObjectCommand(self._constant_repo, ui),
+                DeleteObjectCommand(self._constant_repo, ui),
                 CreatePlaceCommand(self._constant_repo, ui),
+                DeletePlaceCommand(self._constant_repo, ui),
+                CreateItemCommand(self._constant_repo, ui),
+                DeleteItemCommand(self._constant_repo, ui),
                 ListConstantsCommand(self._constant_repo, ui),
+                ListItemsCommand(self._constant_repo, ui),
             ]),
             SubMenu("Opinions (kopplingar)", [
                 CreateOpinionCommand(
@@ -141,6 +149,9 @@ class App:
                 CreatePlayerCommand(self._player_repo, ui),
                 EditPlayerCommand(self._player_repo, ui),
                 DeletePlayerCommand(self._player_repo, ui),
+                InspectItemCommand(self._player_repo, self._constant_repo, ui),
+                PickupItemCommand(self._player_repo, self._constant_repo, ui),
+                ListPlayerInventoryCommand(self._player_repo, ui),
             ]),
         ])
 

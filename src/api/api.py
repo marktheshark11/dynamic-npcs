@@ -9,8 +9,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from db.config import Config
+from db.repositories import ConstantRepo, PlayerRepo
 from services.chat_service import ChatService
-from db.repositories import PlayerRepo
 
 class ChatResponse(BaseModel):
     npc_id: str
@@ -55,6 +55,28 @@ class PlayerResponse(BaseModel):
 class DeletePlayerResponse(BaseModel):
     player_id: str
     deleted: bool
+
+
+class ItemActionRequest(BaseModel):
+    object_id: str
+
+
+class InspectItemResponse(BaseModel):
+    player_id: str
+    object_id: str
+    item_name: str
+    inspect_text: str
+    pickupable: bool
+    seen: bool
+
+
+class PickupItemResponse(BaseModel):
+    player_id: str
+    object_id: str
+    item_name: str
+    pickupable: bool
+    picked_up: bool
+    detail: str
     
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -209,6 +231,90 @@ async def delete_player(player_id: str, config: Config = Depends(get_config)):
         if not deleted:
             raise HTTPException(status_code=404, detail="Player not found")
         return DeletePlayerResponse(player_id=player_id, deleted=True)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/players/{player_id}/items/inspect", response_model=InspectItemResponse)
+async def inspect_item(
+    player_id: str,
+    payload: ItemActionRequest,
+    config: Config = Depends(get_config),
+):
+    player_id = player_id.strip()
+    object_id = payload.object_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+    if not object_id:
+        raise HTTPException(status_code=400, detail="object_id cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        constant_repo = ConstantRepo(config.driver)
+
+        if not player_repo.get_profile_by_id(player_id):
+            raise HTTPException(status_code=404, detail="Player not found")
+
+        item = constant_repo.get_item(object_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+
+        seen = player_repo.mark_seen_object(player_id, item.object_id)
+        if not seen:
+            raise HTTPException(status_code=500, detail="Could not mark item as seen")
+
+        return InspectItemResponse(
+            player_id=player_id,
+            object_id=item.object_id,
+            item_name=item.name,
+            inspect_text=item.inspect_text,
+            pickupable=item.pickupable,
+            seen=True,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/players/{player_id}/items/pickup", response_model=PickupItemResponse)
+async def pickup_item(
+    player_id: str,
+    payload: ItemActionRequest,
+    config: Config = Depends(get_config),
+):
+    player_id = player_id.strip()
+    object_id = payload.object_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+    if not object_id:
+        raise HTTPException(status_code=400, detail="object_id cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        constant_repo = ConstantRepo(config.driver)
+
+        if not player_repo.get_profile_by_id(player_id):
+            raise HTTPException(status_code=404, detail="Player not found")
+
+        item = constant_repo.get_item(object_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+
+        picked_up, detail = player_repo.pickup_item(player_id, item.object_id)
+        if not picked_up and detail == "Item eller player hittades inte":
+            raise HTTPException(status_code=404, detail=detail)
+
+        return PickupItemResponse(
+            player_id=player_id,
+            object_id=item.object_id,
+            item_name=item.name,
+            pickupable=item.pickupable,
+            picked_up=picked_up,
+            detail=detail,
+        )
     except HTTPException:
         raise
     except Exception as exc:

@@ -6,7 +6,16 @@ from .claim_commands import (
     DeleteClaimCommand, ListClaimsCommand, ReindexClaimIdsCommand,
     RegenerateEmbeddingsCommand,
 )
-from .constant_commands import CreateObjectCommand, CreatePlaceCommand, ListConstantsCommand
+from .constant_commands import (
+    CreateItemCommand,
+    CreateObjectCommand,
+    CreatePlaceCommand,
+    DeleteItemCommand,
+    DeleteObjectCommand,
+    DeletePlaceCommand,
+    ListConstantsCommand,
+    ListItemsCommand,
+)
 from .opinion_commands import (
     CreateOpinionCommand, EditOpinionCommand,
     DeleteOpinionCommand, ListOpinionsCommand,
@@ -28,7 +37,14 @@ from .conversation_commands import (
     DeleteAllConversationsCommand,
     SummarizeConversationCommand,
 )
-from .player_commands import CreatePlayerCommand, EditPlayerCommand, DeletePlayerCommand
+from .player_commands import (
+    CreatePlayerCommand,
+    DeletePlayerCommand,
+    EditPlayerCommand,
+    InspectItemCommand,
+    ListPlayerInventoryCommand,
+    PickupItemCommand,
+)
 
 __all__ = [
     "Command",
@@ -36,7 +52,9 @@ __all__ = [
     "CreateGroupCommand", "DeleteGroupCommand", "ListGroupsCommand",
     "CreateClaimCommand", "EditClaimCommand", "DeleteClaimCommand",
     "ListClaimsCommand", "ReindexClaimIdsCommand", "RegenerateEmbeddingsCommand",
-    "CreateObjectCommand", "CreatePlaceCommand", "ListConstantsCommand",
+    "CreateObjectCommand", "CreatePlaceCommand", "CreateItemCommand",
+    "DeleteObjectCommand", "DeletePlaceCommand", "DeleteItemCommand",
+    "ListConstantsCommand", "ListItemsCommand",
     "CreateOpinionCommand", "EditOpinionCommand",
     "DeleteOpinionCommand", "ListOpinionsCommand",
     "CreateStructuralRelationCommand",
@@ -47,4 +65,5 @@ __all__ = [
     "ListConversationsCommand", "DeleteConversationCommand", "DeleteAllConversationsCommand",
     "SummarizeConversationCommand",
     "CreatePlayerCommand", "EditPlayerCommand", "DeletePlayerCommand",
+    "InspectItemCommand", "PickupItemCommand", "ListPlayerInventoryCommand",
 ]

@@ -1,5 +1,5 @@
 from .base import BaseRepository
-from ..models import Player
+from ..models import Item, Player
 
 
 class PlayerRepo(BaseRepository):
@@ -97,6 +97,53 @@ class PlayerRepo(BaseRepository):
             claim_ids=claim_ids,
         )
         return record["total"] if record else 0
+
+    def mark_seen_object(self, player_id: str, object_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "MATCH (o:OBJECT:ITEM {object_id: $object_id}) "
+            "MERGE (p)-[:SEEN_OBJECT]->(o) "
+            "RETURN o.object_id AS object_id",
+            player_id=player_id,
+            object_id=object_id,
+        )
+        return record is not None
+
+    def pickup_item(self, player_id: str, object_id: str) -> tuple[bool, str]:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "MATCH (o:OBJECT:ITEM {object_id: $object_id}) "
+            "WITH p, o, coalesce(o.pickupable, false) AS pickupable "
+            "FOREACH (_ IN CASE WHEN pickupable THEN [1] ELSE [] END | "
+            "    MERGE (p)-[:HAS_ITEM]->(o) "
+            "    MERGE (p)-[:SEEN_OBJECT]->(o)"
+            ") "
+            "RETURN pickupable AS pickupable",
+            player_id=player_id,
+            object_id=object_id,
+        )
+        if not record:
+            return False, "Item eller player hittades inte"
+        if not record["pickupable"]:
+            return False, "Det itemet kan inte plockas upp"
+        return True, "Item upplockat"
+
+    def list_inventory(self, player_id: str) -> list[Item]:
+        records = self._run(
+            "MATCH (:PLAYER {player_id: $player_id})-[:HAS_ITEM]->(o:OBJECT:ITEM) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
+            "ORDER BY o.object_id",
+            player_id=player_id,
+        )
+        return [
+            Item(
+                object_id=r["object_id"],
+                name=r["name"],
+                inspect_text=r.get("inspect_text") or "",
+                pickupable=bool(r.get("pickupable")),
+            )
+            for r in records
+        ]
 
     def delete(self, player_id: str) -> bool:
         record = self._run_single(
