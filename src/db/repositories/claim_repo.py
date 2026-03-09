@@ -184,26 +184,41 @@ class ClaimRepo(BaseRepository):
         self._run(query, **params)
         return True
 
-    def delete(self, claim_id: str) -> tuple[bool, int]:
-        """Delete a claim and all HAS_OPINION relations pointing to it.
+    def delete(self, claim_id: str) -> tuple[bool, dict[str, int]]:
+        """Delete a claim and all connected relations.
 
-        Returns (success, opinion_count).
+        Removes HAS_OPINION, REFERENCE, and PART_OF relations.
+
+        Returns (success, counts_dict) where counts_dict has keys
+        ``opinions``, ``references``, and ``mysteries``.
         """
+        empty_counts: dict[str, int] = {"opinions": 0, "references": 0, "mysteries": 0}
+
         record = self._run_single(
             "MATCH (c:CLAIM {claim_id: $claim_id}) "
-            "OPTIONAL MATCH ()-[r:HAS_OPINION]->(c) "
-            "RETURN c.content AS content, count(r) AS opinion_count",
+            "OPTIONAL MATCH ()-[o:HAS_OPINION]->(c) "
+            "OPTIONAL MATCH (c)-[ref:REFERENCE]-() "
+            "OPTIONAL MATCH (c)-[p:PART_OF]->() "
+            "RETURN c.content AS content, "
+            "       count(DISTINCT o) AS opinion_count, "
+            "       count(DISTINCT ref) AS reference_count, "
+            "       count(DISTINCT p) AS mystery_count",
             claim_id=claim_id,
         )
         if not record or not record["content"]:
-            return False, 0
+            return False, empty_counts
 
-        opinion_count = record["opinion_count"]
+        counts: dict[str, int] = {
+            "opinions": record["opinion_count"],
+            "references": record["reference_count"],
+            "mysteries": record["mystery_count"],
+        }
         self._run(
             "MATCH (c:CLAIM {claim_id: $claim_id}) "
-            "OPTIONAL MATCH ()-[r:HAS_OPINION]->(c) "
+            "OPTIONAL MATCH ()-[o:HAS_OPINION]->(c) "
             "OPTIONAL MATCH (c)-[ref:REFERENCE]-() "
-            "DELETE r, ref, c",
+            "OPTIONAL MATCH (c)-[p:PART_OF]->() "
+            "DELETE o, ref, p, c",
             claim_id=claim_id,
         )
-        return True, opinion_count
+        return True, counts

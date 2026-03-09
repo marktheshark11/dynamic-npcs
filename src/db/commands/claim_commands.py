@@ -236,11 +236,21 @@ class DeleteClaimCommand(Command):
             return
 
         if self._ui.confirm(f"Ta bort CLAIM {selected.claim_id}?"):
-            ok, opinion_count = self._repo.delete(selected.claim_id)
+            ok, counts = self._repo.delete(selected.claim_id)
             if ok:
                 self._ui.display.success(f"CLAIM {selected.claim_id} borttagen")
-                if opinion_count > 0:
-                    self._ui.display.info(f"{opinion_count} HAS_OPINION relationer borttagna")
+                if counts["opinions"] > 0:
+                    self._ui.display.info(
+                        f"{counts['opinions']} HAS_OPINION relationer borttagna"
+                    )
+                if counts["references"] > 0:
+                    self._ui.display.info(
+                        f"{counts['references']} REFERENCE relationer borttagna"
+                    )
+                if counts["mysteries"] > 0:
+                    self._ui.display.info(
+                        f"{counts['mysteries']} PART_OF (mysterium) relationer borttagna"
+                    )
             else:
                 self._ui.display.error("Kunde inte ta bort CLAIM")
 
