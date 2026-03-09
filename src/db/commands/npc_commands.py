@@ -16,11 +16,19 @@ class CreateNPCCommand(Command):
     def execute(self) -> None:
         id_val = self._ui.prompt("id")
         name_val = self._ui.prompt("namn")
-        age_val = self._ui.prompt_int("alder")
+        age_val = self._ui.prompt_int("ålder")
         personality_val = self._ui.prompt("personlighet")
-        status_val = self._ui.prompt("status (levande, dod, okand)")
+        status_val = self._ui.prompt("status (levande, död, okänd)")
+        story_background_val = self._ui.prompt("story_background (sammanfattning av vad som har hänt)")
 
-        npc = NPC(id=id_val, name=name_val, age=age_val, personality=personality_val, status=status_val)
+        npc = NPC(
+            id=id_val,
+            name=name_val,
+            age=age_val,
+            personality=personality_val,
+            status=status_val,
+            story_background=story_background_val,
+        )
         self._repo.create(npc)
         self._ui.display.success(f"NPC '{name_val}' skapad")
 
@@ -41,14 +49,22 @@ class EditNPCCommand(Command):
             return
 
         name_val = self._ui.prompt_optional("namn")
-        age_val = self._ui.prompt_optional_int("alder")
+        age_val = self._ui.prompt_optional_int("ålder")
         personality_val = self._ui.prompt_optional("personlighet")
-        status_val = self._ui.prompt_optional("status (levande, dod, okand)")
+        status_val = self._ui.prompt_optional("status (levande, död, okänd)")
+        story_background_val = self._ui.prompt_optional("story_background (sammanfattning av vad som har hänt)")
 
-        if self._repo.update(selected.id, name_val, age_val, personality_val, status_val):
+        if self._repo.update(
+            selected.id,
+            name_val,
+            age_val,
+            personality_val,
+            status_val,
+            story_background_val,
+        ):
             self._ui.display.success(f"NPC '{selected.id}' uppdaterad")
         else:
-            self._ui.display.error("Inga andringar gjorda")
+            self._ui.display.error("Inga ändringar gjorda")
 
 
 class DeleteNPCCommand(Command):

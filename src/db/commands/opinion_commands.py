@@ -44,15 +44,14 @@ class CreateOpinionCommand(Command):
         if not claim:
             return
 
-        # Get belief_in and openness
-        belief_in = self._ui.prompt_float("belief_in")
-        openness = self._ui.prompt_float("openness")
+        prefix = self._ui.prompt_optional("prefix")
+        suffix = self._ui.prompt_optional("suffix")
 
         if self._opinion_repo.create(entity_id, entity_type, claim.claim_id,
-                                      belief_in, openness):
+                                     prefix, suffix):
             self._ui.display.success(
                 f"HAS_OPINION: {entity_id} -> {claim.claim_id} "
-                f"(belief: {belief_in}, openness: {openness})"
+                f"(prefix: {prefix or '-'}, suffix: {suffix or '-'})"
             )
         else:
             self._ui.display.error(
@@ -97,28 +96,28 @@ class EditOpinionCommand(Command):
 
         display_fn = lambda o: (
             f"{o.claim_id}: {o.claim_content[:40]}... "
-            f"(belief: {o.belief_in}, openness: {o.openness})"
+            f"(prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'})"
         )
         opinion = self._ui.select_from_list(opinions, display_fn, "Valj opinion")
         if not opinion:
             return
 
-        self._ui.display.info(f"Nuvarande belief_in: {opinion.belief_in}")
-        self._ui.display.info(f"Nuvarande openness: {opinion.openness}")
+        self._ui.display.info(f"Nuvarande prefix: {opinion.prefix or '-'}")
+        self._ui.display.info(f"Nuvarande suffix: {opinion.suffix or '-'}")
 
-        belief_in = self._ui.prompt_float("ny belief_in")
-        openness = self._ui.prompt_float("ny openness")
+        prefix = self._ui.prompt_optional("ny prefix")
+        suffix = self._ui.prompt_optional("ny suffix")
 
         if self._opinion_repo.update(
             entity_id,
             entity_type,
             opinion.claim_id,
-            belief_in,
-            openness,
+            prefix,
+            suffix,
         ):
             self._ui.display.success(
                 f"Opinion uppdaterad for {opinion.claim_id} "
-                f"(belief: {belief_in}, openness: {openness})"
+                f"(prefix: {prefix or '-'}, suffix: {suffix or '-'})"
             )
         else:
             self._ui.display.error("Kunde inte uppdatera opinion")
@@ -161,7 +160,7 @@ class DeleteOpinionCommand(Command):
 
         display_fn = lambda o: (
             f"{o.claim_id}: {o.claim_content[:40]}... "
-            f"(belief: {o.belief_in}, openness: {o.openness})"
+            f"(prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'})"
         )
         opinion = self._ui.select_from_list(opinions, display_fn, "Valj opinion")
         if not opinion:
@@ -213,4 +212,4 @@ class ListOpinionsCommand(Command):
         for o in opinions:
             content_preview = o.claim_content[:50] + "..." if len(o.claim_content) > 50 else o.claim_content
             print(f"  {o.claim_id}: {content_preview}")
-            print(f"    belief_in: {o.belief_in}, openness: {o.openness}")
+            print(f"    prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'}")

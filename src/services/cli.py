@@ -200,6 +200,11 @@ def main():
                 print(messages['role'])
                 print(messages['content'])
             print(result["response"])
+            used_claims = result.get("used_claims") or []
+            if used_claims:
+                print(f"Använda claims: {', '.join(used_claims)}")
+            else:
+                print("Använda claims: (inga)")
 
             if conversation_id:
                 if previous_conversation_id and previous_conversation_id != conversation_id:
