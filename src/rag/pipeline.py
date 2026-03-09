@@ -1,5 +1,6 @@
 from db.repositories import NPCRepo, RAGRepo
 from prompt_builder import NPCProfile, PromptBuilder, PromptRequest, RAGContext
+from rag.rendering import Rendering
 
 
 class RAGPipeline:
@@ -74,9 +75,12 @@ class RAGPipeline:
                 continue
 
             contents = [
-                f"<{chain_claim['claim_id']}> {chain_claim['content']}"
-                if chain_claim.get("claim_id")
-                else chain_claim["content"]
+                Rendering.render_claim_static(
+                    chain_claim.get("claim_id"),
+                    chain_claim["content"],
+                    prefix=chain_claim.get("prefix"),
+                    suffix=chain_claim.get("suffix"),
+                )
                 for chain_claim in chain_nodes
             ]
             ids = [chain_claim["id"] for chain_claim in chain_nodes]

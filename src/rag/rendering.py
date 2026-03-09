@@ -1,10 +1,14 @@
 class Rendering:
     @staticmethod
     def render_claim_static(c_id, content, prefix=None, suffix=None):
-        text = f"<{c_id}> {content}"
+        if prefix:
+            content = f"{prefix} {content[0].lower()}{content[1:]}" if content else content
+        if c_id:
+            text = f"<{c_id}> {content}"
+        else:
+            text = content
         if suffix:
-            text = text.rstrip('.')
-            text = f"{text}, {suffix}"
+            text = f"{text} [INSTRUKTION: {suffix}]"
         return text
 
     def build_prompt(self, npc_name, chain_metadata, question):
