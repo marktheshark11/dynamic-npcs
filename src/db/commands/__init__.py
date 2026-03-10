@@ -45,6 +45,7 @@ from .player_commands import (
     InspectItemCommand,
     ListPlayerInventoryCommand,
     PickupItemCommand,
+    ClearAwareOfCommand,
 )
 
 __all__ = [
@@ -68,4 +69,5 @@ __all__ = [
     "SummarizeConversationCommand",
     "CreatePlayerCommand", "EditPlayerCommand", "DeletePlayerCommand",
     "InspectItemCommand", "PickupItemCommand", "ListPlayerInventoryCommand",
+    "ClearAwareOfCommand",
 ]

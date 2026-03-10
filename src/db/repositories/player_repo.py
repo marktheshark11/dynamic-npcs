@@ -76,10 +76,11 @@ class PlayerRepo(BaseRepository):
         record = self._run_single(query, **params)
         return record is not None
 
-    def mark_aware_of(self, player_id: str, claim_ids: list[str]) -> int:
+    def mark_aware_of(self, player_id: str, claim_ids: list[str], npc_id: str | None = None) -> int:
         """
         Drag AWARE_OF-pilar från spelaren till varje claim i listan.
         Skapar bara pilen om den inte redan finns (MERGE).
+        Spårar vilka NPCs som nämnt claimet via npc_ids-listan på kanten.
         Returnerar antalet pilar som faktiskt skapades.
         """
         if not claim_ids:
@@ -90,13 +91,62 @@ class PlayerRepo(BaseRepository):
             UNWIND $claim_ids AS cid
             MATCH (c:CLAIM {claim_id: cid})
             MERGE (p)-[r:AWARE_OF]->(c)
-            ON CREATE SET r.created_at = datetime()
+            ON CREATE SET
+              r.created_at = datetime(),
+              r.npc_ids = CASE WHEN $npc_id IS NOT NULL THEN [$npc_id] ELSE [] END
+            ON MATCH SET
+              r.npc_ids = CASE
+                WHEN $npc_id IS NULL THEN coalesce(r.npc_ids, [])
+                WHEN $npc_id IN coalesce(r.npc_ids, []) THEN r.npc_ids
+                ELSE coalesce(r.npc_ids, []) + $npc_id
+              END
             RETURN count(r) AS total
             """,
             player_id=player_id,
             claim_ids=claim_ids,
+            npc_id=npc_id,
         )
         return record["total"] if record else 0
+
+    def clear_aware_of(self, player_id: str) -> int:
+        """Tar bort alla AWARE_OF-pilar för en specifik spelare. Returnerar antal borttagna."""
+        record = self._run_single(
+            """
+            MATCH (p:PLAYER {player_id: $player_id})-[r:AWARE_OF]->()
+            WITH count(r) AS total
+            MATCH (p2:PLAYER {player_id: $player_id})-[r2:AWARE_OF]->()
+            DELETE r2
+            RETURN total
+            """,
+            player_id=player_id,
+        )
+        return record["total"] if record else 0
+
+    def clear_aware_of_all(self) -> int:
+        """Tar bort alla AWARE_OF-pilar i hela grafen. Returnerar antal borttagna."""
+        record = self._run_single(
+            """
+            MATCH ()-[r:AWARE_OF]->()
+            WITH count(r) AS total
+            MATCH ()-[r2:AWARE_OF]->()
+            DELETE r2
+            RETURN total
+            """,
+        )
+        return record["total"] if record else 0
+
+    def get_aware_claim_ids_from_npc(self, player_id: str, npc_id: str) -> set[str]:
+        """Returnerar claim_ids som spelaren redan fått av en specifik NPC."""
+        records = self._run(
+            """
+            MATCH (p:PLAYER {player_id: $player_id})-[r:AWARE_OF]->(c:CLAIM)
+            WHERE $npc_id IN coalesce(r.npc_ids, [])
+            RETURN c.claim_id AS claim_id
+            """,
+            player_id=player_id,
+            npc_id=npc_id,
+        )
+        return {r["claim_id"] for r in records if r.get("claim_id")}
 
     def mark_seen_object(self, player_id: str, object_id: str) -> bool:
         record = self._run_single(

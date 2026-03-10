@@ -24,6 +24,7 @@ from .commands import (
     SummarizeConversationCommand,
     CreatePlayerCommand, EditPlayerCommand, DeletePlayerCommand,
     InspectItemCommand, PickupItemCommand, ListPlayerInventoryCommand,
+    ClearAwareOfCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
 from services.chat_service import ChatService
@@ -154,6 +155,7 @@ class App:
                 InspectItemCommand(self._player_repo, self._constant_repo, ui),
                 PickupItemCommand(self._player_repo, self._constant_repo, ui),
                 ListPlayerInventoryCommand(self._player_repo, ui),
+                ClearAwareOfCommand(self._player_repo, ui),
             ]),
         ])
 

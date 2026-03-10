@@ -148,3 +148,36 @@ class ListPlayerInventoryCommand(Command):
 
         self._ui.display.header(f"Inventory for {selected_player.player_id}")
         self._ui.display.list_items(items, Item.display_str)
+
+
+class ClearAwareOfCommand(Command):
+    def __init__(self, repo: PlayerRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Rensa AWARE_OF-pilar"
+
+    def execute(self) -> None:
+        print("\n  1: Rensa för en specifik player")
+        print("  2: Rensa för alla players")
+        print("  0: Avbryt")
+        choice = input("Välj: ").strip()
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            players = self._repo.list_all()
+            selected = self._ui.select_from_list(players, Player.display_str, "Alla players")
+            if not selected:
+                return
+            if self._ui.confirm(f"Rensa alla AWARE_OF-pilar för '{selected.player_id}'?"):
+                count = self._repo.clear_aware_of(selected.player_id)
+                self._ui.display.success(f"{count} AWARE_OF-pilar borttagna för '{selected.player_id}'")
+        elif choice == "2":
+            if self._ui.confirm("Rensa ALLA AWARE_OF-pilar för samtliga players?"):
+                count = self._repo.clear_aware_of_all()
+                self._ui.display.success(f"{count} AWARE_OF-pilar borttagna totalt")
+        else:
+            print("Ogiltigt val")

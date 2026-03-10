@@ -12,12 +12,13 @@ class ChatService:
         self.player_repo = PlayerRepo(driver)
         self.default_model = default_model
 
-    def build_prompt(self, npc_id, question, player_profile=None, recent_exchanges=None):
+    def build_prompt(self, npc_id, question, player_profile=None, recent_exchanges=None, player_id=None):
         return self.pipeline.run(
             npc_id,
             question,
             player_profile=player_profile,
             recent_exchanges=recent_exchanges,
+            player_id=player_id,
         )
 
     @staticmethod
@@ -221,6 +222,7 @@ class ChatService:
             question,
             player_profile=player_profile,
             recent_exchanges=recent_exchanges,
+            player_id=effective_player_id,
         )
         if not prompt_result:
             return None
@@ -234,6 +236,9 @@ class ChatService:
             raw_response=raw_response_text,
             allowed_ids=available_claim_ids,
         )
+
+        if effective_player_id and used_claims:
+            self.player_repo.mark_aware_of(effective_player_id, used_claims, npc_id=npc_id)
 
         self.conversation_repo.append_exchange(
             conversation_id=resolved_conversation_id,

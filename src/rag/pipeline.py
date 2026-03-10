@@ -1,4 +1,4 @@
-from db.repositories import NPCRepo, RAGRepo
+from db.repositories import NPCRepo, PlayerRepo, RAGRepo
 from prompt_builder import NPCProfile, PromptBuilder, PromptRequest, RAGContext
 from rag.rendering import Rendering
 
@@ -7,6 +7,7 @@ class RAGPipeline:
     def __init__(self, driver, embed_model):
         self.rag_repo = RAGRepo(driver)
         self.npc_repo = NPCRepo(driver)
+        self.player_repo = PlayerRepo(driver)
         self.embed_model = embed_model
         self.prompt_builder = PromptBuilder()
         self._group_support: bool | None = None
@@ -27,7 +28,7 @@ class RAGPipeline:
             include_group=self._supports_group_membership(),
         )
 
-    def _build_claim_chains(self, claims: list[dict], npc_id: str) -> list[dict]:
+    def _build_claim_chains(self, claims: list[dict], npc_id: str, already_mentioned: set[str] | None = None) -> list[dict]:
         if not claims:
             return []
 
@@ -79,7 +80,11 @@ class RAGPipeline:
                     chain_claim.get("claim_id"),
                     chain_claim["content"],
                     prefix=chain_claim.get("prefix"),
-                    suffix=chain_claim.get("suffix"),
+                    suffix=(
+                        "och detta har du redan nämnt"
+                        if already_mentioned and chain_claim.get("claim_id") in already_mentioned
+                        else chain_claim.get("suffix")
+                    ),
                 )
                 for chain_claim in chain_nodes
             ]
@@ -96,16 +101,16 @@ class RAGPipeline:
 
         return final_chains
 
-    def run(self, npc_id, question, top_k=7, player_profile=None, recent_exchanges=None):
+    def run(self, npc_id, question, top_k=5, player_profile=None, recent_exchanges=None, player_id=None):
         # 1. Grundsökning (Semantisk)
         query_embedding = self._create_query_embedding(question)
         top_claims = self.rag_repo.find_top_claims(npc_id=npc_id, query_vector=query_embedding, top_k=top_k)
-        
+
         # 2. Expandera för att hitta konstanter (PLACE, OBJECT, NPC, MYSTERY)
         initial_ids = [c["id"] for c in top_claims]
         all_expanded_claims, constants = self.rag_repo.expand_from_claims(initial_ids)
         constant_ids = [c["id"] for c in constants if c["id"]]
-        
+
         # 2b. Inkludera alla NPC-claims som delar mystery med de expanderade claimsen
         mystery_ids = [c["id"] for c in constants if c.get("type") == "MYSTERY"]
         mystery_claims = self.rag_repo.find_mystery_claims(mystery_ids, npc_id) if mystery_ids else []
@@ -115,7 +120,11 @@ class RAGPipeline:
 
         # 4. Slå ihop allt och bygg kedjor (Logisk pussling)
         all_unique = {c["id"]: c for c in (top_claims + all_expanded_claims + mystery_claims + rel_candidates)}
-        chains = self._build_claim_chains(list(all_unique.values()), npc_id)
+        already_mentioned = (
+            self.player_repo.get_aware_claim_ids_from_npc(player_id, npc_id)
+            if player_id else set()
+        )
+        chains = self._build_claim_chains(list(all_unique.values()), npc_id, already_mentioned=already_mentioned)
         
         # 5. Sortera: Kedjor > 1 eller fakta -> knowledge. Enstaka relationer -> relation_claims.
         knowledge_final = []
