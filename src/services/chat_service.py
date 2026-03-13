@@ -12,13 +12,22 @@ class ChatService:
         self.player_repo = PlayerRepo(driver)
         self.default_model = default_model
 
-    def build_prompt(self, npc_id, question, player_profile=None, recent_exchanges=None, player_id=None):
+    def build_prompt(
+        self,
+        npc_id,
+        question,
+        player_profile=None,
+        recent_exchanges=None,
+        player_id=None,
+        conversation_claim_ids=None,
+    ):
         return self.pipeline.run(
             npc_id,
             question,
             player_profile=player_profile,
             recent_exchanges=recent_exchanges,
             player_id=player_id,
+            conversation_claim_ids=conversation_claim_ids,
         )
 
     @staticmethod
@@ -216,6 +225,7 @@ class ChatService:
             player_profile = self.player_repo.get_profile_by_id(effective_player_id)
 
         recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=3)
+        conversation_claim_ids = self.conversation_repo.get_mentioned_claim_ids(resolved_conversation_id)
 
         prompt_result, chain_metadata = self.build_prompt(
             npc_id,
@@ -223,6 +233,7 @@ class ChatService:
             player_profile=player_profile,
             recent_exchanges=recent_exchanges,
             player_id=effective_player_id,
+            conversation_claim_ids=conversation_claim_ids,
         )
         if not prompt_result:
             return None
@@ -236,6 +247,9 @@ class ChatService:
             raw_response=raw_response_text,
             allowed_ids=available_claim_ids,
         )
+
+        if used_claims:
+            self.conversation_repo.add_mentioned_claim_ids(resolved_conversation_id, used_claims)
 
         if effective_player_id and used_claims:
             self.player_repo.mark_aware_of(effective_player_id, used_claims, npc_id=npc_id)

@@ -45,6 +45,30 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
+    def find_claims_by_claim_ids(self, npc_id: str, claim_ids: list[str]) -> list[dict]:
+        if not claim_ids:
+            return []
+
+        records = self._run(
+            """
+            MATCH (n:NPC {id: $npc_id})
+            OPTIONAL MATCH (n)-[:HAS_OPINION]->(c1:CLAIM)
+            OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(c2:CLAIM)
+
+            WITH collect(c1) + collect(c2) AS all_c
+            UNWIND all_c AS c
+            WITH DISTINCT c WHERE c IS NOT NULL AND c.claim_id IN $claim_ids
+
+            RETURN elementId(c) AS id,
+                   c.claim_id AS claim_id,
+                   c.content AS content,
+                   c.type AS type
+            """,
+            npc_id=npc_id,
+            claim_ids=claim_ids,
+        )
+        return [dict(r) for r in records]
+
     def expand_from_claims(self, claim_ids: list[str]) -> tuple[list[dict], list[dict]]:
         record = self._run_single(
             """

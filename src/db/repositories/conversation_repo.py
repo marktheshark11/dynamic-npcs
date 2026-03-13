@@ -34,7 +34,7 @@ class ConversationRepo(BaseRepository):
             "MATCH (npc:NPC {id: $npc_id}) "
             "OPTIONAL MATCH (player:PLAYER {player_id: $player_id}) "
             "CREATE (c:CONVERSATION {"
-            "conv_id: $conversation_id, npc_id: $npc_id, created_at: $created_at"
+            "conv_id: $conversation_id, npc_id: $npc_id, created_at: $created_at, mentioned_claim_ids: []"
             "}) "
             "CREATE (npc)-[:HAS_CONVERSATION]->(c) "
             "FOREACH (_ IN CASE WHEN player IS NULL THEN [] ELSE [1] END | "
@@ -68,7 +68,36 @@ class ConversationRepo(BaseRepository):
             "ended_at": props.get("ended_at"),
             "summary": props.get("summary"),
             "summary_updated_at": props.get("summary_updated_at"),
+            "mentioned_claim_ids": props.get("mentioned_claim_ids") or [],
         }
+
+    def get_mentioned_claim_ids(self, conversation_id: str) -> list[str]:
+        record = self._run_single(
+            "MATCH (c:CONVERSATION {conv_id: $conversation_id}) "
+            "RETURN coalesce(c.mentioned_claim_ids, []) AS ids",
+            conversation_id=conversation_id,
+        )
+        if not record:
+            return []
+        ids = record.get("ids") or []
+        return [cid for cid in ids if isinstance(cid, str) and cid]
+
+    def add_mentioned_claim_ids(self, conversation_id: str, claim_ids: list[str]) -> list[str]:
+        if not claim_ids:
+            return self.get_mentioned_claim_ids(conversation_id)
+
+        record = self._run_single(
+            "MATCH (c:CONVERSATION {conv_id: $conversation_id}) "
+            "SET c.mentioned_claim_ids = reduce(acc = coalesce(c.mentioned_claim_ids, []), "
+            "cid IN $claim_ids | CASE WHEN cid IN acc THEN acc ELSE acc + cid END) "
+            "RETURN coalesce(c.mentioned_claim_ids, []) AS ids",
+            conversation_id=conversation_id,
+            claim_ids=claim_ids,
+        )
+        if not record:
+            return []
+        ids = record.get("ids") or []
+        return [cid for cid in ids if isinstance(cid, str) and cid]
 
     def link_player(self, conversation_id: str, player_id: str) -> bool:
         record = self._run_single(

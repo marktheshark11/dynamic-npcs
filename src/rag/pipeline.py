@@ -101,13 +101,29 @@ class RAGPipeline:
 
         return final_chains
 
-    def run(self, npc_id, question, top_k=5, player_profile=None, recent_exchanges=None, player_id=None):
+    def run(
+        self,
+        npc_id,
+        question,
+        top_k=5,
+        player_profile=None,
+        recent_exchanges=None,
+        player_id=None,
+        conversation_claim_ids=None,
+    ):
         # 1. Grundsökning (Semantisk)
         query_embedding = self._create_query_embedding(question)
         top_claims = self.rag_repo.find_top_claims(npc_id=npc_id, query_vector=query_embedding, top_k=top_k)
 
+        # 1b. Lägg till claims som NPC redan nämnt i konversationen som extra träffar.
+        remembered_claim_hits = self.rag_repo.find_claims_by_claim_ids(
+            npc_id=npc_id,
+            claim_ids=conversation_claim_ids or [],
+        )
+        combined_hits = top_claims + remembered_claim_hits
+
         # 2. Expandera för att hitta konstanter (PLACE, OBJECT, NPC, MYSTERY)
-        initial_ids = [c["id"] for c in top_claims]
+        initial_ids = [c["id"] for c in combined_hits]
         all_expanded_claims, constants = self.rag_repo.expand_from_claims(initial_ids)
         constant_ids = [c["id"] for c in constants if c["id"]]
 
@@ -119,7 +135,10 @@ class RAGPipeline:
         rel_candidates = self.rag_repo.find_relational_candidates(npc_id=npc_id, constant_ids=constant_ids)
 
         # 4. Slå ihop allt och bygg kedjor (Logisk pussling)
-        all_unique = {c["id"]: c for c in (top_claims + all_expanded_claims + mystery_claims + rel_candidates)}
+        all_unique = {
+            c["id"]: c
+            for c in (combined_hits + all_expanded_claims + mystery_claims + rel_candidates)
+        }
         already_mentioned = (
             self.player_repo.get_aware_claim_ids_from_npc(player_id, npc_id)
             if player_id else set()
