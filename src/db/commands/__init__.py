@@ -7,14 +7,18 @@ from .claim_commands import (
     RegenerateEmbeddingsCommand,
 )
 from .constant_commands import (
+    CreateDoorCommand,
     CreateItemCommand,
     CreateObjectCommand,
     CreatePlaceCommand,
+    DeleteDoorCommand,
     DeleteItemCommand,
     DeleteObjectCommand,
     DeletePlaceCommand,
+    EditDoorCommand,
     EditItemCommand,
     ListConstantsCommand,
+    ListDoorsCommand,
     ListItemsCommand,
 )
 from .opinion_commands import (
@@ -54,10 +58,10 @@ __all__ = [
     "CreateGroupCommand", "DeleteGroupCommand", "ListGroupsCommand",
     "CreateClaimCommand", "EditClaimCommand", "DeleteClaimCommand",
     "ListClaimsCommand", "ReindexClaimIdsCommand", "RegenerateEmbeddingsCommand",
-    "CreateObjectCommand", "CreatePlaceCommand", "CreateItemCommand",
-    "DeleteObjectCommand", "DeletePlaceCommand", "DeleteItemCommand",
-    "EditItemCommand",
-    "ListConstantsCommand", "ListItemsCommand",
+    "CreateObjectCommand", "CreatePlaceCommand", "CreateItemCommand", "CreateDoorCommand",
+    "DeleteObjectCommand", "DeletePlaceCommand", "DeleteItemCommand", "DeleteDoorCommand",
+    "EditItemCommand", "EditDoorCommand",
+    "ListConstantsCommand", "ListItemsCommand", "ListDoorsCommand",
     "CreateOpinionCommand", "EditOpinionCommand",
     "DeleteOpinionCommand", "ListOpinionsCommand",
     "CreateStructuralRelationCommand",

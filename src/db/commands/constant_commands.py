@@ -1,6 +1,6 @@
 from .base import Command
 from ..repositories import ConstantRepo
-from ..models import Item, Object, Place
+from ..models import Door, Item, Object, Place
 from ..ui import InputHelpers
 
 
@@ -64,6 +64,31 @@ class CreateItemCommand(Command):
         )
 
 
+class CreateDoorCommand(Command):
+    def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Skapa en ny DOOR"
+
+    def execute(self) -> None:
+        object_id = self._ui.prompt("door_id")
+        name = self._ui.prompt("dörrnamn")
+        inspect_text = self._ui.prompt("inspect_text")
+        is_locked = self._ui.confirm("Ska dörren vara låst?")
+        try:
+            door = self._repo.create_door(name, inspect_text, is_locked, object_id=object_id)
+        except ValueError as exc:
+            self._ui.display.error(str(exc))
+            return
+        lock_text = "låst" if door.is_locked else "olåst"
+        self._ui.display.success(
+            f"DOOR '{door.name}' skapad med ID '{door.object_id}' ({lock_text})"
+        )
+
+
 class EditItemCommand(Command):
     def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
         self._repo = repo
@@ -111,6 +136,55 @@ class EditItemCommand(Command):
             self._ui.display.success(f"ITEM '{selected.object_id}' uppdaterat")
         else:
             self._ui.display.error("Kunde inte uppdatera itemet")
+
+
+class EditDoorCommand(Command):
+    def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Redigera en DOOR"
+
+    def execute(self) -> None:
+        doors = self._repo.list_doors()
+        selected = self._ui.select_from_list(doors, Door.display_str, "Alla dörrar")
+        if not selected:
+            return
+
+        object_id = self._ui.prompt_optional("object_id")
+        name = self._ui.prompt_optional("dörrnamn")
+        inspect_text = self._ui.prompt_optional("inspect_text")
+        lock_option = self._ui.select_option(
+            ["ingen ändring", "låst", "olåst"],
+            "Låsstatus",
+        )
+        if lock_option is None:
+            return
+
+        is_locked: bool | None = None
+        if lock_option == "låst":
+            is_locked = True
+        elif lock_option == "olåst":
+            is_locked = False
+
+        try:
+            updated = self._repo.update_door(
+                current_object_id=selected.object_id,
+                object_id=object_id,
+                name=name,
+                inspect_text=inspect_text,
+                is_locked=is_locked,
+            )
+        except ValueError as exc:
+            self._ui.display.error(str(exc))
+            return
+
+        if updated:
+            self._ui.display.success(f"DOOR '{selected.object_id}' uppdaterad")
+        else:
+            self._ui.display.error("Kunde inte uppdatera dörren")
 
 
 class DeleteObjectCommand(Command):
@@ -179,6 +253,28 @@ class DeleteItemCommand(Command):
                 self._ui.display.error("Kunde inte ta bort itemet")
 
 
+class DeleteDoorCommand(Command):
+    def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Ta bort en DOOR"
+
+    def execute(self) -> None:
+        doors = self._repo.list_doors()
+        selected = self._ui.select_from_list(doors, Door.display_str, "Alla dörrar")
+        if not selected:
+            return
+
+        if self._ui.confirm(f"Ta bort DOOR '{selected.object_id}' ({selected.name})?"):
+            if self._repo.delete_door(selected.object_id):
+                self._ui.display.success(f"DOOR '{selected.object_id}' borttagen")
+            else:
+                self._ui.display.error("Kunde inte ta bort dörren")
+
+
 class ListConstantsCommand(Command):
     def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
         self._repo = repo
@@ -219,4 +315,27 @@ class ListItemsCommand(Command):
             pickup_text = "pickupbart" if item.pickupable else "inspect-only"
             print(
                 f"  {idx}. {item.display_str()} | inspect: {item.inspect_text} | {pickup_text}"
+            )
+
+
+class ListDoorsCommand(Command):
+    def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Visa alla dörrar"
+
+    def execute(self) -> None:
+        doors = self._repo.list_doors()
+        if not doors:
+            self._ui.display.error("Inga dörrar hittades")
+            return
+
+        self._ui.display.header("Alla dörrar")
+        for idx, door in enumerate(doors, 1):
+            lock_text = "låst" if door.is_locked else "olåst"
+            print(
+                f"  {idx}. {door.display_str()} | inspect: {door.inspect_text} | {lock_text}"
             )
