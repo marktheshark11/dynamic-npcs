@@ -1,5 +1,5 @@
 from .base import BaseRepository
-from ..models import Item, Object, Place
+from ..models import Door, Item, Object, Place
 
 
 class ConstantRepo(BaseRepository):
@@ -18,10 +18,15 @@ class ConstantRepo(BaseRepository):
         next_id = 1 if not record else record["next_id"]
         return f"{prefix}_{next_id}"
 
-    def _backfill_missing_object_ids(self, prefix: str, match_clause: str) -> None:
+    def _backfill_missing_object_ids(
+        self,
+        prefix: str,
+        match_clause: str,
+        extra_where_clause: str = "",
+    ) -> None:
         records = self._run(
             f"MATCH (o:OBJECT{match_clause}) "
-            "WHERE o.object_id IS NULL "
+            f"WHERE o.object_id IS NULL{extra_where_clause} "
             "RETURN elementId(o) AS element_id"
         )
         for record in records:
@@ -34,7 +39,8 @@ class ConstantRepo(BaseRepository):
 
     def _ensure_object_ids(self) -> None:
         self._backfill_missing_object_ids("item", ":ITEM")
-        self._backfill_missing_object_ids("object", "")
+        self._backfill_missing_object_ids("door", ":DOOR")
+        self._backfill_missing_object_ids("object", "", " AND NOT o:ITEM AND NOT o:DOOR")
 
     # --- OBJECT ---
 
@@ -82,6 +88,49 @@ class ConstantRepo(BaseRepository):
             return False
         self._run("MATCH (o:OBJECT {object_id: $object_id}) DETACH DELETE o", object_id=object_id)
         return True
+
+    def create_door(
+        self,
+        name: str,
+        inspect_text: str,
+        is_locked: bool,
+        object_id: str | None = None,
+    ) -> Door:
+        self._ensure_object_ids()
+        formatted = name.capitalize()
+        normalized_id = (object_id or "").strip() or None
+        existing = self._run_single(
+            "MATCH (o:OBJECT {name: $name}) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "LIMIT 1",
+            name=formatted,
+        )
+        if existing and normalized_id and existing["object_id"] != normalized_id:
+            raise ValueError("Det finns redan ett objekt med samma namn men annat ID")
+
+        final_object_id = normalized_id or (existing["object_id"] if existing else self._next_object_id("door"))
+        conflicting = self._run_single(
+            "MATCH (o:OBJECT {object_id: $object_id}) RETURN o.name AS name LIMIT 1",
+            object_id=final_object_id,
+        )
+        if conflicting and (not existing or conflicting["name"] != formatted):
+            raise ValueError("Det finns redan ett objekt med samma ID")
+
+        self._run(
+            "MERGE (o:OBJECT {name: $name}) "
+            "ON CREATE SET o.object_id = $object_id "
+            "SET o:DOOR, o.inspect_text = $inspect_text, o.is_locked = $is_locked",
+            object_id=final_object_id,
+            name=formatted,
+            inspect_text=inspect_text,
+            is_locked=is_locked,
+        )
+        return Door(
+            object_id=final_object_id,
+            name=formatted,
+            inspect_text=inspect_text,
+            is_locked=is_locked,
+        )
 
     def create_item(
         self,
@@ -143,6 +192,23 @@ class ConstantRepo(BaseRepository):
             for r in records
         ]
 
+    def list_doors(self) -> list[Door]:
+        self._ensure_object_ids()
+        records = self._run(
+            "MATCH (o:OBJECT:DOOR) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "ORDER BY o.object_id"
+        )
+        return [
+            Door(
+                object_id=r["object_id"],
+                name=r["name"],
+                inspect_text=r.get("inspect_text") or "",
+                is_locked=bool(r.get("is_locked")),
+            )
+            for r in records
+        ]
+
     def get_item(self, object_id: str) -> Item | None:
         self._ensure_object_ids()
         record = self._run_single(
@@ -160,6 +226,23 @@ class ConstantRepo(BaseRepository):
             pickupable=bool(record.get("pickupable")),
         )
 
+    def get_door(self, object_id: str) -> Door | None:
+        self._ensure_object_ids()
+        record = self._run_single(
+            "MATCH (o:OBJECT:DOOR {object_id: $object_id}) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "LIMIT 1",
+            object_id=object_id,
+        )
+        if not record:
+            return None
+        return Door(
+            object_id=record["object_id"],
+            name=record["name"],
+            inspect_text=record.get("inspect_text") or "",
+            is_locked=bool(record.get("is_locked")),
+        )
+
     def delete_item(self, object_id: str) -> bool:
         self._ensure_object_ids()
         record = self._run_single(
@@ -168,6 +251,16 @@ class ConstantRepo(BaseRepository):
         if not record:
             return False
         self._run("MATCH (o:OBJECT:ITEM {object_id: $object_id}) DETACH DELETE o", object_id=object_id)
+        return True
+
+    def delete_door(self, object_id: str) -> bool:
+        self._ensure_object_ids()
+        record = self._run_single(
+            "MATCH (o:OBJECT:DOOR {object_id: $object_id}) RETURN o", object_id=object_id,
+        )
+        if not record:
+            return False
+        self._run("MATCH (o:OBJECT:DOOR {object_id: $object_id}) DETACH DELETE o", object_id=object_id)
         return True
 
     def update_item(
@@ -231,6 +324,67 @@ class ConstantRepo(BaseRepository):
         )
         return record is not None
 
+    def update_door(
+        self,
+        current_object_id: str,
+        object_id: str | None = None,
+        name: str | None = None,
+        inspect_text: str | None = None,
+        is_locked: bool | None = None,
+    ) -> bool:
+        self._ensure_object_ids()
+        existing = self._run_single(
+            "MATCH (o:OBJECT:DOOR {object_id: $current_object_id}) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "LIMIT 1",
+            current_object_id=current_object_id,
+        )
+        if not existing:
+            return False
+
+        next_object_id = (object_id or "").strip() or existing["object_id"]
+        next_name = name.capitalize() if name else existing["name"]
+
+        if next_object_id != existing["object_id"]:
+            conflicting_id = self._run_single(
+                "MATCH (o:OBJECT {object_id: $object_id}) RETURN o.name AS name LIMIT 1",
+                object_id=next_object_id,
+            )
+            if conflicting_id:
+                raise ValueError("Det finns redan ett objekt med samma ID")
+
+        if next_name != existing["name"]:
+            conflicting_name = self._run_single(
+                "MATCH (o:OBJECT {name: $name}) RETURN o.object_id AS object_id LIMIT 1",
+                name=next_name,
+            )
+            if conflicting_name and conflicting_name["object_id"] != existing["object_id"]:
+                raise ValueError("Det finns redan ett objekt med samma namn")
+
+        set_clauses = [
+            "o.object_id = $object_id",
+            "o.name = $name",
+        ]
+        params: dict[str, str | bool] = {
+            "current_object_id": current_object_id,
+            "object_id": next_object_id,
+            "name": next_name,
+        }
+
+        if inspect_text is not None:
+            set_clauses.append("o.inspect_text = $inspect_text")
+            params["inspect_text"] = inspect_text
+
+        if is_locked is not None:
+            set_clauses.append("o.is_locked = $is_locked")
+            params["is_locked"] = is_locked
+
+        record = self._run_single(
+            f"MATCH (o:OBJECT:DOOR {{object_id: $current_object_id}}) SET {', '.join(set_clauses)} RETURN o",
+            **params,
+        )
+        return record is not None
+
     # --- PLACE ---
 
     def create_place(self, name: str) -> Place:
@@ -255,17 +409,37 @@ class ConstantRepo(BaseRepository):
 
     # --- Combined ---
 
-    def list_all(self) -> list[Object | Place]:
+    def list_all(self) -> list[Object | Door | Item | Place]:
         """List all OBJECTs and PLACEs together."""
         self._ensure_object_ids()
         records = self._run(
             "MATCH (c) WHERE c:OBJECT OR c:PLACE "
-            "RETURN labels(c)[0] AS label, c.object_id AS object_id, c.name AS name "
+            "RETURN c:OBJECT AS is_object, c:ITEM AS is_item, c:DOOR AS is_door, "
+            "c.object_id AS object_id, c.name AS name, c.inspect_text AS inspect_text, "
+            "c.pickupable AS pickupable, c.is_locked AS is_locked "
             "ORDER BY labels(c)[0], c.object_id, c.name"
         )
-        items: list[Object | Place] = []
+        items: list[Object | Door | Item | Place] = []
         for r in records:
-            if r["label"] == "OBJECT":
+            if r["is_item"]:
+                items.append(
+                    Item(
+                        object_id=r.get("object_id") or "",
+                        name=r["name"],
+                        inspect_text=r.get("inspect_text") or "",
+                        pickupable=bool(r.get("pickupable")),
+                    )
+                )
+            elif r["is_door"]:
+                items.append(
+                    Door(
+                        object_id=r.get("object_id") or "",
+                        name=r["name"],
+                        inspect_text=r.get("inspect_text") or "",
+                        is_locked=bool(r.get("is_locked")),
+                    )
+                )
+            elif r["is_object"]:
                 items.append(Object(object_id=r.get("object_id") or "", name=r["name"]))
             else:
                 items.append(Place(name=r["name"]))
