@@ -38,6 +38,7 @@ class ConversationSummaryResponse(BaseModel):
 class CreatePlayerRequest(BaseModel):
     name: str
     appearance: str
+    user_id: str | None = None
 
 
 class CreatePlayerResponse(BaseModel):
@@ -266,6 +267,8 @@ async def summarize_conversation(
 async def create_player(payload: CreatePlayerRequest, config: Config = Depends(get_config)):
     name = payload.name.strip()
     appearance = payload.appearance.strip()
+    user_id = payload.user_id.strip() if payload.user_id else None
+    
     if not name:
         raise HTTPException(status_code=400, detail="name cannot be empty")
     if not appearance:
@@ -273,7 +276,7 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
 
     try:
         player_repo = PlayerRepo(config.driver)
-        player = player_repo.create(name=name, appearance=appearance)
+        player = player_repo.create(name=name, appearance=appearance, user_id=user_id)
         return CreatePlayerResponse(
             player_id=player.player_id,
             name=player.name,

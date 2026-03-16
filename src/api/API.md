@@ -230,7 +230,23 @@ If the conversation does not exist, the API returns:
 
 Create a new player.
 
-Request:
+Request body:
+
+- `name` (string, required)
+- `appearance` (string, required)
+- `user_id` (string, optional) - User who owns this player. If omitted, defaults to admin user (user_1)
+
+Example request (create player with specific user):
+
+```json
+{
+  "name": "Kalle",
+  "appearance": "Lång, brun kappa",
+  "user_id": "user_2"
+}
+```
+
+Example request (create player with default admin user):
 
 ```json
 {
