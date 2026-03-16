@@ -204,6 +204,21 @@ Tracks that the player has inspected or otherwise seen an item. This is intended
 (PLAYER)-[:SEEN_OBJECT]->(OBJECT:ITEM)
 ```
 
+### AWARE_OF (PLAYER --> CLAIM)
+
+Tracks that the player has learned about a claim during gameplay (typically from a conversation with an NPC). Created automatically when an NPC references claims in a chat response.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `created_at` | datetime | When the player first learned about the claim |
+| `npc_ids` | string[] | List of NPC ids that have mentioned this claim to the player |
+
+```
+(PLAYER)-[:AWARE_OF {created_at: datetime(), npc_ids: ["npc_01", "npc_03"]}]->(CLAIM)
+```
+
+The `npc_ids` list grows over time — if multiple NPCs mention the same claim, each NPC id is appended (deduplicated). This enables the RAG pipeline to mark claims as "already mentioned" per-NPC, so NPCs avoid repeating information.
+
 ---
 
 ### PART_OF (CLAIM --> MYSTERY)

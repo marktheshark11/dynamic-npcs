@@ -135,6 +135,28 @@ class PlayerRepo(BaseRepository):
         )
         return record["total"] if record else 0
 
+    def get_aware_claims(self, player_id: str) -> list[dict]:
+        """Returnerar alla claims som spelaren känner till via AWARE_OF."""
+        records = self._run(
+            """
+            MATCH (p:PLAYER {player_id: $player_id})-[r:AWARE_OF]->(c:CLAIM)
+            RETURN c.claim_id AS claim_id, c.content AS content, c.type AS type,
+                   r.created_at AS created_at, r.npc_ids AS npc_ids
+            ORDER BY c.claim_id
+            """,
+            player_id=player_id,
+        )
+        return [
+            {
+                "claim_id": r["claim_id"],
+                "content": r["content"],
+                "type": r.get("type"),
+                "created_at": str(r["created_at"]) if r.get("created_at") else None,
+                "npc_ids": list(r.get("npc_ids") or []),
+            }
+            for r in records
+        ]
+
     def get_aware_claim_ids_from_npc(self, player_id: str, npc_id: str) -> set[str]:
         """Returnerar claim_ids som spelaren redan fått av en specifik NPC."""
         records = self._run(

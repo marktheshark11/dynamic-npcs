@@ -207,6 +207,58 @@ Validation / not found responses:
 }
 ```
 
+## GET /players/{player_id}/claims
+
+Return all claims the player is aware of (connected via `AWARE_OF`).
+
+Example request:
+
+```http
+GET /players/player_1/claims
+```
+
+Response:
+
+```json
+[
+  {
+    "claim_id": "C3",
+    "content": "Erik stal från butiken",
+    "type": null,
+    "created_at": "2026-03-16T14:30:00.000000000Z",
+    "npc_ids": ["npc_01", "npc_03"]
+  },
+  {
+    "claim_id": "C7",
+    "content": "Gudarna straffar syndare",
+    "type": "relation",
+    "created_at": "2026-03-16T15:12:00.000000000Z",
+    "npc_ids": ["npc_02"]
+  }
+]
+```
+
+Notes:
+
+- `type` may be `null` if the claim has no explicit type.
+- `created_at` is the timestamp when the player first learned about the claim. May be `null` for older data.
+- `npc_ids` lists all NPCs that have mentioned this claim to the player.
+- Returns an empty list if the player has no `AWARE_OF` relationships.
+
+Validation / not found responses:
+
+```json
+{
+  "detail": "player_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "Player not found"
+}
+```
+
 ## POST /players/{player_id}/items/inspect
 
 Inspect one item by `object_id` and mark it as seen for the player.
