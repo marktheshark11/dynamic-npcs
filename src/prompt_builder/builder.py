@@ -24,9 +24,9 @@ class PromptBuilder:
     ) -> PromptBuildResult:
         identity_text = IdentitySection.render(profile)
         rules_text = RulesSection.render()
-        print('rules_text:', rules_text)
+        #print('rules_text:', rules_text)
         output_format_text = OutputFormatSection.render()
-        print('output_format_text:', output_format_text)
+        #print('output_format_text:', output_format_text)
         story_background_text = StoryBackgroundSection.render(profile)
         world_context_text = ContextSection.render(rag_context)
         detective_context_text = DetectiveContextSection.render(request)
@@ -36,12 +36,12 @@ class PromptBuilder:
         system_parts = []
         if identity_text:
             system_parts.append(identity_text)
+        if story_background_text:
+            system_parts.append(story_background_text)
         if rules_text:
             system_parts.append(rules_text)
         if output_format_text:
             system_parts.append(output_format_text)
-        if story_background_text:
-            system_parts.append(story_background_text)
         if world_context_text:
             system_parts.append(world_context_text)
         if detective_context_text:
