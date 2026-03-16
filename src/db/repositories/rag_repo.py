@@ -182,3 +182,45 @@ class RAGRepo(BaseRepository):
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)
         return [dict(r) for r in records]
+
+    def get_upstream_claims(self, claim_id: str, npc_id: str, up_steps: int, include_group: bool) -> list[dict]:
+        if include_group:
+            query = f"""
+                MATCH path = (ref:CLAIM)-[:REFERENCE*1..{up_steps}]->(start:CLAIM)
+                WHERE elementId(start) = $claim_id
+                WITH ref, -length(path) AS depth
+                ORDER BY depth ASC
+                OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
+                OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
+                WITH ref, depth,
+                     COALESCE(o.prefix, go.prefix) AS prefix,
+                     COALESCE(o.suffix, go.suffix) AS suffix
+                RETURN DISTINCT elementId(ref) AS id,
+                       ref.content AS content,
+                       ref.claim_id AS claim_id,
+                       ref.type AS type,
+                       depth,
+                       prefix,
+                       suffix
+            """
+        else:
+            query = f"""
+                MATCH path = (ref:CLAIM)-[:REFERENCE*1..{up_steps}]->(start:CLAIM)
+                WHERE elementId(start) = $claim_id
+                WITH ref, -length(path) AS depth
+                ORDER BY depth ASC
+                OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
+                WITH ref, depth,
+                     o.prefix AS prefix,
+                     o.suffix AS suffix
+                RETURN DISTINCT elementId(ref) AS id,
+                       ref.claim_id AS claim_id,
+                       ref.content AS content,
+                       ref.type AS type,
+                       depth,
+                       prefix,
+                       suffix
+            """
+
+        records = self._run(query, claim_id=claim_id, npc_id=npc_id)
+        return [dict(r) for r in records]

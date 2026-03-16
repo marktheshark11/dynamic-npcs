@@ -11,6 +11,7 @@ class RAGPipeline:
         self.embed_model = embed_model
         self.prompt_builder = PromptBuilder()
         self._group_support: bool | None = None
+        self.up_steps: int = 3
 
     def _supports_group_membership(self) -> bool:
         if self._group_support is not None:
@@ -22,11 +23,30 @@ class RAGPipeline:
         return self.embed_model.embed_query(f"Represent this sentence for searching relevant passages: {text}")
 
     def _get_reference_chain(self, claim_id: str, npc_id: str) -> list[dict]:
-        return self.rag_repo.get_reference_chain(
+        include_group = self._supports_group_membership()
+        down = self.rag_repo.get_reference_chain(
             claim_id=claim_id,
             npc_id=npc_id,
-            include_group=self._supports_group_membership(),
+            include_group=include_group,
         )
+        up = (
+            self.rag_repo.get_upstream_claims(
+                claim_id=claim_id,
+                npc_id=npc_id,
+                up_steps=self.up_steps,
+                include_group=include_group,
+            )
+            if self.up_steps > 0
+            else []
+        )
+        combined = up + down
+        seen: set[str] = set()
+        unique: list[dict] = []
+        for c in sorted(combined, key=lambda x: x["depth"]):
+            if c["id"] not in seen:
+                seen.add(c["id"])
+                unique.append(c)
+        return unique
 
     def _build_claim_chains(self, claims: list[dict], npc_id: str, already_mentioned: set[str] | None = None) -> list[dict]:
         if not claims:
