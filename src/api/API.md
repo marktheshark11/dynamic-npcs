@@ -39,6 +39,116 @@ Response:
 }
 ```
 
+## POST /users/register
+
+Register a new user account.
+
+Request body:
+
+- `username` (string, required, minimum 3 characters)
+- `password` (string, required, minimum 3 characters)
+
+Example request:
+
+```json
+{
+  "username": "john_doe",
+  "password": "secret123"
+}
+```
+
+Example response:
+
+```json
+{
+  "user_id": "user_2",
+  "username": "john_doe"
+}
+```
+
+Validation / error responses:
+
+```json
+{
+  "detail": "username cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "password cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "username must be at least 3 characters"
+}
+```
+
+```json
+{
+  "detail": "password must be at least 3 characters"
+}
+```
+
+If username already exists:
+
+```json
+{
+  "detail": "Username already exists"
+}
+```
+
+## POST /users/login
+
+Login with username and password.
+
+Request body:
+
+- `username` (string, required)
+- `password` (string, required)
+
+Example request:
+
+```json
+{
+  "username": "john_doe",
+  "password": "secret123"
+}
+```
+
+Example response:
+
+```json
+{
+  "user_id": "user_2",
+  "username": "john_doe"
+}
+```
+
+Validation / error responses:
+
+```json
+{
+  "detail": "username cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "password cannot be empty"
+}
+```
+
+If credentials are invalid:
+
+```json
+{
+  "detail": "Invalid username or password"
+}
+```
+
 ## POST /chat
 
 Send a message to an NPC.
@@ -155,7 +265,23 @@ Validation errors:
 
 ## GET /players
 
-Return all players.
+Return all players, or players owned by a specific user if `user_id` is provided.
+
+Query parameters:
+
+- `user_id` (string, optional) - If provided, only returns players owned by this user
+
+Example request (all players):
+
+```http
+GET /players
+```
+
+Example request (players for a specific user):
+
+```http
+GET /players?user_id=user_1
+```
 
 Response:
 
@@ -173,6 +299,16 @@ Response:
   }
 ]
 ```
+
+Validation / error responses:
+
+```json
+{
+  "detail": "user_id cannot be empty"
+}
+```
+
+If a non-existent user_id is provided, an empty list is returned.
 
 ## DELETE /players/{player_id}
 

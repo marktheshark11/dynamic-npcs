@@ -6,6 +6,15 @@ Reference for the node and relationship structure as implemented in the db build
 
 ## Node Types
 
+### USER
+A user account that owns one or more player characters.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `user_id` | string | Unique identifier (e.g. "user_1", "user_2") |
+| `username` | string | Unique username for login |
+| `password` | string | User password (should be hashed in production) |
+
 ### NPC
 A non-player character in the game world.
 
@@ -185,6 +194,18 @@ At query time (RAG layer), this is used to let NPCs inherit group-level opinions
 ```
 (NPC) -[:MEMBER_OF]-> (GROUP) -[:HAS_OPINION]-> (CLAIM)
 ```
+
+---
+
+### HAS_CHARACTER (USER --> PLAYER)
+
+Links a user to a player character they own. No properties.
+
+```
+(USER:user_1) -[:HAS_CHARACTER]-> (PLAYER:player_1)
+```
+
+A user can own multiple characters, and this relationship is used to manage character ownership and access control.
 
 ---
 

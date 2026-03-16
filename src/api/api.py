@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from db.config import Config
-from db.repositories import ConstantRepo, PlayerRepo
+from db.repositories import ConstantRepo, PlayerRepo, UserRepo
 from services.chat_service import ChatService
 
 class ChatResponse(BaseModel):
@@ -80,12 +80,33 @@ class PickupItemResponse(BaseModel):
 
 
 class AwareClaimResponse(BaseModel):
-    claim_id: str
-    content: str
-    type: str | None = None
-    created_at: str | None = None
-    npc_ids: list[str] = Field(default_factory=list)
+     claim_id: str
+     content: str
+     type: str | None = None
+     created_at: str | None = None
+     npc_ids: list[str] = Field(default_factory=list)
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RegisterResponse(BaseModel):
+    user_id: str
+    username: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    user_id: str
+    username: str
     
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config = Config.from_env()
@@ -145,6 +166,58 @@ async def check_api_key(request: Request, call_next: RequestResponseEndpoint) ->
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.post("/users/register", response_model=RegisterResponse)
+async def register(payload: RegisterRequest, config: Config = Depends(get_config)):
+    username = payload.username.strip()
+    password = payload.password.strip()
+    
+    if not username:
+        raise HTTPException(status_code=400, detail="username cannot be empty")
+    if not password:
+        raise HTTPException(status_code=400, detail="password cannot be empty")
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="username must be at least 3 characters")
+    if len(password) < 3:
+        raise HTTPException(status_code=400, detail="password must be at least 3 characters")
+    
+    try:
+        user_repo = UserRepo(config.driver)
+        user = user_repo.register(username=username, password=password)
+        
+        if not user:
+            raise HTTPException(status_code=409, detail="Username already exists")
+        
+        return RegisterResponse(user_id=user.user_id, username=user.username)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/users/login", response_model=LoginResponse)
+async def login(payload: LoginRequest, config: Config = Depends(get_config)):
+    username = payload.username.strip()
+    password = payload.password.strip()
+    
+    if not username:
+        raise HTTPException(status_code=400, detail="username cannot be empty")
+    if not password:
+        raise HTTPException(status_code=400, detail="password cannot be empty")
+    
+    try:
+        user_repo = UserRepo(config.driver)
+        user = user_repo.login(username=username, password=password)
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+        
+        return LoginResponse(user_id=user.user_id, username=user.username)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -211,10 +284,20 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
 
 
 @app.get("/players", response_model=list[PlayerResponse])
-async def list_players(config: Config = Depends(get_config)):
+async def list_players(user_id: str | None = None, config: Config = Depends(get_config)):
     try:
         player_repo = PlayerRepo(config.driver)
-        players = player_repo.list_all()
+        
+        if user_id:
+            # If user_id is provided, only return players for that user
+            user_id = user_id.strip()
+            if not user_id:
+                raise HTTPException(status_code=400, detail="user_id cannot be empty")
+            players = player_repo.list_by_user(user_id)
+        else:
+            # If no user_id, return all players
+            players = player_repo.list_all()
+        
         return [
             PlayerResponse(
                 player_id=player.player_id,
@@ -223,6 +306,8 @@ async def list_players(config: Config = Depends(get_config)):
             )
             for player in players
         ]
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

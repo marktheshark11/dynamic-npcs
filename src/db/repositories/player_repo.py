@@ -1,5 +1,6 @@
 from .base import BaseRepository
 from ..models import Item, Player
+from .user_repo import ADMIN_USER_ID
 
 
 class PlayerRepo(BaseRepository):
@@ -18,13 +19,18 @@ class PlayerRepo(BaseRepository):
         next_id = 1 if not record else record["next_id"]
         return f"player_{next_id}"
 
-    def create(self, name: str, appearance: str) -> Player:
+    def create(self, name: str, appearance: str, user_id: str | None = None) -> Player:
         player_id = self._next_player_id()
+        # Use admin user as fallback if no user_id provided
+        actual_user_id = user_id or ADMIN_USER_ID
         self._run(
-            "CREATE (p:PLAYER {player_id: $player_id, name: $name, appearance: $appearance})",
+            "MATCH (u:USER {user_id: $user_id}) "
+            "CREATE (p:PLAYER {player_id: $player_id, name: $name, appearance: $appearance}) "
+            "CREATE (u)-[:HAS_CHARACTER]->(p)",
             player_id=player_id,
             name=name,
             appearance=appearance,
+            user_id=actual_user_id,
         )
         return Player(player_id=player_id, name=name, appearance=appearance)
 
@@ -56,6 +62,36 @@ class PlayerRepo(BaseRepository):
             )
             for r in records
         ]
+
+    def list_by_user(self, user_id: str) -> list[Player]:
+        """List all players owned by a user."""
+        records = self._run(
+            "MATCH (u:USER {user_id: $user_id})-[:HAS_CHARACTER]->(p:PLAYER) "
+            "RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance "
+            "ORDER BY p.player_id",
+            user_id=user_id,
+        )
+        return [
+            Player(
+                player_id=r["player_id"],
+                name=r["name"],
+                appearance=r["appearance"],
+            )
+            for r in records
+        ]
+
+    def set_user(self, player_id: str, user_id: str | None = None) -> bool:
+        """Assign a player to a user with HAS_CHARACTER relationship. Uses admin as fallback if user_id is None."""
+        actual_user_id = user_id or ADMIN_USER_ID
+        record = self._run_single(
+            "MATCH (u:USER {user_id: $user_id}) "
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "MERGE (u)-[:HAS_CHARACTER]->(p) "
+            "RETURN p.player_id AS player_id",
+            user_id=actual_user_id,
+            player_id=player_id,
+        )
+        return record is not None
 
     def update(self, player_id: str, name: str | None = None, appearance: str | None = None) -> bool:
         set_clauses = []
