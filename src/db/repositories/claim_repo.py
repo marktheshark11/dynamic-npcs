@@ -187,22 +187,30 @@ class ClaimRepo(BaseRepository):
     def delete(self, claim_id: str) -> tuple[bool, dict[str, int]]:
         """Delete a claim and all connected relations.
 
-        Removes HAS_OPINION, REFERENCE, and PART_OF relations.
+        Reports HAS_OPINION, REFERENCE, and PART_OF relation counts,
+        then detaches and deletes the claim node.
 
         Returns (success, counts_dict) where counts_dict has keys
-        ``opinions``, ``references``, and ``mysteries``.
+        ``opinions``, ``references``, ``mysteries``, and ``other_relations``.
         """
-        empty_counts: dict[str, int] = {"opinions": 0, "references": 0, "mysteries": 0}
+        empty_counts: dict[str, int] = {
+            "opinions": 0,
+            "references": 0,
+            "mysteries": 0,
+            "other_relations": 0,
+        }
 
         record = self._run_single(
             "MATCH (c:CLAIM {claim_id: $claim_id}) "
             "OPTIONAL MATCH ()-[o:HAS_OPINION]->(c) "
             "OPTIONAL MATCH (c)-[ref:REFERENCE]-() "
             "OPTIONAL MATCH (c)-[p:PART_OF]->() "
+            "OPTIONAL MATCH (c)-[r]-() "
             "RETURN c.content AS content, "
             "       count(DISTINCT o) AS opinion_count, "
             "       count(DISTINCT ref) AS reference_count, "
-            "       count(DISTINCT p) AS mystery_count",
+            "       count(DISTINCT p) AS mystery_count, "
+            "       count(DISTINCT r) AS total_relation_count",
             claim_id=claim_id,
         )
         if not record or not record["content"]:
@@ -212,13 +220,17 @@ class ClaimRepo(BaseRepository):
             "opinions": record["opinion_count"],
             "references": record["reference_count"],
             "mysteries": record["mystery_count"],
+            "other_relations": max(
+                0,
+                record["total_relation_count"]
+                - record["opinion_count"]
+                - record["reference_count"]
+                - record["mystery_count"],
+            ),
         }
         self._run(
             "MATCH (c:CLAIM {claim_id: $claim_id}) "
-            "OPTIONAL MATCH ()-[o:HAS_OPINION]->(c) "
-            "OPTIONAL MATCH (c)-[ref:REFERENCE]-() "
-            "OPTIONAL MATCH (c)-[p:PART_OF]->() "
-            "DELETE o, ref, p, c",
+            "DETACH DELETE c",
             claim_id=claim_id,
         )
         return True, counts

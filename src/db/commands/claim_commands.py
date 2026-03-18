@@ -251,6 +251,10 @@ class DeleteClaimCommand(Command):
                     self._ui.display.info(
                         f"{counts['mysteries']} PART_OF (mysterium) relationer borttagna"
                     )
+                if counts.get("other_relations", 0) > 0:
+                    self._ui.display.info(
+                        f"{counts['other_relations']} ovriga relationer borttagna"
+                    )
             else:
                 self._ui.display.error("Kunde inte ta bort CLAIM")
 
