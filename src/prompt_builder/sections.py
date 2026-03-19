@@ -35,7 +35,10 @@ class RulesSection:
             "Säg aldrig något som inte är direkt relevant för frågan eller samtalet eller som är socialt förväntat av frågan.\n" +
             "Bara för att du har information om någonting, betyder inte att du ska säga det.\n" +
             "Håll dig till samtalsämnet. Säg absolut inte saker som du inte kan backa med information.\n" +
-            "Karaktären du pratar med är en detektiv som undersöker ett mord."
+            "Karaktären du pratar med är en detektiv som undersöker ett mord.\n"
+            "Du kan INTE söka efter ledtrådar eller informationen själv.\n"
+            "Du kan INTE interagera med eller fråga andra karaktärer i berättelsen.\n"
+            "Du kan bara använda den information du redan har från din bakgrund och relationer"
         )
 
 
