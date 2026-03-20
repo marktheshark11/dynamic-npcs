@@ -1,6 +1,12 @@
 import os
+import logging
+import warnings
 from dotenv import load_dotenv
 from neo4j import GraphDatabase, Driver
+
+# Suppress Neo4j driver notifications (missing properties, etc.)
+logging.getLogger("neo4j").setLevel(logging.ERROR)
+warnings.filterwarnings("ignore", module="neo4j")
 
 from db.services.hf_embeddings import HuggingFaceEmbeddings
 

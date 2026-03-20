@@ -152,14 +152,16 @@ class RAGRepo(BaseRepository):
                 OPTIONAL MATCH (n:NPC {id: $npc_id})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
                 WITH ref, depth,
                      COALESCE(o.prefix, go.prefix) AS prefix,
-                     COALESCE(o.suffix, go.suffix) AS suffix
+                     COALESCE(o.suffix, go.suffix) AS suffix,
+                     COALESCE(o.overwrite_suffix, go.overwrite_suffix) AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.content AS content,
                        ref.claim_id AS claim_id,
                        ref.type AS type,
                        depth,
                        prefix,
-                       suffix
+                       suffix,
+                       overwrite_suffix
             """
         else:
             query = """
@@ -170,14 +172,16 @@ class RAGRepo(BaseRepository):
                 OPTIONAL MATCH (n:NPC {id: $npc_id})-[o:HAS_OPINION]->(ref)
                 WITH ref, depth,
                      o.prefix AS prefix,
-                     o.suffix AS suffix
+                     o.suffix AS suffix,
+                     o.overwrite_suffix AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        ref.content AS content,
                        ref.type AS type,
                        depth,
                        prefix,
-                       suffix
+                       suffix,
+                       overwrite_suffix
             """
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)
@@ -194,14 +198,16 @@ class RAGRepo(BaseRepository):
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
                 WITH ref, depth,
                      COALESCE(o.prefix, go.prefix) AS prefix,
-                     COALESCE(o.suffix, go.suffix) AS suffix
+                     COALESCE(o.suffix, go.suffix) AS suffix,
+                     COALESCE(o.overwrite_suffix, go.overwrite_suffix) AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.content AS content,
                        ref.claim_id AS claim_id,
                        ref.type AS type,
                        depth,
                        prefix,
-                       suffix
+                       suffix,
+                       overwrite_suffix
             """
         else:
             query = f"""
@@ -212,14 +218,16 @@ class RAGRepo(BaseRepository):
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
                 WITH ref, depth,
                      o.prefix AS prefix,
-                     o.suffix AS suffix
+                     o.suffix AS suffix,
+                     o.overwrite_suffix AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        ref.content AS content,
                        ref.type AS type,
                        depth,
                        prefix,
-                       suffix
+                       suffix,
+                       overwrite_suffix
             """
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)

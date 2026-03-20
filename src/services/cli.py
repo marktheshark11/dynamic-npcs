@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 if __name__ == "__main__" and __package__ is None:
@@ -13,6 +14,18 @@ from services.scripted_npc_service import ScriptedNpcService
 
 
 SCRIPTED_NPC_IDS = {"npc_police_officer"}
+
+
+def _extract_claim_ids_from_chains(chain_metadata: list[dict]) -> list[str]:
+    """Extraherar alla claim-IDs ur chain_metadata content."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for chain in chain_metadata or []:
+        for m in re.findall(r"<(C\d+)>", chain.get("content", "")):
+            if m not in seen:
+                seen.add(m)
+                ids.append(m)
+    return ids
 
 
 def _select_npc_interactive(npcs):
@@ -218,22 +231,27 @@ def main():
             if not is_scripted_npc:
                 conversation_id = result.get("conversation_id")
 
-                for messages in result['messages']:
-                    print(messages['role'])
-                    print(messages['content'])
-            print(result["response"])
-            if not is_scripted_npc:
-                used_claims = result.get("used_claims") or []
-                if used_claims:
-                    print(f"Använda claims: {', '.join(used_claims)}")
+                for message in result.get("messages", []):
+                    print(message["role"])
+                    print(message["content"])
+
+                chain_metadata = result.get("chain_metadata", [])
+                used_claims = result.get("used_claims") or _extract_claim_ids_from_chains(chain_metadata)
+                print("\n[Hittade claims:]")
+                if chain_metadata:
+                    for chain in chain_metadata:
+                        print(f"  {chain['content']}")
                 else:
-                    print("Använda claims: (inga)")
+                    print("  (inga)")
+                print(f"[Använda: {', '.join(used_claims) if used_claims else '(inga)'}]")
 
                 if conversation_id:
                     if previous_conversation_id and previous_conversation_id != conversation_id:
                         print(f"Conversation switched to: {conversation_id}")
                     else:
                         print(f"Conversation ID: {conversation_id}")
+
+            print(result["response"])
     finally:
         config.close()
 

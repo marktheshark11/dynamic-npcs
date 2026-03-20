@@ -1,6 +1,7 @@
 from db.repositories import NPCRepo, PlayerRepo, RAGRepo
 from prompt_builder import NPCProfile, PromptBuilder, PromptRequest, RAGContext
 from rag.rendering import Rendering
+import sys
 
 
 class RAGPipeline:
@@ -21,6 +22,65 @@ class RAGPipeline:
 
     def _create_query_embedding(self, text: str) -> list[float]:
         return self.embed_model.embed_query(f"Represent this sentence for searching relevant passages: {text}")
+
+    def _rewrite_query(
+        self,
+        question: str,
+        recent_exchanges: list[dict] | None,
+        story_background: str | None = None,
+        mentioned_claims: list[dict] | None = None,
+    ) -> str:
+        """Skriver om spelarens fråga till en informationsrik sökfras för RAG.
+        Använder berättelsebakgrund, nämnda fakta och konversationshistorik för att
+        lösa upp pronomen och skapa en semantiskt rikare sökfras."""
+        from llms.llm_groq import chat as groq_chat
+
+        history_lines = []
+        for ex in (recent_exchanges or []):
+            player_text = ex.get("player_text") or ""
+            npc_text = ex.get("npc_text") or ""
+            if player_text:
+                history_lines.append(f"Spelare: {player_text}")
+            if npc_text:
+                history_lines.append(f"NPC: {npc_text}")
+        history_block = "\n".join(history_lines) if history_lines else "(ingen historik)"
+
+        mentioned_lines = [c["content"] for c in (mentioned_claims or []) if c.get("content")]
+        mentioned_block = "\n".join(f"- {m}" for m in mentioned_lines) if mentioned_lines else "(inga)"
+
+        background_block = story_background.strip() if story_background else "(ingen bakgrund)"
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Du är ett verktyg för frågeomskrivning för RAG (Retrieval-Augmented Generation).\n"
+                    "Din uppgift är att ta spelarens fråga och skriva om den till en informationsrik "
+                    "sökfras optimerad för vektordatabassökning.\n"
+                    "Du har tillgång till berättelsens bakgrund, tidigare nämnd information och konversationshistorik.\n"
+                    "Regler:\n"
+                    "- Ersätt alla pronomen (han, hon, det, där, etc.) med konkreta namn och platser från kontexten.\n"
+                    "- Inkludera relevant kontext som hjälper sökningen.\n"
+                    "- Skriv på svenska.\n"
+                    "- Returnera BARA sökfrasen som ren text, utan förklaring eller kommentarer."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"BERÄTTELSEBAKGRUND:\n{background_block}\n\n"
+                    f"TIDIGARE NÄMNDA FAKTA:\n{mentioned_block}\n\n"
+                    f"KONVERSATIONSHISTORIK:\n{history_block}\n\n"
+                    f"SPELARENS FRÅGA: {question}\n\n"
+                    "SÖKFRAS:"
+                ),
+            },
+        ]
+
+        rewritten = groq_chat(messages=messages, max_tokens=128).strip()
+        if rewritten and rewritten != question:
+            print(f"[Sökfras: {rewritten}]", file=sys.stderr)
+        return rewritten if rewritten else question
 
     def _get_reference_chain(self, claim_id: str, npc_id: str) -> list[dict]:
         include_group = self._supports_group_membership()
@@ -101,7 +161,7 @@ class RAGPipeline:
                     chain_claim["content"],
                     prefix=chain_claim.get("prefix"),
                     suffix=(
-                        "och detta har du redan nämnt"
+                        (chain_claim.get("overwrite_suffix") or "och detta har du redan nämnt")
                         if already_mentioned and chain_claim.get("claim_id") in already_mentioned
                         else chain_claim.get("suffix")
                     ),
@@ -125,21 +185,33 @@ class RAGPipeline:
         self,
         npc_id,
         question,
-        top_k=5,
+        top_k=3,
         player_profile=None,
         recent_exchanges=None,
         player_id=None,
         conversation_claim_ids=None,
     ):
-        # 1. Grundsökning (Semantisk)
-        query_embedding = self._create_query_embedding(question)
-        top_claims = self.rag_repo.find_top_claims(npc_id=npc_id, query_vector=query_embedding, top_k=top_k)
+        # 0. Hämta NPC-profil och nämnda claims tidigt — används av query rewritern
+        npc_data = self.npc_repo.get_profile_by_id(npc_id)
+        if not npc_data:
+            raise ValueError(f"NPC with ID '{npc_id}' not found.")
 
-        # 1b. Lägg till claims som NPC redan nämnt i konversationen som extra träffar.
         remembered_claim_hits = self.rag_repo.find_claims_by_claim_ids(
             npc_id=npc_id,
             claim_ids=conversation_claim_ids or [],
         )
+
+        # 1. Grundsökning (Semantisk) — frågan skrivs om för bättre RAG-träffar
+        search_query = self._rewrite_query(
+            question,
+            recent_exchanges,
+            story_background=npc_data.get("story_background"),
+            mentioned_claims=remembered_claim_hits,
+        )
+        query_embedding = self._create_query_embedding(search_query)
+        top_claims = self.rag_repo.find_top_claims(npc_id=npc_id, query_vector=query_embedding, top_k=top_k)
+
+        # 1b. Slå ihop semantiska träffar med claims från konversationshistoriken
         combined_hits = top_claims + remembered_claim_hits
 
         # 2. Expandera för att hitta konstanter (PLACE, OBJECT, NPC, MYSTERY)
@@ -188,10 +260,6 @@ class RAGPipeline:
             metadata=constants
         )
         
-        npc_data = self.npc_repo.get_profile_by_id(npc_id)
-        if not npc_data:
-            raise ValueError(f"NPC with ID '{npc_id}' not found.")
-
         profile = NPCProfile(
             name=npc_data["name"],
             personality=npc_data.get("personality", ""),
