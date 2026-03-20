@@ -133,7 +133,7 @@ async def lifespan(app: FastAPI):
     app.state.config = config
     app.state.api_key = api_key
     app.state.chat_service = ChatService(config.driver, config.embed_model)
-    app.state.scripted_npc_service = ScriptedNpcService()
+    app.state.scripted_npc_service = ScriptedNpcService(config.driver)
     try:
         yield
     finally:

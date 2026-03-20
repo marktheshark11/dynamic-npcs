@@ -8,7 +8,11 @@ if __name__ == "__main__" and __package__ is None:
 
 from db.config import Config
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
-from chat_service import ChatService
+from services.chat_service import ChatService
+from services.scripted_npc_service import ScriptedNpcService
+
+
+SCRIPTED_NPC_IDS = {"npc_police_officer"}
 
 
 def _select_npc_interactive(npcs):
@@ -137,6 +141,7 @@ def main():
         player_repo = PlayerRepo(driver)
         conversation_repo = ConversationRepo(driver)
         chat_service = ChatService(driver, embed_model)
+        scripted_npc_service = ScriptedNpcService(driver)
 
         npcs = npc_repo.list_for_selection()
 
@@ -145,6 +150,7 @@ def main():
             return
 
         npc_id = _select_npc_interactive(npcs)
+        is_scripted_npc = npc_id in SCRIPTED_NPC_IDS
         player_mode = _select_player_mode()
         if player_mode == "new":
             selected_player = _create_new_player(player_repo)
@@ -155,62 +161,79 @@ def main():
 
         player_id = selected_player.player_id
 
-        mode = _select_conversation_mode()
         conversation_id = None
 
-        if mode == "continue":
-            conversation_id = _select_existing_conversation(
-                conversation_repo=conversation_repo,
-                npc_id=npc_id,
-                player_id=player_id,
-            )
+        if not is_scripted_npc:
+            mode = _select_conversation_mode()
+            if mode == "continue":
+                conversation_id = _select_existing_conversation(
+                    conversation_repo=conversation_repo,
+                    npc_id=npc_id,
+                    player_id=player_id,
+                )
+        else:
+            print("\nKommisarien använder scriptad terminal-chat. Skicka tomt för att visa menyn.")
 
         while True:
-            question = input("Question (new/exit): ").strip()
+            question = input("Question (new/exit): ")
 
-            if not question:
+            if not question.strip() and not is_scripted_npc:
                 continue
 
-            lowered = question.lower()
+            lowered = question.strip().lower()
             if lowered == "exit":
-                _summarize_and_print(chat_service, conversation_id)
+                if not is_scripted_npc:
+                    _summarize_and_print(chat_service, conversation_id)
                 break
-            if lowered == "new":
+            if lowered == "new" and not is_scripted_npc:
                 _summarize_and_print(chat_service, conversation_id)
                 conversation_id = None
                 print("Starting a new conversation on your next question.")
                 continue
 
-            result = chat_service.ask_npc(
-                npc_id=npc_id,
-                question=question,
-                player_id=player_id,
-                conversation_id=conversation_id,
-            )
+            if is_scripted_npc:
+                try:
+                    result = scripted_npc_service.ask_npc(
+                        npc_id=npc_id,
+                        question=question,
+                        player_id=player_id,
+                    )
+                except ValueError as exc:
+                    print(f"Error: {exc}")
+                    continue
+            else:
+                result = chat_service.ask_npc(
+                    npc_id=npc_id,
+                    question=question.strip(),
+                    player_id=player_id,
+                    conversation_id=conversation_id,
+                )
 
             if not result:
                 print("No response.")
                 continue
 
-            previous_conversation_id = conversation_id
-            conversation_id = result.get("conversation_id")
-
             print("\n=== NPC Response ===")
-            for messages in result['messages']:
-                print(messages['role'])
-                print(messages['content'])
-            print(result["response"])
-            used_claims = result.get("used_claims") or []
-            if used_claims:
-                print(f"Använda claims: {', '.join(used_claims)}")
-            else:
-                print("Använda claims: (inga)")
+            previous_conversation_id = conversation_id
+            if not is_scripted_npc:
+                conversation_id = result.get("conversation_id")
 
-            if conversation_id:
-                if previous_conversation_id and previous_conversation_id != conversation_id:
-                    print(f"Conversation switched to: {conversation_id}")
+                for messages in result['messages']:
+                    print(messages['role'])
+                    print(messages['content'])
+            print(result["response"])
+            if not is_scripted_npc:
+                used_claims = result.get("used_claims") or []
+                if used_claims:
+                    print(f"Använda claims: {', '.join(used_claims)}")
                 else:
-                    print(f"Conversation ID: {conversation_id}")
+                    print("Använda claims: (inga)")
+
+                if conversation_id:
+                    if previous_conversation_id and previous_conversation_id != conversation_id:
+                        print(f"Conversation switched to: {conversation_id}")
+                    else:
+                        print(f"Conversation ID: {conversation_id}")
     finally:
         config.close()
 

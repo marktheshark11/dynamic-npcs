@@ -1,4 +1,4 @@
-__all__ = ["ChatService", "ScriptedNpcService"]
+__all__ = ["ChatService", "HintService", "ScriptedNpcService"]
 
 
 def __getattr__(name):
@@ -6,6 +6,10 @@ def __getattr__(name):
         from .chat_service import ChatService
 
         return ChatService
+    if name == "HintService":
+        from .hint_service import HintService
+
+        return HintService
     if name == "ScriptedNpcService":
         from .scripted_npc_service import ScriptedNpcService
 
