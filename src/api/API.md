@@ -196,6 +196,68 @@ Notes:
 - `used_claims` is always present and defaults to an empty list.
 - If the service returns no result, the API responds with `response: "No response"`.
 
+## POST /chat_static_npc
+
+Send a message to a scripted NPC with fixed menu choices.
+
+Request body:
+
+- `npc_id` (string, required)
+- `message` (string, optional, defaults to empty string)
+- `player_id` (string, optional)
+
+Behavior:
+
+- If `message` is empty, the API returns the scripted menu text.
+- If `message` is a whole number such as `1`, `2`, or `3`, the API returns the response for that choice.
+- If `message` is not a whole number, the API returns `400`.
+
+Example request to show menu:
+
+```json
+{
+  "npc_id": "npc_terminal_1",
+  "message": "",
+  "player_id": "player_1"
+}
+```
+
+Example menu response:
+
+```json
+{
+  "npc_id": "npc_terminal_1",
+  "response": "1. Få ledtråd\n2. Jag vet vem mördaren är\n3. Avsluta"
+}
+```
+
+Example choice request:
+
+```json
+{
+  "npc_id": "npc_terminal_1",
+  "message": "1",
+  "player_id": "player_1"
+}
+```
+
+Example choice response:
+
+```json
+{
+  "npc_id": "npc_terminal_1",
+  "response": "Placeholder: val 1 valt. Här kan du senare ge en ledtråd."
+}
+```
+
+Validation / error response for non-integer input:
+
+```json
+{
+  "detail": "Ogiltigt val. Skicka ett heltal, till exempel 1, 2 eller 3."
+}
+```
+
 ## POST /conversations/summarize
 
 Generate or update a short summary for one conversation.
