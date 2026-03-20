@@ -78,8 +78,8 @@ class RAGPipeline:
         ]
 
         rewritten = groq_chat(messages=messages, max_tokens=128).strip()
-        print(f"  Fråga:   {question}", file=sys.stderr)
-        print(f"  Sökfras: {rewritten or '(ingen omskrivning)'}", file=sys.stderr)
+        if rewritten and rewritten != question:
+            print(f"[Sökfras: {rewritten}]", file=sys.stderr)
         return rewritten if rewritten else question
 
     def _get_reference_chain(self, claim_id: str, npc_id: str) -> list[dict]:

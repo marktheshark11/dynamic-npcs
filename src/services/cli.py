@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 if __name__ == "__main__" and __package__ is None:
@@ -9,6 +10,18 @@ if __name__ == "__main__" and __package__ is None:
 from db.config import Config
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
 from chat_service import ChatService
+
+
+def _extract_claim_ids_from_chains(chain_metadata: list[dict]) -> list[str]:
+    """Extraherar alla claim-IDs ur chain_metadata content."""
+    ids: list[str] = []
+    seen: set[str] = set()
+    for chain in chain_metadata or []:
+        for m in re.findall(r"<(C\d+)>", chain.get("content", "")):
+            if m not in seen:
+                seen.add(m)
+                ids.append(m)
+    return ids
 
 
 def _select_npc_interactive(npcs):
@@ -195,22 +208,23 @@ def main():
             previous_conversation_id = conversation_id
             conversation_id = result.get("conversation_id")
 
-            print("\n=== NPC Response ===")
-            for messages in result['messages']:
-                print(messages['role'])
-                print(messages['content'])
-            print(result["response"])
+            chain_metadata = result.get("chain_metadata", [])
             used_claims = result.get("used_claims") or []
-            if used_claims:
-                print(f"Använda claims: {', '.join(used_claims)}")
+            print("\n[Hittade claims:]")
+            if chain_metadata:
+                for chain in chain_metadata:
+                    print(f"  {chain['content']}")
             else:
-                print("Använda claims: (inga)")
+                print("  (inga)")
+            print(f"[Använda: {', '.join(used_claims) if used_claims else '(inga)'}]")
 
             if conversation_id:
                 if previous_conversation_id and previous_conversation_id != conversation_id:
-                    print(f"Conversation switched to: {conversation_id}")
+                    print(f"[Ny konversation: {conversation_id}]")
                 else:
-                    print(f"Conversation ID: {conversation_id}")
+                    print(f"[Konversation: {conversation_id}]")
+
+            print(f"\nNPC: {result['response']}")
     finally:
         config.close()
 
