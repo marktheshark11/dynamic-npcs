@@ -161,7 +161,7 @@ class RAGPipeline:
                     chain_claim["content"],
                     prefix=chain_claim.get("prefix"),
                     suffix=(
-                        "och detta har du redan nämnt"
+                        (chain_claim.get("overwrite_suffix") or "och detta har du redan nämnt")
                         if already_mentioned and chain_claim.get("claim_id") in already_mentioned
                         else chain_claim.get("suffix")
                     ),
