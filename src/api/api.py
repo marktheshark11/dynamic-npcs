@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from db.config import Config
 from db.repositories import ConstantRepo, PlayerRepo, UserRepo
 from services.chat_service import ChatService
+from services.scripted_npc_service import ScriptedNpcService
 
 class ChatResponse(BaseModel):
     npc_id: str
@@ -18,11 +19,22 @@ class ChatResponse(BaseModel):
     response: str
     used_claims: list[str] = Field(default_factory=list)
 
+
+class StaticNpcChatResponse(BaseModel):
+    npc_id: str
+    response: str
+
 class ChatRequest(BaseModel):
     npc_id: str
     message: str
     player_id: str | None = None
     conversation_id: str | None = None
+
+
+class StaticNpcChatRequest(BaseModel):
+    npc_id: str
+    message: str = ""
+    player_id: str | None = None
 
 
 class ConversationSummaryRequest(BaseModel):
@@ -121,6 +133,7 @@ async def lifespan(app: FastAPI):
     app.state.config = config
     app.state.api_key = api_key
     app.state.chat_service = ChatService(config.driver, config.embed_model)
+    app.state.scripted_npc_service = ScriptedNpcService()
     try:
         yield
     finally:
@@ -135,6 +148,10 @@ app = FastAPI(
 
 def get_chat_service(request: Request) -> ChatService:
     return request.app.state.chat_service
+
+
+def get_scripted_npc_service(request: Request) -> ScriptedNpcService:
+    return request.app.state.scripted_npc_service
 
 
 def get_config(request: Request) -> Config:
@@ -259,6 +276,27 @@ async def summarize_conversation(
         )
     except HTTPException:
         raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/chat_static_npc", response_model=StaticNpcChatResponse)
+async def chat_static_npc(
+    payload: StaticNpcChatRequest,
+    scripted_npc_service: ScriptedNpcService = Depends(get_scripted_npc_service),
+):
+    try:
+        result = scripted_npc_service.ask_npc(
+            npc_id=payload.npc_id,
+            question=payload.message,
+            player_id=payload.player_id,
+        )
+        return StaticNpcChatResponse(
+            npc_id=payload.npc_id,
+            response=result["response"],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
