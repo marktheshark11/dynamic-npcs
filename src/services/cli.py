@@ -190,19 +190,22 @@ def main():
         while True:
             question = input("Question (new/exit): ")
 
-            if not question.strip() and not is_scripted_npc:
-                continue
+            if not is_scripted_npc:
+                question = question.strip()
+                if not question:
+                    continue
 
             lowered = question.strip().lower()
             if lowered == "exit":
                 if not is_scripted_npc:
                     _summarize_and_print(chat_service, conversation_id)
                 break
-            if lowered == "new" and not is_scripted_npc:
-                _summarize_and_print(chat_service, conversation_id)
-                conversation_id = None
-                print("Starting a new conversation on your next question.")
-                continue
+            if lowered == "new":
+                if not is_scripted_npc:
+                    _summarize_and_print(chat_service, conversation_id)
+                    conversation_id = None
+                    print("Starting a new conversation on your next question.")
+                    continue
 
             if is_scripted_npc:
                 try:
@@ -217,7 +220,7 @@ def main():
             else:
                 result = chat_service.ask_npc(
                     npc_id=npc_id,
-                    question=question.strip(),
+                    question=question,
                     player_id=player_id,
                     conversation_id=conversation_id,
                 )
@@ -226,17 +229,13 @@ def main():
                 print("No response.")
                 continue
 
-            print("\n=== NPC Response ===")
             previous_conversation_id = conversation_id
+
             if not is_scripted_npc:
                 conversation_id = result.get("conversation_id")
 
-                for message in result.get("messages", []):
-                    print(message["role"])
-                    print(message["content"])
-
                 chain_metadata = result.get("chain_metadata", [])
-                used_claims = result.get("used_claims") or _extract_claim_ids_from_chains(chain_metadata)
+                used_claims = result.get("used_claims") or []
                 print("\n[Hittade claims:]")
                 if chain_metadata:
                     for chain in chain_metadata:
@@ -247,11 +246,11 @@ def main():
 
                 if conversation_id:
                     if previous_conversation_id and previous_conversation_id != conversation_id:
-                        print(f"Conversation switched to: {conversation_id}")
+                        print(f"[Ny konversation: {conversation_id}]")
                     else:
-                        print(f"Conversation ID: {conversation_id}")
+                        print(f"[Konversation: {conversation_id}]")
 
-            print(result["response"])
+            print(f"\nNPC: {result['response']}")
     finally:
         config.close()
 
