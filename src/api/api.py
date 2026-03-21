@@ -100,6 +100,21 @@ class AwareClaimResponse(BaseModel):
      npc_ids: list[str] = Field(default_factory=list)
 
 
+class HintItemResponse(BaseModel):
+    object_id: str
+    name: str
+    inspect_text: str
+    pickupable: bool
+    created_at: str | None = None
+    seen: bool
+    picked_up: bool
+
+
+class HintResponse(BaseModel):
+    claims: list[AwareClaimResponse] = Field(default_factory=list)
+    items: list[HintItemResponse] = Field(default_factory=list)
+
+
 class RegisterRequest(BaseModel):
     username: str
     password: str
@@ -385,6 +400,29 @@ async def list_aware_claims(player_id: str, config: Config = Depends(get_config)
 
         claims = player_repo.get_aware_claims(player_id)
         return [AwareClaimResponse(**c) for c in claims]
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/players/{player_id}/hints", response_model=HintResponse)
+async def list_player_hints(player_id: str, config: Config = Depends(get_config)):
+    player_id = player_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+
+        if not player_repo.get_profile_by_id(player_id):
+            raise HTTPException(status_code=404, detail="Player not found")
+
+        hints = player_repo.get_hints(player_id)
+        return HintResponse(
+            claims=[AwareClaimResponse(**claim) for claim in hints.get("claims", [])],
+            items=[HintItemResponse(**item) for item in hints.get("items", [])],
+        )
     except HTTPException:
         raise
     except Exception as exc:

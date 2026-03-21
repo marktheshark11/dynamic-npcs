@@ -473,6 +473,81 @@ Validation / not found responses:
 }
 ```
 
+## GET /players/{player_id}/hints
+
+Return all hints the player has discovered so far.
+
+This includes:
+
+- all claims the player is aware of via `AWARE_OF`
+- all items the player has seen via `SEEN_OBJECT`
+- all items the player has picked up via `HAS_ITEM`
+
+Example request:
+
+```http
+GET /players/player_1/hints
+```
+
+Response:
+
+```json
+{
+  "claims": [
+    {
+      "claim_id": "C3",
+      "content": "Erik stal från butiken",
+      "type": null,
+      "created_at": "2026-03-16T14:30:00.000000000Z",
+      "npc_ids": ["npc_01", "npc_03"]
+    }
+  ],
+  "items": [
+    {
+      "object_id": "item_key",
+      "name": "Nyckel",
+      "inspect_text": "En tung jarnnyckel med slottets sigill.",
+      "pickupable": true,
+      "created_at": "2026-03-16T14:35:00.000000000Z",
+      "seen": true,
+      "picked_up": true
+    },
+    {
+      "object_id": "item_brev",
+      "name": "Brev",
+      "inspect_text": "Ett vikt brev med bruten forsegling.",
+      "pickupable": true,
+      "created_at": null,
+      "seen": true,
+      "picked_up": false
+    }
+  ]
+}
+```
+
+Notes:
+
+- `claims` uses the same shape as `GET /players/{player_id}/claims`.
+- `items` combines seen and picked-up items into one list.
+- Both `claims` and `items` are ordered by `created_at`, with older timestamped entries first and older untimestamped data last.
+- `picked_up: true` implies the item is also considered seen.
+- `created_at` may be `null` for older relationship data created before timestamps were added.
+- Returns empty arrays if the player has not discovered any hints yet.
+
+Validation / not found responses:
+
+```json
+{
+  "detail": "player_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "Player not found"
+}
+```
+
 ## POST /players/{player_id}/items/inspect
 
 Inspect one item by `object_id` and mark it as seen for the player.

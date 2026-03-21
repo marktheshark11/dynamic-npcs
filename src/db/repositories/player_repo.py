@@ -6,6 +6,11 @@ from .user_repo import ADMIN_USER_ID
 class PlayerRepo(BaseRepository):
     """CRUD operations for PLAYER nodes."""
 
+    @staticmethod
+    def _created_at_sort_key(item: dict, id_key: str) -> tuple[bool, str, str]:
+        created_at = item.get("created_at") or ""
+        return item.get("created_at") is None, created_at, item.get(id_key, "")
+
     def _next_player_id(self) -> str:
         record = self._run_single(
             "MATCH (p:PLAYER) "
@@ -285,6 +290,82 @@ class PlayerRepo(BaseRepository):
             )
             for r in records
         ]
+
+    def get_seen_items(self, player_id: str) -> list[dict]:
+        records = self._run(
+            """
+            MATCH (:PLAYER {player_id: $player_id})-[r:SEEN_OBJECT]->(o:OBJECT:ITEM)
+            RETURN o.object_id AS object_id,
+                   o.name AS name,
+                   o.inspect_text AS inspect_text,
+                   o.pickupable AS pickupable,
+                   r.created_at AS created_at
+            ORDER BY o.object_id
+            """,
+            player_id=player_id,
+        )
+        return [
+            {
+                "object_id": r["object_id"],
+                "name": r["name"],
+                "inspect_text": r.get("inspect_text") or "",
+                "pickupable": bool(r.get("pickupable")),
+                "created_at": str(r["created_at"]) if r.get("created_at") else None,
+                "seen": True,
+                "picked_up": False,
+            }
+            for r in records
+        ]
+
+    def get_picked_up_items(self, player_id: str) -> list[dict]:
+        records = self._run(
+            """
+            MATCH (:PLAYER {player_id: $player_id})-[r:HAS_ITEM]->(o:OBJECT:ITEM)
+            RETURN o.object_id AS object_id,
+                   o.name AS name,
+                   o.inspect_text AS inspect_text,
+                   o.pickupable AS pickupable,
+                   r.created_at AS created_at
+            ORDER BY o.object_id
+            """,
+            player_id=player_id,
+        )
+        return [
+            {
+                "object_id": r["object_id"],
+                "name": r["name"],
+                "inspect_text": r.get("inspect_text") or "",
+                "pickupable": bool(r.get("pickupable")),
+                "created_at": str(r["created_at"]) if r.get("created_at") else None,
+                "seen": True,
+                "picked_up": True,
+            }
+            for r in records
+        ]
+
+    def get_hints(self, player_id: str) -> dict:
+        claims = self.get_aware_claims(player_id)
+        seen_items = self.get_seen_items(player_id)
+        picked_up_items = self.get_picked_up_items(player_id)
+
+        items_by_id: dict[str, dict] = {}
+        for item in seen_items:
+            items_by_id[item["object_id"]] = item
+
+        for item in picked_up_items:
+            existing = items_by_id.get(item["object_id"])
+            if not existing:
+                items_by_id[item["object_id"]] = item
+                continue
+
+            existing["picked_up"] = True
+            if existing.get("created_at") is None:
+                existing["created_at"] = item.get("created_at")
+
+        return {
+            "claims": sorted(claims, key=lambda claim: self._created_at_sort_key(claim, "claim_id")),
+            "items": sorted(items_by_id.values(), key=lambda item: self._created_at_sort_key(item, "object_id")),
+        }
 
     def delete(self, player_id: str) -> bool:
         record = self._run_single(
