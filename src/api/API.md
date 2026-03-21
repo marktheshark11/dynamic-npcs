@@ -473,9 +473,9 @@ Validation / not found responses:
 }
 ```
 
-## GET /players/{player_id}/hints
+## GET /players/{player_id}/clues
 
-Return all hints the player has discovered so far.
+Return all clues the player has discovered so far.
 
 This includes:
 
@@ -486,7 +486,7 @@ This includes:
 Example request:
 
 ```http
-GET /players/player_1/hints
+GET /players/player_1/clues
 ```
 
 Response:
@@ -532,7 +532,7 @@ Notes:
 - Both `claims` and `items` are ordered by `created_at`, with older timestamped entries first and older untimestamped data last.
 - `picked_up: true` implies the item is also considered seen.
 - `created_at` may be `null` for older relationship data created before timestamps were added.
-- Returns empty arrays if the player has not discovered any hints yet.
+- Returns empty arrays if the player has not discovered any clues yet.
 
 Validation / not found responses:
 

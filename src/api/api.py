@@ -100,7 +100,7 @@ class AwareClaimResponse(BaseModel):
      npc_ids: list[str] = Field(default_factory=list)
 
 
-class HintItemResponse(BaseModel):
+class ClueItemResponse(BaseModel):
     object_id: str
     name: str
     inspect_text: str
@@ -110,9 +110,9 @@ class HintItemResponse(BaseModel):
     picked_up: bool
 
 
-class HintResponse(BaseModel):
+class ClueResponse(BaseModel):
     claims: list[AwareClaimResponse] = Field(default_factory=list)
-    items: list[HintItemResponse] = Field(default_factory=list)
+    items: list[ClueItemResponse] = Field(default_factory=list)
 
 
 class RegisterRequest(BaseModel):
@@ -406,8 +406,8 @@ async def list_aware_claims(player_id: str, config: Config = Depends(get_config)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/players/{player_id}/hints", response_model=HintResponse)
-async def list_player_hints(player_id: str, config: Config = Depends(get_config)):
+@app.get("/players/{player_id}/clues", response_model=ClueResponse)
+async def list_player_clues(player_id: str, config: Config = Depends(get_config)):
     player_id = player_id.strip()
     if not player_id:
         raise HTTPException(status_code=400, detail="player_id cannot be empty")
@@ -418,10 +418,10 @@ async def list_player_hints(player_id: str, config: Config = Depends(get_config)
         if not player_repo.get_profile_by_id(player_id):
             raise HTTPException(status_code=404, detail="Player not found")
 
-        hints = player_repo.get_hints(player_id)
-        return HintResponse(
-            claims=[AwareClaimResponse(**claim) for claim in hints.get("claims", [])],
-            items=[HintItemResponse(**item) for item in hints.get("items", [])],
+        clues = player_repo.get_clues(player_id)
+        return ClueResponse(
+            claims=[AwareClaimResponse(**claim) for claim in clues.get("claims", [])],
+            items=[ClueItemResponse(**item) for item in clues.get("items", [])],
         )
     except HTTPException:
         raise

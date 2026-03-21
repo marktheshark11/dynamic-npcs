@@ -343,7 +343,7 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
-    def get_hints(self, player_id: str) -> dict:
+    def get_clues(self, player_id: str) -> dict:
         claims = self.get_aware_claims(player_id)
         seen_items = self.get_seen_items(player_id)
         picked_up_items = self.get_picked_up_items(player_id)
