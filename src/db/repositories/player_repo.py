@@ -240,7 +240,8 @@ class PlayerRepo(BaseRepository):
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
             "MATCH (o:OBJECT:ITEM {object_id: $object_id}) "
-            "MERGE (p)-[:SEEN_OBJECT]->(o) "
+            "MERGE (p)-[r:SEEN_OBJECT]->(o) "
+            "ON CREATE SET r.created_at = datetime() "
             "RETURN o.object_id AS object_id",
             player_id=player_id,
             object_id=object_id,
@@ -253,8 +254,10 @@ class PlayerRepo(BaseRepository):
             "MATCH (o:OBJECT:ITEM {object_id: $object_id}) "
             "WITH p, o, coalesce(o.pickupable, false) AS pickupable "
             "FOREACH (_ IN CASE WHEN pickupable THEN [1] ELSE [] END | "
-            "    MERGE (p)-[:HAS_ITEM]->(o) "
-            "    MERGE (p)-[:SEEN_OBJECT]->(o)"
+            "    MERGE (p)-[has:HAS_ITEM]->(o) "
+            "    ON CREATE SET has.created_at = datetime() "
+            "    MERGE (p)-[seen:SEEN_OBJECT]->(o) "
+            "    ON CREATE SET seen.created_at = datetime()"
             ") "
             "RETURN pickupable AS pickupable",
             player_id=player_id,

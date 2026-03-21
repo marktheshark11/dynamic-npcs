@@ -213,16 +213,24 @@ A user can own multiple characters, and this relationship is used to manage char
 
 Tracks that the player has picked up an item.
 
+| Property | Type | Notes |
+|----------|------|-------|
+| `created_at` | datetime | When the player first picked up the item |
+
 ```
-(PLAYER)-[:HAS_ITEM]->(OBJECT:ITEM)
+(PLAYER)-[:HAS_ITEM {created_at: datetime()}]->(OBJECT:ITEM)
 ```
 
 ### SEEN_OBJECT (PLAYER --> OBJECT:ITEM)
 
 Tracks that the player has inspected or otherwise seen an item. This is intended for gameplay gating such as unlocking future interactions or clues.
 
+| Property | Type | Notes |
+|----------|------|-------|
+| `created_at` | datetime | When the player first saw the item |
+
 ```
-(PLAYER)-[:SEEN_OBJECT]->(OBJECT:ITEM)
+(PLAYER)-[:SEEN_OBJECT {created_at: datetime()}]->(OBJECT:ITEM)
 ```
 
 ### AWARE_OF (PLAYER --> CLAIM)
