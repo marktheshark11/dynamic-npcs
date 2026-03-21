@@ -34,10 +34,13 @@ class Door:
     name: str
     inspect_text: str
     is_locked: bool
+    lock_type: str = "none"
+    unlock_code: str | None = None
+    required_item_id: str | None = None
 
     def display_str(self) -> str:
         lock_state = "låst" if self.is_locked else "olåst"
-        return f"[DOOR] {self.object_id} | {self.name} | {lock_state}"
+        return f"[DOOR] {self.object_id} | {self.name} | {lock_state} | {self.lock_type}"
 
     def short_str(self) -> str:
         return f"{self.object_id} | {self.name}"

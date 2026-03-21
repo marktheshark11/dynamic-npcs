@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from db.config import Config
 from db.repositories import ConstantRepo, PlayerRepo, UserRepo
 from services.chat_service import ChatService
+from services.door_service import DoorService
 from services.scripted_npc_service import ScriptedNpcService
 
 class ChatResponse(BaseModel):
@@ -74,6 +75,11 @@ class ItemActionRequest(BaseModel):
     object_id: str
 
 
+class DoorOpenRequest(BaseModel):
+    object_id: str
+    code: str | None = None
+
+
 class InspectItemResponse(BaseModel):
     player_id: str
     object_id: str
@@ -89,6 +95,17 @@ class PickupItemResponse(BaseModel):
     item_name: str
     pickupable: bool
     picked_up: bool
+    detail: str
+
+
+class OpenDoorResponse(BaseModel):
+    player_id: str
+    object_id: str
+    door_name: str
+    opened: bool
+    already_open: bool
+    lock_type: str
+    required_item_id: str | None = None
     detail: str
 
 
@@ -507,6 +524,40 @@ async def pickup_item(
             picked_up=picked_up,
             detail=detail,
         )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/players/{player_id}/doors/open", response_model=OpenDoorResponse)
+async def open_door(
+    player_id: str,
+    payload: DoorOpenRequest,
+    config: Config = Depends(get_config),
+):
+    player_id = player_id.strip()
+    object_id = payload.object_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+    if not object_id:
+        raise HTTPException(status_code=400, detail="object_id cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        door_service = DoorService(config.driver)
+
+        if not player_repo.get_profile_by_id(player_id):
+            raise HTTPException(status_code=404, detail="Player not found")
+
+        result = door_service.open_door(player_id, object_id, code=payload.code)
+        if result["detail"] == "Door not found":
+            raise HTTPException(status_code=404, detail=result["detail"])
+        return OpenDoorResponse(**result)
+    except ValueError as exc:
+        if str(exc) == "Door not found":
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPException:
         raise
     except Exception as exc:

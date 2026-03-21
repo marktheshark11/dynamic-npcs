@@ -241,6 +241,36 @@ class PlayerRepo(BaseRepository):
         )
         return {r["object_id"] for r in records if r.get("object_id")}
 
+    def has_item(self, player_id: str, object_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (:PLAYER {player_id: $player_id})-[:HAS_ITEM]->(:OBJECT:ITEM {object_id: $object_id}) "
+            "RETURN $object_id AS object_id LIMIT 1",
+            player_id=player_id,
+            object_id=object_id,
+        )
+        return record is not None
+
+    def has_opened_door(self, player_id: str, object_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (:PLAYER {player_id: $player_id})-[:HAS_OPENED]->(:OBJECT:DOOR {object_id: $object_id}) "
+            "RETURN $object_id AS object_id LIMIT 1",
+            player_id=player_id,
+            object_id=object_id,
+        )
+        return record is not None
+
+    def mark_opened_door(self, player_id: str, object_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "MATCH (d:OBJECT:DOOR {object_id: $object_id}) "
+            "MERGE (p)-[r:HAS_OPENED]->(d) "
+            "ON CREATE SET r.created_at = datetime() "
+            "RETURN d.object_id AS object_id",
+            player_id=player_id,
+            object_id=object_id,
+        )
+        return record is not None
+
     def mark_seen_object(self, player_id: str, object_id: str) -> bool:
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "

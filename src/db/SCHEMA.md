@@ -63,6 +63,18 @@ A gameplay-interactable object. Implemented as an extra label on `OBJECT` (`:OBJ
 | `inspect_text` | string | Text shown when the player inspects the item |
 | `pickupable` | bool | `true` if the player can pick it up |
 
+### DOOR
+A gameplay door represented as an `OBJECT` with the extra `DOOR` label.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `object_id` | string | Stable door identifier |
+| `name` | string | Door name |
+| `inspect_text` | string | Text shown when the player inspects the door |
+| `is_locked` | bool | Whether the door requires a condition before it can be opened |
+| `lock_type` | string | `none`, `item`, or `code` |
+| `unlock_code` | string? | Present only when `lock_type` is `code` |
+
 ### PLACE
 A location in the world (e.g. "Torget", "Kyrkan").
 
@@ -247,6 +259,26 @@ Tracks that the player has learned about a claim during gameplay (typically from
 ```
 
 The `npc_ids` list grows over time — if multiple NPCs mention the same claim, each NPC id is appended (deduplicated). This enables the RAG pipeline to mark claims as "already mentioned" per-NPC, so NPCs avoid repeating information.
+
+### REQUIRES_ITEM (DOOR --> ITEM)
+
+Used when a locked door requires a specific item to be opened. No properties.
+
+```
+(OBJECT:DOOR)-[:REQUIRES_ITEM]->(OBJECT:ITEM)
+```
+
+### HAS_OPENED (PLAYER --> DOOR)
+
+Tracks that a specific player has opened a specific door.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `created_at` | datetime | When the player first opened the door |
+
+```
+(PLAYER)-[:HAS_OPENED {created_at: datetime()}]->(OBJECT:DOOR)
+```
 
 ---
 

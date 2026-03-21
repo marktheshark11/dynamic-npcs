@@ -5,6 +5,38 @@ from ..models import Door, Item, Object, Place
 class ConstantRepo(BaseRepository):
     """CRUD operations for OBJECT and PLACE nodes."""
 
+    DOOR_LOCK_TYPES = {"none", "item", "code"}
+
+    @classmethod
+    def _normalize_door_lock_config(
+        cls,
+        is_locked: bool,
+        lock_type: str | None = None,
+        unlock_code: str | None = None,
+        required_item_id: str | None = None,
+    ) -> tuple[bool, str, str | None, str | None]:
+        normalized_lock_type = (lock_type or "none").strip().lower()
+        normalized_code = (unlock_code or "").strip() or None
+        normalized_item_id = (required_item_id or "").strip() or None
+
+        if normalized_lock_type not in cls.DOOR_LOCK_TYPES:
+            raise ValueError("Ogiltig låstyp för dörr")
+
+        if not is_locked:
+            return False, "none", None, None
+
+        if normalized_lock_type == "none":
+            raise ValueError("Låsta dörrar måste ha låstyp 'item' eller 'code'")
+
+        if normalized_lock_type == "item":
+            if not normalized_item_id:
+                raise ValueError("Låstyp 'item' kräver ett item_id")
+            return True, normalized_lock_type, None, normalized_item_id
+
+        if not normalized_code:
+            raise ValueError("Låstyp 'code' kräver en unlock_code")
+        return True, normalized_lock_type, normalized_code, None
+
     def _next_object_id(self, prefix: str) -> str:
         record = self._run_single(
             "MATCH (o:OBJECT) "
@@ -94,14 +126,28 @@ class ConstantRepo(BaseRepository):
         name: str,
         inspect_text: str,
         is_locked: bool,
+        lock_type: str = "none",
+        unlock_code: str | None = None,
+        required_item_id: str | None = None,
         object_id: str | None = None,
     ) -> Door:
         self._ensure_object_ids()
+        normalized_is_locked, normalized_lock_type, normalized_code, normalized_item_id = self._normalize_door_lock_config(
+            is_locked=is_locked,
+            lock_type=lock_type,
+            unlock_code=unlock_code,
+            required_item_id=required_item_id,
+        )
+        if normalized_item_id:
+            required_item = self.get_item(normalized_item_id)
+            if not required_item:
+                raise ValueError("Kunde inte hitta itemet som krävs för dörren")
         formatted = name.capitalize()
         normalized_id = (object_id or "").strip() or None
         existing = self._run_single(
             "MATCH (o:OBJECT {name: $name}) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "       o.lock_type AS lock_type, o.unlock_code AS unlock_code "
             "LIMIT 1",
             name=formatted,
         )
@@ -119,17 +165,35 @@ class ConstantRepo(BaseRepository):
         self._run(
             "MERGE (o:OBJECT {name: $name}) "
             "ON CREATE SET o.object_id = $object_id "
-            "SET o:DOOR, o.inspect_text = $inspect_text, o.is_locked = $is_locked",
+            "SET o:DOOR, o.inspect_text = $inspect_text, o.is_locked = $is_locked, "
+            "    o.lock_type = $lock_type, o.unlock_code = $unlock_code",
             object_id=final_object_id,
             name=formatted,
             inspect_text=inspect_text,
-            is_locked=is_locked,
+            is_locked=normalized_is_locked,
+            lock_type=normalized_lock_type,
+            unlock_code=normalized_code,
         )
+        self._run(
+            "MATCH (d:OBJECT:DOOR {object_id: $object_id})-[r:REQUIRES_ITEM]->(:OBJECT:ITEM) DELETE r",
+            object_id=final_object_id,
+        )
+        if normalized_item_id:
+            self._run(
+                "MATCH (d:OBJECT:DOOR {object_id: $door_id}) "
+                "MATCH (i:OBJECT:ITEM {object_id: $item_id}) "
+                "MERGE (d)-[:REQUIRES_ITEM]->(i)",
+                door_id=final_object_id,
+                item_id=normalized_item_id,
+            )
         return Door(
             object_id=final_object_id,
             name=formatted,
             inspect_text=inspect_text,
-            is_locked=is_locked,
+            is_locked=normalized_is_locked,
+            lock_type=normalized_lock_type,
+            unlock_code=normalized_code,
+            required_item_id=normalized_item_id,
         )
 
     def create_item(
@@ -196,7 +260,9 @@ class ConstantRepo(BaseRepository):
         self._ensure_object_ids()
         records = self._run(
             "MATCH (o:OBJECT:DOOR) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "OPTIONAL MATCH (o)-[:REQUIRES_ITEM]->(required:OBJECT:ITEM) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "       o.lock_type AS lock_type, o.unlock_code AS unlock_code, required.object_id AS required_item_id "
             "ORDER BY o.object_id"
         )
         return [
@@ -205,6 +271,9 @@ class ConstantRepo(BaseRepository):
                 name=r["name"],
                 inspect_text=r.get("inspect_text") or "",
                 is_locked=bool(r.get("is_locked")),
+                lock_type=(r.get("lock_type") or "none"),
+                unlock_code=r.get("unlock_code"),
+                required_item_id=r.get("required_item_id"),
             )
             for r in records
         ]
@@ -230,7 +299,9 @@ class ConstantRepo(BaseRepository):
         self._ensure_object_ids()
         record = self._run_single(
             "MATCH (o:OBJECT:DOOR {object_id: $object_id}) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "OPTIONAL MATCH (o)-[:REQUIRES_ITEM]->(required:OBJECT:ITEM) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "       o.lock_type AS lock_type, o.unlock_code AS unlock_code, required.object_id AS required_item_id "
             "LIMIT 1",
             object_id=object_id,
         )
@@ -241,6 +312,9 @@ class ConstantRepo(BaseRepository):
             name=record["name"],
             inspect_text=record.get("inspect_text") or "",
             is_locked=bool(record.get("is_locked")),
+            lock_type=(record.get("lock_type") or "none"),
+            unlock_code=record.get("unlock_code"),
+            required_item_id=record.get("required_item_id"),
         )
 
     def delete_item(self, object_id: str) -> bool:
@@ -331,11 +405,16 @@ class ConstantRepo(BaseRepository):
         name: str | None = None,
         inspect_text: str | None = None,
         is_locked: bool | None = None,
+        lock_type: str | None = None,
+        unlock_code: str | None = None,
+        required_item_id: str | None = None,
     ) -> bool:
         self._ensure_object_ids()
         existing = self._run_single(
             "MATCH (o:OBJECT:DOOR {object_id: $current_object_id}) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked "
+            "OPTIONAL MATCH (o)-[:REQUIRES_ITEM]->(required:OBJECT:ITEM) "
+            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "       o.lock_type AS lock_type, o.unlock_code AS unlock_code, required.object_id AS required_item_id "
             "LIMIT 1",
             current_object_id=current_object_id,
         )
@@ -344,6 +423,20 @@ class ConstantRepo(BaseRepository):
 
         next_object_id = (object_id or "").strip() or existing["object_id"]
         next_name = name.capitalize() if name else existing["name"]
+        next_is_locked = bool(existing.get("is_locked")) if is_locked is None else is_locked
+        next_lock_type = lock_type if lock_type is not None else (existing.get("lock_type") or "none")
+        next_unlock_code = unlock_code if unlock_code is not None else existing.get("unlock_code")
+        next_required_item_id = required_item_id if required_item_id is not None else existing.get("required_item_id")
+        normalized_is_locked, normalized_lock_type, normalized_code, normalized_item_id = self._normalize_door_lock_config(
+            is_locked=next_is_locked,
+            lock_type=next_lock_type,
+            unlock_code=next_unlock_code,
+            required_item_id=next_required_item_id,
+        )
+        if normalized_item_id:
+            required_item = self.get_item(normalized_item_id)
+            if not required_item:
+                raise ValueError("Kunde inte hitta itemet som krävs för dörren")
 
         if next_object_id != existing["object_id"]:
             conflicting_id = self._run_single(
@@ -364,26 +457,59 @@ class ConstantRepo(BaseRepository):
         set_clauses = [
             "o.object_id = $object_id",
             "o.name = $name",
+            "o.is_locked = $is_locked",
+            "o.lock_type = $lock_type",
+            "o.unlock_code = $unlock_code",
         ]
-        params: dict[str, str | bool] = {
+        params: dict[str, str | bool | None] = {
             "current_object_id": current_object_id,
             "object_id": next_object_id,
             "name": next_name,
+            "is_locked": normalized_is_locked,
+            "lock_type": normalized_lock_type,
+            "unlock_code": normalized_code,
         }
 
         if inspect_text is not None:
             set_clauses.append("o.inspect_text = $inspect_text")
             params["inspect_text"] = inspect_text
 
-        if is_locked is not None:
-            set_clauses.append("o.is_locked = $is_locked")
-            params["is_locked"] = is_locked
-
         record = self._run_single(
             f"MATCH (o:OBJECT:DOOR {{object_id: $current_object_id}}) SET {', '.join(set_clauses)} RETURN o",
             **params,
         )
-        return record is not None
+        if not record:
+            return False
+        self._run(
+            "MATCH (d:OBJECT:DOOR {object_id: $object_id})-[r:REQUIRES_ITEM]->(:OBJECT:ITEM) DELETE r",
+            object_id=next_object_id,
+        )
+        if normalized_item_id:
+            self._run(
+                "MATCH (d:OBJECT:DOOR {object_id: $door_id}) "
+                "MATCH (i:OBJECT:ITEM {object_id: $item_id}) "
+                "MERGE (d)-[:REQUIRES_ITEM]->(i)",
+                door_id=next_object_id,
+                item_id=normalized_item_id,
+            )
+        return True
+
+    def get_required_item_for_door(self, object_id: str) -> Item | None:
+        self._ensure_object_ids()
+        record = self._run_single(
+            "MATCH (:OBJECT:DOOR {object_id: $object_id})-[:REQUIRES_ITEM]->(i:OBJECT:ITEM) "
+            "RETURN i.object_id AS object_id, i.name AS name, i.inspect_text AS inspect_text, i.pickupable AS pickupable "
+            "LIMIT 1",
+            object_id=object_id,
+        )
+        if not record:
+            return None
+        return Item(
+            object_id=record["object_id"],
+            name=record["name"],
+            inspect_text=record.get("inspect_text") or "",
+            pickupable=bool(record.get("pickupable")),
+        )
 
     # --- PLACE ---
 

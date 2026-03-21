@@ -4,6 +4,14 @@ from ..models import Door, Item, Object, Place
 from ..ui import InputHelpers
 
 
+def _lock_type_label(lock_type: str, required_item_id: str | None = None) -> str:
+    if lock_type == "item":
+        return f"nyckel ({required_item_id or '?'})"
+    if lock_type == "code":
+        return "kod"
+    return "olåst"
+
+
 class CreateObjectCommand(Command):
     def __init__(self, repo: ConstantRepo, ui: InputHelpers) -> None:
         self._repo = repo
@@ -77,15 +85,42 @@ class CreateDoorCommand(Command):
         object_id = self._ui.prompt("door_id")
         name = self._ui.prompt("dörrnamn")
         inspect_text = self._ui.prompt("inspect_text")
-        is_locked = self._ui.confirm("Ska dörren vara låst?")
+        lock_option = self._ui.select_option(
+            ["olåst", "nyckel", "kod"],
+            "Låstyp",
+        )
+        if lock_option is None:
+            return
+
+        is_locked = lock_option != "olåst"
+        lock_type = "none"
+        unlock_code: str | None = None
+        required_item_id: str | None = None
+        if lock_option == "nyckel":
+            items = self._repo.list_items()
+            selected_item = self._ui.select_from_list(items, Item.display_str, "Välj nyckel-item")
+            if not selected_item:
+                return
+            lock_type = "item"
+            required_item_id = selected_item.object_id
+        elif lock_option == "kod":
+            lock_type = "code"
+            unlock_code = self._ui.prompt("unlock_code")
         try:
-            door = self._repo.create_door(name, inspect_text, is_locked, object_id=object_id)
+            door = self._repo.create_door(
+                name,
+                inspect_text,
+                is_locked,
+                lock_type=lock_type,
+                unlock_code=unlock_code,
+                required_item_id=required_item_id,
+                object_id=object_id,
+            )
         except ValueError as exc:
             self._ui.display.error(str(exc))
             return
-        lock_text = "låst" if door.is_locked else "olåst"
         self._ui.display.success(
-            f"DOOR '{door.name}' skapad med ID '{door.object_id}' ({lock_text})"
+            f"DOOR '{door.name}' skapad med ID '{door.object_id}' ({_lock_type_label(door.lock_type, door.required_item_id)})"
         )
 
 
@@ -157,17 +192,35 @@ class EditDoorCommand(Command):
         name = self._ui.prompt_optional("dörrnamn")
         inspect_text = self._ui.prompt_optional("inspect_text")
         lock_option = self._ui.select_option(
-            ["ingen ändring", "låst", "olåst"],
+            ["ingen ändring", "olåst", "nyckel", "kod"],
             "Låsstatus",
         )
         if lock_option is None:
             return
 
         is_locked: bool | None = None
-        if lock_option == "låst":
-            is_locked = True
-        elif lock_option == "olåst":
+        lock_type: str | None = None
+        unlock_code: str | None = None
+        required_item_id: str | None = None
+        if lock_option == "olåst":
             is_locked = False
+            lock_type = "none"
+            unlock_code = ""
+            required_item_id = ""
+        elif lock_option == "nyckel":
+            items = self._repo.list_items()
+            selected_item = self._ui.select_from_list(items, Item.display_str, "Välj nyckel-item")
+            if not selected_item:
+                return
+            is_locked = True
+            lock_type = "item"
+            required_item_id = selected_item.object_id
+            unlock_code = ""
+        elif lock_option == "kod":
+            is_locked = True
+            lock_type = "code"
+            unlock_code = self._ui.prompt("unlock_code")
+            required_item_id = ""
 
         try:
             updated = self._repo.update_door(
@@ -176,6 +229,9 @@ class EditDoorCommand(Command):
                 name=name,
                 inspect_text=inspect_text,
                 is_locked=is_locked,
+                lock_type=lock_type,
+                unlock_code=unlock_code,
+                required_item_id=required_item_id,
             )
         except ValueError as exc:
             self._ui.display.error(str(exc))
@@ -335,7 +391,7 @@ class ListDoorsCommand(Command):
 
         self._ui.display.header("Alla dörrar")
         for idx, door in enumerate(doors, 1):
-            lock_text = "låst" if door.is_locked else "olåst"
+            lock_text = _lock_type_label(door.lock_type, door.required_item_id)
             print(
                 f"  {idx}. {door.display_str()} | inspect: {door.inspect_text} | {lock_text}"
             )

@@ -663,6 +663,104 @@ Validation / not found responses:
 }
 ```
 
+## POST /players/{player_id}/doors/open
+
+Try to open one door by `object_id`.
+
+For unlocked doors, opening always succeeds.
+For locked doors:
+
+- `lock_type: item` requires the player to already have the required item
+- `lock_type: code` requires the request to include the correct `code`
+
+Request for a normal door or key-locked door:
+
+```json
+{
+  "object_id": "door_vault"
+}
+```
+
+Request for a code-locked door:
+
+```json
+{
+  "object_id": "door_vault",
+  "code": "1234"
+}
+```
+
+Response when opening succeeds:
+
+```json
+{
+  "player_id": "player_1",
+  "object_id": "door_vault",
+  "door_name": "Valvdörr",
+  "opened": true,
+  "already_open": false,
+  "lock_type": "item",
+  "required_item_id": "item_vault_key",
+  "detail": "Dörren öppnades med nyckel."
+}
+```
+
+Response when the player does not have the right key:
+
+```json
+{
+  "player_id": "player_1",
+  "object_id": "door_vault",
+  "door_name": "Valvdörr",
+  "opened": false,
+  "already_open": false,
+  "lock_type": "item",
+  "required_item_id": "item_vault_key",
+  "detail": "Du har inte rätt nyckel."
+}
+```
+
+Response when the code is wrong:
+
+```json
+{
+  "player_id": "player_1",
+  "object_id": "door_panel",
+  "door_name": "Kodpanel",
+  "opened": false,
+  "already_open": false,
+  "lock_type": "code",
+  "required_item_id": null,
+  "detail": "Fel kod."
+}
+```
+
+Validation / not found responses:
+
+```json
+{
+  "detail": "player_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "object_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "Player not found"
+}
+```
+
+```json
+{
+  "detail": "Door not found"
+}
+```
+
 ## Server errors
 
 Unexpected backend errors are returned as `500` with:
