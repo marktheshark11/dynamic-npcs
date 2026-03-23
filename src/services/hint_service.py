@@ -9,6 +9,8 @@ class PlayerStateSnapshot:
     aware_claim_ids: set[str]
     seen_object_ids: set[str]
     inventory_item_ids: set[str]
+    seen_door_ids: set[str]
+    opened_door_ids: set[str]
 
     def knows_claim(self, claim_id: str) -> bool:
         return claim_id in self.aware_claim_ids
@@ -19,6 +21,12 @@ class PlayerStateSnapshot:
     def has_item(self, object_id: str) -> bool:
         return object_id in self.inventory_item_ids
 
+    def has_seen_door(self, object_id: str) -> bool:
+        return object_id in self.seen_door_ids
+
+    def has_opened_door(self, object_id: str) -> bool:
+        return object_id in self.opened_door_ids
+
 
 @dataclass(frozen=True)
 class HintCheck:
@@ -28,6 +36,10 @@ class HintCheck:
     excluded_seen_object_ids: set[str] = field(default_factory=set)
     required_item_ids: set[str] = field(default_factory=set)
     excluded_item_ids: set[str] = field(default_factory=set)
+    required_seen_door_ids: set[str] = field(default_factory=set)
+    excluded_seen_door_ids: set[str] = field(default_factory=set)
+    required_opened_door_ids: set[str] = field(default_factory=set)
+    excluded_opened_door_ids: set[str] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
@@ -50,8 +62,16 @@ class HintService:
                 matcher=lambda state: state.has_seen_object("object_body") and not state.knows_claim("C79"),
             ),
             HintRule(
-                text="Du borde tala med Wilhelm, sonen till den avlidne. Han är i sitt rum, det första rummet till vänster på övervåningen. Han verkar ha hört någonting, undersök var ljudet kom ifrån.",
-                matcher=lambda state: state.knows_claim("C79"),
+                text="Wilhelm sa att han hörde ett ljud från arbetsrummet. Det kan vara värt att undersöka det rummet lite mer noggrant.",
+                matcher=lambda state: state.knows_claim("C79") and not state.has_seen_door("door_study"),
+            ),
+            HintRule(
+                text="Det verkar som att du behöver en nyckel för att kunna komma in i arbetsrummet. Fråga runt efter den.",
+                matcher=lambda state: state.has_seen_door("door_study") and not state.has_opened_door("door_study"),
+            ),
+            HintRule(
+                text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet. Se om du kan lista ut vad den kan vara.",
+                matcher=lambda state: state.has_seen_door("object_safe") and not state.has_opened_door("object_safe"),
             ),
             HintRule(
                 text="Test2",
@@ -101,6 +121,8 @@ class HintService:
             aware_claim_ids=self.player_repo.get_aware_claim_ids(player_id),
             seen_object_ids=self.player_repo.get_seen_object_ids(player_id),
             inventory_item_ids=self.player_repo.get_inventory_item_ids(player_id),
+            seen_door_ids=self.player_repo.get_seen_door_ids(player_id),
+            opened_door_ids=self.player_repo.get_opened_door_ids(player_id),
         )
 
     def _collect_matching_texts(self, state: PlayerStateSnapshot) -> list[str]:
@@ -136,5 +158,13 @@ class HintService:
         if not check.required_item_ids.issubset(state.inventory_item_ids):
             return False
         if check.excluded_item_ids.intersection(state.inventory_item_ids):
+            return False
+        if not check.required_seen_door_ids.issubset(state.seen_door_ids):
+            return False
+        if check.excluded_seen_door_ids.intersection(state.seen_door_ids):
+            return False
+        if not check.required_opened_door_ids.issubset(state.opened_door_ids):
+            return False
+        if check.excluded_opened_door_ids.intersection(state.opened_door_ids):
             return False
         return True

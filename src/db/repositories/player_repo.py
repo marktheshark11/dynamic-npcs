@@ -241,6 +241,26 @@ class PlayerRepo(BaseRepository):
         )
         return {r["object_id"] for r in records if r.get("object_id")}
 
+    def get_seen_door_ids(self, player_id: str) -> set[str]:
+        records = self._run(
+            """
+            MATCH (:PLAYER {player_id: $player_id})-[:SEEN_DOOR]->(d:OBJECT:DOOR)
+            RETURN d.object_id AS object_id
+            """,
+            player_id=player_id,
+        )
+        return {r["object_id"] for r in records if r.get("object_id")}
+
+    def get_opened_door_ids(self, player_id: str) -> set[str]:
+        records = self._run(
+            """
+            MATCH (:PLAYER {player_id: $player_id})-[:HAS_OPENED]->(d:OBJECT:DOOR)
+            RETURN d.object_id AS object_id
+            """,
+            player_id=player_id,
+        )
+        return {r["object_id"] for r in records if r.get("object_id")}
+
     def has_item(self, player_id: str, object_id: str) -> bool:
         record = self._run_single(
             "MATCH (:PLAYER {player_id: $player_id})-[:HAS_ITEM]->(:OBJECT:ITEM {object_id: $object_id}) "
