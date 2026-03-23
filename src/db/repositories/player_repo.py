@@ -259,6 +259,18 @@ class PlayerRepo(BaseRepository):
         )
         return record is not None
 
+    def mark_seen_door(self, player_id: str, object_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "MATCH (d:OBJECT:DOOR {object_id: $object_id}) "
+            "MERGE (p)-[r:SEEN_DOOR]->(d) "
+            "ON CREATE SET r.created_at = datetime() "
+            "RETURN d.object_id AS object_id",
+            player_id=player_id,
+            object_id=object_id,
+        )
+        return record is not None
+
     def mark_opened_door(self, player_id: str, object_id: str) -> bool:
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
@@ -321,6 +333,58 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
+    def get_seen_doors(self, player_id: str) -> list[dict]:
+        records = self._run(
+            """
+            MATCH (:PLAYER {player_id: $player_id})-[r:SEEN_DOOR]->(d:OBJECT:DOOR)
+            RETURN d.object_id AS object_id,
+                   d.name AS name,
+                   d.inspect_text AS inspect_text,
+                   d.lock_type AS lock_type,
+                   r.created_at AS created_at
+            ORDER BY d.object_id
+            """,
+            player_id=player_id,
+        )
+        return [
+            {
+                "object_id": r["object_id"],
+                "name": r["name"],
+                "inspect_text": r.get("inspect_text") or "",
+                "lock_type": r.get("lock_type") or "none",
+                "created_at": str(r["created_at"]) if r.get("created_at") else None,
+                "seen": True,
+                "opened": False,
+            }
+            for r in records
+        ]
+
+    def get_opened_doors(self, player_id: str) -> list[dict]:
+        records = self._run(
+            """
+            MATCH (:PLAYER {player_id: $player_id})-[r:HAS_OPENED]->(d:OBJECT:DOOR)
+            RETURN d.object_id AS object_id,
+                   d.name AS name,
+                   d.inspect_text AS inspect_text,
+                   d.lock_type AS lock_type,
+                   r.created_at AS created_at
+            ORDER BY d.object_id
+            """,
+            player_id=player_id,
+        )
+        return [
+            {
+                "object_id": r["object_id"],
+                "name": r["name"],
+                "inspect_text": r.get("inspect_text") or "",
+                "lock_type": r.get("lock_type") or "none",
+                "created_at": str(r["created_at"]) if r.get("created_at") else None,
+                "seen": True,
+                "opened": True,
+            }
+            for r in records
+        ]
+
     def get_seen_items(self, player_id: str) -> list[dict]:
         records = self._run(
             """
@@ -377,6 +441,8 @@ class PlayerRepo(BaseRepository):
         claims = self.get_aware_claims(player_id)
         seen_items = self.get_seen_items(player_id)
         picked_up_items = self.get_picked_up_items(player_id)
+        seen_doors = self.get_seen_doors(player_id)
+        opened_doors = self.get_opened_doors(player_id)
 
         items_by_id: dict[str, dict] = {}
         for item in seen_items:
@@ -392,9 +458,24 @@ class PlayerRepo(BaseRepository):
             if existing.get("created_at") is None:
                 existing["created_at"] = item.get("created_at")
 
+        doors_by_id: dict[str, dict] = {}
+        for door in seen_doors:
+            doors_by_id[door["object_id"]] = door
+
+        for door in opened_doors:
+            existing = doors_by_id.get(door["object_id"])
+            if not existing:
+                doors_by_id[door["object_id"]] = door
+                continue
+
+            existing["opened"] = True
+            if existing.get("created_at") is None:
+                existing["created_at"] = door.get("created_at")
+
         return {
             "claims": sorted(claims, key=lambda claim: self._created_at_sort_key(claim, "claim_id")),
             "items": sorted(items_by_id.values(), key=lambda item: self._created_at_sort_key(item, "object_id")),
+            "doors": sorted(doors_by_id.values(), key=lambda door: self._created_at_sort_key(door, "object_id")),
         }
 
     def delete(self, player_id: str) -> bool:

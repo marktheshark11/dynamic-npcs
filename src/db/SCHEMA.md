@@ -280,6 +280,18 @@ Tracks that a specific player has opened a specific door.
 (PLAYER)-[:HAS_OPENED {created_at: datetime()}]->(OBJECT:DOOR)
 ```
 
+### SEEN_DOOR (PLAYER --> DOOR)
+
+Tracks that a player has encountered or attempted to open a door.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `created_at` | datetime | When the player first saw or tried the door |
+
+```
+(PLAYER)-[:SEEN_DOOR {created_at: datetime()}]->(OBJECT:DOOR)
+```
+
 ---
 
 ### PART_OF (CLAIM --> MYSTERY)

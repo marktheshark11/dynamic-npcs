@@ -482,6 +482,8 @@ This includes:
 - all claims the player is aware of via `AWARE_OF`
 - all items the player has seen via `SEEN_OBJECT`
 - all items the player has picked up via `HAS_ITEM`
+- all doors the player has tried to open via `SEEN_DOOR`
+- all doors the player has opened via `HAS_OPENED`
 
 Example request:
 
@@ -521,6 +523,17 @@ Response:
       "seen": true,
       "picked_up": false
     }
+  ],
+  "doors": [
+    {
+      "object_id": "door_vault",
+      "name": "Valvdörr",
+      "inspect_text": "En tung järndörr med komplicerat lås.",
+      "lock_type": "item",
+      "created_at": "2026-03-16T14:40:00.000000000Z",
+      "seen": true,
+      "opened": false
+    }
   ]
 }
 ```
@@ -529,8 +542,11 @@ Notes:
 
 - `claims` uses the same shape as `GET /players/{player_id}/claims`.
 - `items` combines seen and picked-up items into one list.
+- `doors` combines seen and opened doors into one list.
 - Both `claims` and `items` are ordered by `created_at`, with older timestamped entries first and older untimestamped data last.
+- `doors` is also ordered by `created_at` with the same fallback rules.
 - `picked_up: true` implies the item is also considered seen.
+- `opened: true` implies the door is also considered seen.
 - `created_at` may be `null` for older relationship data created before timestamps were added.
 - Returns empty arrays if the player has not discovered any clues yet.
 
@@ -672,6 +688,8 @@ For locked doors:
 
 - `lock_type: item` requires the player to already have the required item
 - `lock_type: code` requires the request to include the correct `code`
+
+Any open attempt also marks the door as seen for the player, even if the opening fails.
 
 Request for a normal door or key-locked door:
 

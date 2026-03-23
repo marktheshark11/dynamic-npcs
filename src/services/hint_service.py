@@ -42,8 +42,16 @@ class HintService:
         self.player_repo = PlayerRepo(driver)
         self._text_rules: list[HintRule] = [
             HintRule(
-                text="Du borde se det här tills du lärt dig att Wolmars slott används idag som sommarhus av Nils och Pamela [C3] (fråga Herr Bergström)",
-                matcher=lambda state: not state.knows_claim("C3"),
+                text="Gå och undersök kroppen. Den finns i arbetsrummet. Det är det sista rummet till höger på övervåning.",
+                matcher=lambda state: not state.has_seen_object("object_body"),
+            ),
+            HintRule(
+                text="Du borde tala med Wilhelm, sonen till den avlidne. Han är i sitt rum, det första rummet till vänster på övervåningen. Han verkar ha hört någonting, undersök var ljudet kom ifrån.",
+                matcher=lambda state: state.has_seen_object("object_body") and not state.knows_claim("C79"),
+            ),
+            HintRule(
+                text="Du borde tala med Wilhelm, sonen till den avlidne. Han är i sitt rum, det första rummet till vänster på övervåningen. Han verkar ha hört någonting, undersök var ljudet kom ifrån.",
+                matcher=lambda state: state.knows_claim("C79"),
             ),
             HintRule(
                 text="Test2",

@@ -11,6 +11,8 @@ class DoorService:
         if not door:
             raise ValueError("Door not found")
 
+        self.player_repo.mark_seen_door(player_id, object_id)
+
         already_open = self.player_repo.has_opened_door(player_id, object_id)
         if already_open:
             return {

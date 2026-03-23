@@ -127,9 +127,20 @@ class ClueItemResponse(BaseModel):
     picked_up: bool
 
 
+class ClueDoorResponse(BaseModel):
+    object_id: str
+    name: str
+    inspect_text: str
+    lock_type: str
+    created_at: str | None = None
+    seen: bool
+    opened: bool
+
+
 class ClueResponse(BaseModel):
     claims: list[AwareClaimResponse] = Field(default_factory=list)
     items: list[ClueItemResponse] = Field(default_factory=list)
+    doors: list[ClueDoorResponse] = Field(default_factory=list)
 
 
 class RegisterRequest(BaseModel):
@@ -439,6 +450,7 @@ async def list_player_clues(player_id: str, config: Config = Depends(get_config)
         return ClueResponse(
             claims=[AwareClaimResponse(**claim) for claim in clues.get("claims", [])],
             items=[ClueItemResponse(**item) for item in clues.get("items", [])],
+            doors=[ClueDoorResponse(**door) for door in clues.get("doors", [])],
         )
     except HTTPException:
         raise
