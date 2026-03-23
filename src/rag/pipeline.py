@@ -60,7 +60,7 @@ class RAGPipeline:
                     "Du har tillgång till berättelsens bakgrund, tidigare nämnd information och konversationshistorik.\n"
                     "Regler:\n"
                     "- Ersätt alla pronomen (han, hon, det, där, etc.) med konkreta namn och platser från kontexten.\n"
-                    "- Inkludera relevant kontext som hjälper sökningen.\n"
+                    "- Sökfrasen ska endast innehålla information som anknyter exakt till vad spelaren frågar efter.\n"
                     "- Skriv på svenska.\n"
                     "- Returnera BARA sökfrasen som ren text, utan förklaring eller kommentarer."
                 ),
@@ -68,7 +68,7 @@ class RAGPipeline:
             {
                 "role": "user",
                 "content": (
-                    f"BERÄTTELSEBAKGRUND:\n{background_block}\n\n"
+                    #f"BERÄTTELSEBAKGRUND:\n{background_block}\n\n"
                     f"TIDIGARE NÄMNDA FAKTA:\n{mentioned_block}\n\n"
                     f"KONVERSATIONSHISTORIK:\n{history_block}\n\n"
                     f"SPELARENS FRÅGA: {question}\n\n"
