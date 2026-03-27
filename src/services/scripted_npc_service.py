@@ -29,6 +29,7 @@ class ScriptedNpcService:
         "npc_mariana",
     ]
     _CORRECT_MURDERER_ID = "npc_beatrice"
+    _ABOUT_GAME_TEXT ="Det här är ett mordmysteriumspel där du spelar som en detektiv... BLABLA lägg in mer Adrian"
 
     def __init__(self, driver):
         self.hint_service = HintService(driver)
@@ -36,8 +37,8 @@ class ScriptedNpcService:
         self.player_repo = PlayerRepo(driver)
         self._session_states: dict[tuple[str, str], ScriptedNpcSessionState] = {}
         self._menu_text = (
-            "1. Få ledtråd\n"
-            "2. Avsluta\n"
+            "1. Om spelet\n"
+            "2. Få ledtråd\n"
             "3. Jag vet vem mördaren är, jag vill anklaga den och sedan avsluta spelet"
         )
 
@@ -93,11 +94,11 @@ class ScriptedNpcService:
 
     def _handle_choice(self, npc_id: str, player_id: str | None, choice: int) -> ScriptedNpcReply:
         if choice == 1:
+            return ScriptedNpcReply(response=self._ABOUT_GAME_TEXT)
+        if choice == 2:
             if not player_id:
                 raise ValueError("player_id krävs för att hämta hintar.")
             return ScriptedNpcReply(response=self.hint_service.get_hint_text(player_id=player_id))
-        if choice == 2:
-            return ScriptedNpcReply(response="Kommissarien nickar kort. 'Återkom när du har något konkret.'")
         if choice == 3:
             return self._begin_accusation_flow(npc_id=npc_id, player_id=player_id)
         return ScriptedNpcReply(response="Ogiltigt val. Skicka tomt för att se menyn eller skriv 1, 2 eller 3.")
