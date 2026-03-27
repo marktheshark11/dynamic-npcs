@@ -22,7 +22,7 @@
 - Nils fick uppgiften via ett brev.
 - Brevets avsändare: placeholder `okänd/mystisk` (inte låst som viktigt för lösningen nu).
 - Beatrice avgudar sin mamma Silvia (dog när Beatrice var cirka 3 år).
-- Mariana Martinez har varit en modersfigur för Beatrice.
+- Mariana Martinsson har varit en modersfigur för Beatrice.
 - Mariana hör smällen under sin kvällsrunda då hon går runt och kontrollerar att allt är okej på slottet.
 - Efter att ha hört smällen går Mariana in och hjälper Beatrice.
 - Mariana ber Beatrice gå och lägga sig och tar över scenen.
@@ -33,7 +33,7 @@
 - Pamela och Nils har varit på ön i cirka en vecka (sommarvistelse).
 - Storystart: Beatrice och Wilhelm anländer samma dag, cirka kl 14:00-15:00.
 - Herr Bergström bor på en närliggande ö och kommer direkt till middagen.
-- Mariana Martinez bor på slottet året runt och ansvarar för att ta hand om det.
+- Mariana Martinsson bor på slottet året runt och ansvarar för att ta hand om det.
 - Vid ankomst och under kvällen finns tydlig spänning riktad mot Pamela.
 - Beatrice ogillar Pamela särskilt starkt.
 - Mariana möter Beatrice och Wilhelm på bryggan vid ankomst.
@@ -91,7 +91,7 @@ Lägg till saker de säger under middagen..
 
 
 - Vid bordet: Nils, Pamela, Beatrice och Wilhelm (Herr Bergström ansluter från närliggande ö).
-- Mariana Martinez arbetar och rör sig mellan matsalen och köket under middagen.
+- Mariana Martinsson arbetar och rör sig mellan matsalen och köket under middagen.
 
 ### Del 3: Efter middagen:
 
@@ -148,7 +148,7 @@ Använd formatet:
 - ~22:00: Hon knuffar stolen i affekt.
 - [att fylla i - vad hon gör direkt efter]
 
-### Mariana Martinez
+### Mariana Martinsson
 - ~14:00-15:00: Möter Beatrice och Wilhelm på bryggan vid ankomst.
 - Bor på slottet året runt och ansvarar för att allt fungerar.
 - ~14:15-14:30: Leder in barnen med varm ton och är tydligt glad att se dem igen efter ungefär ett år.

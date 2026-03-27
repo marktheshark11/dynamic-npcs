@@ -19,25 +19,25 @@ Format:
 - Privat åsikt: [att fylla i]
 - Dold agenda/lögn: [att fylla i]
 
-## Mariana Martinez -> Beatrice Wolmarsson
+## Mariana Martinsson -> Beatrice Wolmarsson
 
 - Offentlig ton: Varm och skyddande.
 - Privat åsikt: Ser Beatrice nästan som sin egen dotter.
 - Dold agenda/lögn: Skyddar Beatrice även när det kräver manipulation.
 
-## Beatrice Wolmarsson -> Mariana Martinez
+## Beatrice Wolmarsson -> Mariana Martinsson
 
 - Offentlig ton: Nära och förtroendefull.
 - Privat åsikt: Ser Mariana som modersfigur.
 - Dold agenda/lögn: [att fylla i]
 
-## Mariana Martinez -> Pamela Wolmarsson
+## Mariana Martinsson -> Pamela Wolmarsson
 
 - Offentlig ton: Neutral och professionell.
 - Privat åsikt: Vill att misstankarna ska landa på Pamela.
 - Dold agenda/lögn: Planterar bevis för att styra narrativet.
 
-## Pamela Wolmarsson -> Mariana Martinez
+## Pamela Wolmarsson -> Mariana Martinsson
 
 - Offentlig ton: [att fylla i]
 - Privat åsikt: [att fylla i]
@@ -123,7 +123,7 @@ Format:
 - Privat åsikt: Idealiserad morbild.
 - Dold agenda/lögn: [att fylla i]
 
-## Mariana Martinez -> Silvia Wolmarsson (efterverkningar)
+## Mariana Martinsson -> Silvia Wolmarsson (efterverkningar)
 
 - Offentlig ton: [att fylla i]
 - Privat åsikt: Tog en modersroll efter Silvias död.

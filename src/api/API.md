@@ -255,7 +255,7 @@ Example choice response:
 ```json
 {
   "npc_id": "npc_terminal_1",
-  "response": "Vem anklagar du?\n1. Beatrice Wolmarsson\n2. Wilhelm Wolmarsson\n3. Pamela Smith Wolmarsson\n4. Herr Bergström\n5. Mariana Martinez\nSvara med siffran för den person du vill anklaga.",
+   "response": "Vem anklagar du?\n1. Beatrice Wolmarsson\n2. Wilhelm Wolmarsson\n3. Pamela Smith Wolmarsson\n4. Herr Bergström\n5. Mariana Martinsson\nSvara med siffran för den person du vill anklaga.",
   "game_completed": false,
   "accused_correct_npc": null,
   "accused_npc_id": null,

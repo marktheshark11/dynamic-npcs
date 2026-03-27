@@ -24,7 +24,8 @@ NPCS = [
         name="Lord Nils Wolmarsson",
         age=85,
         personality="Stolt, kontrollerande, misstänksam, hård men intelligent.",
-        backstory=(
+        status="Levande",
+        story_background=(
             "Patriarken på Wolmars Slott. Har byggt sin identitet på familj, "
             "arv och tradition. Efter Silvias död gifte han om sig med Pamela. "
             "Börjar misstänka att han blivit utnyttjad och förrådd."
@@ -35,7 +36,8 @@ NPCS = [
         name="Pamela Smith Wolmarsson",
         age=38,
         personality="Charmig, socialt skicklig, manipulativ, lätt defensiv under press.",
-        backstory=(
+        status="Levande",
+        story_background=(
             "Gift med Nils för status och ekonomisk trygghet. Van vid att spela "
             "olika roller beroende på vem hon pratar med. Har en hemlig affär "
             "med advokaten Bergström."
@@ -46,18 +48,20 @@ NPCS = [
         name="Herr Bergström",
         age=45,
         personality="Professionell, kontrollerad, smart, beräknande. Kan bli kall när han känner sig hotad.",
-        backstory=(
+        status="Levande",
+        story_background=(
             "Familjens advokat. Har byggt sitt rykte på diskretion och "
             "trovärdighet. Har en affär med Pamela och riskerar både karriär "
             "och frihet om det avslöjas."
         ),
     ),
     NPC(
-        id="npc_mariana",
-        name="Mariana Martinez",
-        age=72,
+         id="npc_mariana",
+         name="Mariana Martinsson",
+         age=72,
         personality="Moderlig, observant, lojal, passivt aggressiv, hämndlysten mot hot.",
-        backstory=(
+        status="Levande",
+        story_background=(
             "Hushållerska på slottet i många år. Har sett barnen växa upp och "
             "ser sig som en del av familjen. Hon avskyr Pamela eftersom hon "
             "upplever henne som falsk och hotande. Mariana är villig att "
@@ -69,7 +73,8 @@ NPCS = [
         name="Beatrice Wolmarsson",
         age=30,
         personality="Känslostyrd men kontrollerad utåt, stolt, lätt paranoid, svartsjuk på Pamela.",
-        backstory=(
+        status="Levande",
+        story_background=(
             "Uppvuxen på slottet och ser det som sitt hem. Har svårt att "
             "acceptera Pamela som ny fru. Beatrice observerar stämningar och "
             "sociala signaler, särskilt kring Pamela."
@@ -80,7 +85,8 @@ NPCS = [
         name="Wilhelm Wolmarsson",
         age=33,
         personality="Släpig, cynisk, känslig, rebellisk, oberäknelig.",
-        backstory=(
+        status="Levande",
+        story_background=(
             "Sonen i familjen. Har missbruksproblem och en komplicerad relation "
             "till sin far. Misstänker ofta att folk ljuger. Bra som "
             "\"semi-opålitlig observatör\" som ser saker men tolkar fel."
@@ -90,12 +96,12 @@ NPCS = [
 
 # Shorthand names → full NPC names (for REFERENCE targets)
 N = {
-    "Pamela":     "Pamela Smith Wolmarsson",
-    "Bergström":  "Herr Bergström",
-    "Mariana":    "Mariana Martinez",
-    "Nils":       "Lord Nils Wolmarsson",
-    "Beatrice":   "Beatrice Wolmarsson",
-    "Wilhelm":    "Wilhelm Wolmarsson",
+     "Pamela":     "Pamela Smith Wolmarsson",
+     "Bergström":  "Herr Bergström",
+     "Mariana":    "Mariana Martinsson",
+     "Nils":       "Lord Nils Wolmarsson",
+     "Beatrice":   "Beatrice Wolmarsson",
+     "Wilhelm":    "Wilhelm Wolmarsson",
 }
 
 OBJECTS = ["Parfym", "Brev", "Lapp", "Båt", "Testamente", "Rivmärken", "Middag"]

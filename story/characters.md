@@ -69,7 +69,7 @@ Han ser Beatrice som den naturliga arvtagaren och har pressat henne att bli skar
 ## Mariana
 
 - id: `npc_mariana`
-- namn: `Mariana Martinez`
+- namn: `Mariana Martinsson`
 - ålder: 72
 - utseende: Grå hårig, kraftig, kort, rynkig, glasögon, klär sig som en hushållerska men mysig. 
 - personlighet: Skarp, observant, långsint.

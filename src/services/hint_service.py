@@ -54,7 +54,7 @@ class HintService:
         self.player_repo = PlayerRepo(driver)
         self._text_rules: list[HintRule] = [
             HintRule(
-                text="Gå och undersök kroppen. Den finns i arbetsrummet. Det är det sista rummet till höger på övervåning.",
+                text="Gå och undersök kroppen. Den finns i huvudsovrummet. Det är det sista rummet till höger på övervåning.",
                 matcher=lambda state: not state.has_seen_object("object_body"),
             ),
             HintRule(
@@ -72,20 +72,7 @@ class HintService:
             HintRule(
                 text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet. Se om du kan lista ut vad den kan vara.",
                 matcher=lambda state: state.has_seen_door("object_safe") and not state.has_opened_door("object_safe"),
-            ),
-            HintRule(
-                text="Test2",
-                check=HintCheck(
-                    required_seen_object_ids={"item_brev"},
-                    excluded_item_ids={"item_brev"},
-                ),
-            ),
-            HintRule(
-                text="Test3",
-                check=HintCheck(
-                    required_item_ids={"item_brev"},
-                ),
-            ),
+            ), 
         ]
 
     def get_hint_text(self, player_id: str) -> str:
