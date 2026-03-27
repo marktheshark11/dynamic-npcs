@@ -40,8 +40,10 @@ class ChatService:
             turn_index = exchange.get("turn_index")
             player_text = exchange.get("player_text") or ""
             npc_text = exchange.get("npc_text") or ""
-            lines.append(f"Turn {turn_index} - Detektiven: {player_text}")
-            lines.append(f"Turn {turn_index} - NPC: {npc_text}")
+            if player_text:
+                lines.append(f"Turn {turn_index} - Detektiven: {player_text}")
+            if npc_text:
+                lines.append(f"Turn {turn_index} - NPC: {npc_text}")
         return "\n".join(lines)
 
     def summarize_conversation(self, conversation_id, model=None):
@@ -198,10 +200,12 @@ class ChatService:
         if not resolved_conversation_id:
             return None
 
-        if is_malicious(question):
+        normalized_question = (question or "").strip()
+
+        if normalized_question and is_malicious(normalized_question):
             self.conversation_repo.append_exchange(
                 conversation_id=resolved_conversation_id,
-                player_text=question,
+                player_text=normalized_question,
                 npc_text=refusal_message,
             )
             return {
@@ -227,14 +231,21 @@ class ChatService:
         recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=5)
         conversation_claim_ids = self.conversation_repo.get_mentioned_claim_ids(resolved_conversation_id)
 
-        prompt_result, chain_metadata = self.build_prompt(
-            npc_id,
-            question,
-            player_profile=player_profile,
-            recent_exchanges=recent_exchanges,
-            player_id=effective_player_id,
-            conversation_claim_ids=conversation_claim_ids,
-        )
+        if not normalized_question:
+            prompt_result, chain_metadata = self.pipeline.run_start_dialog(
+                npc_id,
+                player_profile=player_profile,
+                recent_exchanges=recent_exchanges,
+            )
+        else:
+            prompt_result, chain_metadata = self.build_prompt(
+                npc_id,
+                normalized_question,
+                player_profile=player_profile,
+                recent_exchanges=recent_exchanges,
+                player_id=effective_player_id,
+                conversation_claim_ids=conversation_claim_ids,
+            )
         if not prompt_result:
             return None
 
@@ -256,7 +267,7 @@ class ChatService:
 
         self.conversation_repo.append_exchange(
             conversation_id=resolved_conversation_id,
-            player_text=question,
+            player_text=normalized_question,
             npc_text=response_text,
         )
 

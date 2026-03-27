@@ -281,3 +281,35 @@ class RAGPipeline:
         )
 
         return prompt_result, chains
+
+    def run_start_dialog(
+        self,
+        npc_id,
+        player_profile=None,
+        recent_exchanges=None,
+    ):
+        npc_data = self.npc_repo.get_profile_by_id(npc_id)
+        if not npc_data:
+            raise ValueError(f"NPC with ID '{npc_id}' not found.")
+
+        context = RAGContext()
+        profile = NPCProfile(
+            name=npc_data["name"],
+            personality=npc_data.get("personality", ""),
+            backstory=npc_data.get("backstory", ""),
+            story_background=npc_data.get("story_background", ""),
+        )
+        request = PromptRequest(
+            question="",
+            scene_event="detective_enters_room",
+            player_name=(player_profile or {}).get("name"),
+            player_appearance=(player_profile or {}).get("appearance"),
+            recent_exchanges=recent_exchanges or [],
+        )
+
+        prompt_result = self.prompt_builder.build(
+            profile=profile,
+            rag_context=context,
+            request=request,
+        )
+        return prompt_result, []

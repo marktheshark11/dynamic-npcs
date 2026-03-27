@@ -152,6 +152,37 @@ def _summarize_and_print(chat_service: ChatService, conversation_id: str | None)
     print(result["summary"])
 
 
+def _start_dynamic_conversation(
+    chat_service: ChatService,
+    npc_id: str,
+    player_id: str | None,
+) -> str | None:
+    result = chat_service.ask_npc(
+        npc_id=npc_id,
+        question="",
+        player_id=player_id,
+        conversation_id=None,
+    )
+    if not result:
+        print("No response.")
+        return None
+
+    conversation_id = result.get("conversation_id")
+    chain_metadata = result.get("chain_metadata", [])
+    used_claims = result.get("used_claims") or []
+    print("\n[Hittade claims:]")
+    if chain_metadata:
+        for chain in chain_metadata:
+            print(f"  {chain['content']}")
+    else:
+        print("  (inga)")
+    print(f"[Använda: {', '.join(used_claims) if used_claims else '(inga)'}]")
+    if conversation_id:
+        print(f"[Konversation: {conversation_id}]")
+    print(f"\nNPC: {result['response']}")
+    return conversation_id
+
+
 def main():
     config = Config.from_env()
     driver = config.driver
@@ -192,6 +223,12 @@ def main():
                     npc_id=npc_id,
                     player_id=player_id,
                 )
+            else:
+                conversation_id = _start_dynamic_conversation(
+                    chat_service=chat_service,
+                    npc_id=npc_id,
+                    player_id=player_id,
+                )
         else:
             print(
                 "\nKommissarien använder scriptad terminal-chat. "
@@ -215,8 +252,11 @@ def main():
             if lowered == "new":
                 if not is_scripted_npc:
                     _summarize_and_print(chat_service, conversation_id)
-                    conversation_id = None
-                    print("Starting a new conversation on your next question.")
+                    conversation_id = _start_dynamic_conversation(
+                        chat_service=chat_service,
+                        npc_id=npc_id,
+                        player_id=player_id,
+                    )
                     continue
 
             if is_scripted_npc:

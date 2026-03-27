@@ -24,6 +24,7 @@ class RAGContext:
 @dataclass
 class PromptRequest:
     question: str
+    scene_event: str | None = None
     locale: str = "sv"
     player_name: str | None = None
     player_appearance: str | None = None
