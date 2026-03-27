@@ -51,7 +51,7 @@ class ScriptedNpcService:
             if not player_profile:
                 raise ValueError("Kunde inte hitta spelaren.")
             if player_profile.get("has_completed_game"):
-                raise ValueError("Spelet är redan avslutat för den här spelaren.")
+                raise ValueError("Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.")
 
         if session_state.mode == self._ACCUSE_MODE:
             reply = self._handle_accusation_follow_up(
@@ -216,5 +216,5 @@ class ScriptedNpcService:
             correct_npc_id=self._CORRECT_MURDERER_ID,
         )
         if not result:
-            raise ValueError("Spelet är redan avslutat för den här spelaren.")
+            raise ValueError("Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.")
         return result

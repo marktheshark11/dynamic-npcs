@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from db.config import Config
 from db.repositories import ConstantRepo, PlayerRepo, UserRepo
+from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
 from services.chat_service import ChatService
 from services.door_service import DoorService
 from services.scripted_npc_service import ScriptedNpcService
@@ -204,6 +205,21 @@ def get_scripted_npc_service(request: Request) -> ScriptedNpcService:
 def get_config(request: Request) -> Config:
     return request.app.state.config
 
+
+def _get_player_or_404(player_repo: PlayerRepo, player_id: str) -> dict:
+    player_profile = player_repo.get_profile_by_id(player_id)
+    if not player_profile:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return player_profile
+
+
+def _ensure_player_not_completed(player_profile: dict) -> None:
+    if player_profile.get("has_completed_game"):
+        raise HTTPException(
+            status_code=409,
+            detail="Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.",
+        )
+
 # Enable CORS for web frontend integration
 app.add_middleware(
     CORSMiddleware,
@@ -330,13 +346,24 @@ async def summarize_conversation(
 @app.post("/chat_static_npc", response_model=StaticNpcChatResponse)
 async def chat_static_npc(
     payload: StaticNpcChatRequest,
+    config: Config = Depends(get_config),
     scripted_npc_service: ScriptedNpcService = Depends(get_scripted_npc_service),
 ):
+    player_id = payload.player_id.strip() if payload.player_id else None
+
     try:
+        if payload.player_id and not player_id:
+            raise HTTPException(status_code=400, detail="player_id cannot be empty")
+
+        if player_id:
+            player_repo = PlayerRepo(config.driver)
+            player_profile = _get_player_or_404(player_repo, player_id)
+            _ensure_player_not_completed(player_profile)
+
         result = scripted_npc_service.ask_npc(
             npc_id=payload.npc_id,
             question=payload.message,
-            player_id=payload.player_id,
+            player_id=player_id,
         )
         return StaticNpcChatResponse(
             npc_id=payload.npc_id,
@@ -348,6 +375,8 @@ async def chat_static_npc(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -362,6 +391,11 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
         raise HTTPException(status_code=400, detail="name cannot be empty")
     if not appearance:
         raise HTTPException(status_code=400, detail="appearance cannot be empty")
+
+    try:
+        validate_safe_player_profile(name=name, appearance=appearance)
+    except PromptGuardValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         player_repo = PlayerRepo(config.driver)
@@ -431,8 +465,7 @@ async def list_aware_claims(player_id: str, config: Config = Depends(get_config)
     try:
         player_repo = PlayerRepo(config.driver)
 
-        if not player_repo.get_profile_by_id(player_id):
-            raise HTTPException(status_code=404, detail="Player not found")
+        _get_player_or_404(player_repo, player_id)
 
         claims = player_repo.get_aware_claims(player_id)
         return [AwareClaimResponse(**c) for c in claims]
@@ -451,8 +484,7 @@ async def list_player_clues(player_id: str, config: Config = Depends(get_config)
     try:
         player_repo = PlayerRepo(config.driver)
 
-        if not player_repo.get_profile_by_id(player_id):
-            raise HTTPException(status_code=404, detail="Player not found")
+        _get_player_or_404(player_repo, player_id)
 
         clues = player_repo.get_clues(player_id)
         return ClueResponse(
@@ -483,8 +515,7 @@ async def inspect_item(
         player_repo = PlayerRepo(config.driver)
         constant_repo = ConstantRepo(config.driver)
 
-        if not player_repo.get_profile_by_id(player_id):
-            raise HTTPException(status_code=404, detail="Player not found")
+        _get_player_or_404(player_repo, player_id)
 
         item = constant_repo.get_item(object_id)
         if not item:
@@ -525,8 +556,7 @@ async def pickup_item(
         player_repo = PlayerRepo(config.driver)
         constant_repo = ConstantRepo(config.driver)
 
-        if not player_repo.get_profile_by_id(player_id):
-            raise HTTPException(status_code=404, detail="Player not found")
+        _get_player_or_404(player_repo, player_id)
 
         item = constant_repo.get_item(object_id)
         if not item:
@@ -567,8 +597,7 @@ async def open_door(
         player_repo = PlayerRepo(config.driver)
         door_service = DoorService(config.driver)
 
-        if not player_repo.get_profile_by_id(player_id):
-            raise HTTPException(status_code=404, detail="Player not found")
+        _get_player_or_404(player_repo, player_id)
 
         result = door_service.open_door(player_id, object_id, code=payload.code)
         if result["detail"] == "Door not found":

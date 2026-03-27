@@ -9,6 +9,7 @@ if __name__ == "__main__" and __package__ is None:
 
 from db.config import Config
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
+from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
 from services.chat_service import ChatService
 from services.scripted_npc_service import ScriptedNpcService
 
@@ -87,20 +88,27 @@ def _select_existing_player(player_repo: PlayerRepo):
 
 def _create_new_player(player_repo: PlayerRepo):
     while True:
-        name = input("Player name: ").strip()
-        if name:
-            break
-        print("Name cannot be empty.")
+        while True:
+            name = input("Player name: ").strip()
+            if name:
+                break
+            print("Name cannot be empty.")
 
-    while True:
-        appearance = input("Player appearance: ").strip()
-        if appearance:
-            break
-        print("Appearance cannot be empty.")
+        while True:
+            appearance = input("Player appearance: ").strip()
+            if appearance:
+                break
+            print("Appearance cannot be empty.")
 
-    player = player_repo.create(name=name, appearance=appearance)
-    print(f"Created player: {player.display_str()}")
-    return player
+        try:
+            validate_safe_player_profile(name=name, appearance=appearance)
+        except PromptGuardValidationError as exc:
+            print(str(exc))
+            continue
+
+        player = player_repo.create(name=name, appearance=appearance)
+        print(f"Created player: {player.display_str()}")
+        return player
 
 
 def _select_existing_conversation(

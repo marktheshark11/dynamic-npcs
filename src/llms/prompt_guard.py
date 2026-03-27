@@ -8,6 +8,10 @@ PROMPT_GUARD_CHUNK_WORDS = 300
 PROMPT_GUARD_THRESHOLD = 0.5
 
 
+class PromptGuardValidationError(ValueError):
+    pass
+
+
 def _chunk_text(text: str, max_words: int = PROMPT_GUARD_CHUNK_WORDS) -> list[str]:
     words = text.split()
     if not words:
@@ -53,3 +57,15 @@ def is_malicious(text: str) -> bool:
         if _classify_chunk(client, chunk):
             return True
     return False
+
+
+def validate_safe_player_text(field_name: str, text: str) -> None:
+    if is_malicious(text):
+        raise PromptGuardValidationError(
+            f"{field_name} innehåller otillåtet eller misstänkt innehåll. Ändra texten och försök igen."
+        )
+
+
+def validate_safe_player_profile(name: str, appearance: str) -> None:
+    validate_safe_player_text("name", name)
+    validate_safe_player_text("appearance", appearance)
