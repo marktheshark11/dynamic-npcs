@@ -2,13 +2,14 @@ import json
 import re
 
 from rag.pipeline import RAGPipeline
-from db.repositories import ConversationRepo, PlayerRepo
+from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
 
 
 class ChatService:
     def __init__(self, driver, embed_model, default_model="llama-3.3-70b-versatile"):
         self.pipeline = RAGPipeline(driver, embed_model)
         self.conversation_repo = ConversationRepo(driver)
+        self.npc_repo = NPCRepo(driver)
         self.player_repo = PlayerRepo(driver)
         self.default_model = default_model
 
@@ -33,7 +34,7 @@ class ChatService:
     @staticmethod
     def _format_all_exchanges_for_summary(exchanges):
         if not exchanges:
-            return "(Inga exchanges i konversationen)"
+            return "(Inga meddelanden i konversationen)"
 
         lines = []
         for exchange in exchanges:
@@ -41,9 +42,9 @@ class ChatService:
             player_text = exchange.get("player_text") or ""
             npc_text = exchange.get("npc_text") or ""
             if player_text:
-                lines.append(f"Turn {turn_index} - Detektiven: {player_text}")
+                lines.append(f"Tur {turn_index} - DETEKTIVEN: {player_text}")
             if npc_text:
-                lines.append(f"Turn {turn_index} - NPC: {npc_text}")
+                lines.append(f"Tur {turn_index} - DU: {npc_text}")
         return "\n".join(lines)
 
     def summarize_conversation(self, conversation_id, model=None):
@@ -53,25 +54,41 @@ class ChatService:
         if not conversation:
             return None
 
+        npc_profile = self.npc_repo.get_profile_by_id(conversation.get("npc_id"))
         exchanges = self.conversation_repo.list_exchanges(conversation_id)
         transcript = self._format_all_exchanges_for_summary(exchanges)
+        npc_name = (npc_profile or {}).get("name") or conversation.get("npc_id") or "NPC:n"
+        personality = (npc_profile or {}).get("personality") or "Okänd"
+        backstory = (npc_profile or {}).get("backstory") or "Okänd"
+        story_background = (npc_profile or {}).get("story_background") or "Okänt"
 
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "Du summerar en konversation mellan en detektiv och dig själv. "
-                    "Skriv en kort, tydlig sammanfattning på svenska i max 3 meningar från ditt perspektiv. "
-                    "Ta med allt som skulle vara viktigt för karaktären. "
-                    "Undvik fluff och upprepningar."
+                    "Du skriver en konversationssammanfattning som NPC:n själv, i jag-form.\n\n"
+                    f"Du är {npc_name}.\n"
+                    f"Personlighet: {personality}\n"
+                    f"Bakgrund: {backstory}\n"
+                    f"Vad som har hänt i berättelsen: {story_background}\n\n"
+                    "Instruktioner:\n"
+                    "- Skriv på svenska.\n"
+                    "- Skriv i första person, ur ditt eget perspektiv.\n"
+                    "- Beskriv vad jag fick veta, vad jag berättade, vad jag undvek, vad jag misstänker, och hur jag uppfattade detektiven om det är relevant.\n"
+                    "- Nämn detektiven som 'detektiven', aldrig som 'jag'.\n"
+                    "- Skriv aldrig om mig själv i tredje person eller med mitt namn som om jag vore någon annan.\n"
+                    "- Var kortfattad men tillräckligt konkret för att vara användbar som minnesanteckning inför framtida samtal.\n"
+                    "- Ta med sådant som är viktigt för karaktären att minnas, och utelämna ointressant fluff."
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    f"Konversation: {conversation_id}\n"
+                    "Här är hela samtalet som ska sammanfattas.\n\n"
+                    f"Konversations-ID: {conversation_id}\n"
                     f"NPC ID: {conversation.get('npc_id')}\n\n"
-                    f"{transcript}"
+                    f"Samtal:\n{transcript}\n\n"
+                    "Skriv nu sammanfattningen i jag-form ur NPC:ns perspektiv."
                 ),
             },
         ]
