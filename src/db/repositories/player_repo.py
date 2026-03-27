@@ -30,7 +30,11 @@ class PlayerRepo(BaseRepository):
         actual_user_id = user_id or ADMIN_USER_ID
         self._run(
             "MATCH (u:USER {user_id: $user_id}) "
-            "CREATE (p:PLAYER {player_id: $player_id, name: $name, appearance: $appearance}) "
+            "CREATE (p:PLAYER {"
+            "player_id: $player_id, name: $name, appearance: $appearance, "
+            "created_at: datetime(), has_completed_game: false, "
+            "accused_correct_npc: NULL, accused_npc_id: NULL, completed_at: NULL"
+            "}) "
             "CREATE (u)-[:HAS_CHARACTER]->(p)",
             player_id=player_id,
             name=name,
@@ -42,7 +46,11 @@ class PlayerRepo(BaseRepository):
     def get_profile_by_id(self, player_id: str) -> dict | None:
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
-            "RETURN p.name AS name, p.appearance AS appearance "
+            "RETURN p.name AS name, p.appearance AS appearance, "
+            "coalesce(p.has_completed_game, false) AS has_completed_game, "
+            "p.accused_correct_npc AS accused_correct_npc, "
+            "p.accused_npc_id AS accused_npc_id, "
+            "p.created_at AS created_at, p.completed_at AS completed_at "
             "LIMIT 1",
             player_id=player_id,
         )
@@ -51,11 +59,17 @@ class PlayerRepo(BaseRepository):
         return {
             "name": record["name"],
             "appearance": record.get("appearance"),
+            "has_completed_game": bool(record.get("has_completed_game")),
+            "accused_correct_npc": record.get("accused_correct_npc"),
+            "accused_npc_id": record.get("accused_npc_id"),
+            "created_at": str(record["created_at"]) if record.get("created_at") else None,
+            "completed_at": str(record["completed_at"]) if record.get("completed_at") else None,
         }
 
     def list_all(self) -> list[Player]:
         records = self._run(
             "MATCH (p:PLAYER) "
+            "WHERE coalesce(p.has_completed_game, false) = false "
             "RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance "
             "ORDER BY p.player_id"
         )
@@ -72,6 +86,7 @@ class PlayerRepo(BaseRepository):
         """List all players owned by a user."""
         records = self._run(
             "MATCH (u:USER {user_id: $user_id})-[:HAS_CHARACTER]->(p:PLAYER) "
+            "WHERE coalesce(p.has_completed_game, false) = false "
             "RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance "
             "ORDER BY p.player_id",
             user_id=user_id,
@@ -116,6 +131,44 @@ class PlayerRepo(BaseRepository):
         query = f"MATCH (p:PLAYER {{player_id: $player_id}}) SET {', '.join(set_clauses)} RETURN p"
         record = self._run_single(query, **params)
         return record is not None
+
+    def complete_game(self, player_id: str, accused_npc_id: str, correct_npc_id: str) -> dict | None:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "WHERE coalesce(p.has_completed_game, false) = false "
+            "SET p.has_completed_game = true, "
+            "p.accused_npc_id = $accused_npc_id, "
+            "p.accused_correct_npc = ($accused_npc_id = $correct_npc_id), "
+            "p.completed_at = datetime() "
+            "RETURN p.player_id AS player_id, "
+            "coalesce(p.has_completed_game, false) AS has_completed_game, "
+            "p.accused_npc_id AS accused_npc_id, "
+            "p.accused_correct_npc AS accused_correct_npc, "
+            "p.completed_at AS completed_at",
+            player_id=player_id,
+            accused_npc_id=accused_npc_id,
+            correct_npc_id=correct_npc_id,
+        )
+        if not record:
+            return None
+        return {
+            "player_id": record["player_id"],
+            "has_completed_game": bool(record.get("has_completed_game")),
+            "accused_npc_id": record.get("accused_npc_id"),
+            "accused_correct_npc": record.get("accused_correct_npc"),
+            "completed_at": str(record["completed_at"]) if record.get("completed_at") else None,
+        }
+
+    def is_game_completed(self, player_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "RETURN coalesce(p.has_completed_game, false) AS has_completed_game "
+            "LIMIT 1",
+            player_id=player_id,
+        )
+        if not record:
+            return False
+        return bool(record.get("has_completed_game"))
 
     def mark_aware_of(self, player_id: str, claim_ids: list[str], npc_id: str | None = None) -> int:
         """

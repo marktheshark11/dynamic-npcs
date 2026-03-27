@@ -185,7 +185,11 @@ def main():
                     player_id=player_id,
                 )
         else:
-            print("\nKommisarien använder scriptad terminal-chat. Skicka tomt för att visa menyn.")
+            print(
+                "\nKommissarien använder scriptad terminal-chat. "
+                "Skicka tomt för att visa menyn. Om du väljer 3 får du sedan en kandidatlista "
+                "och svarar med siffran för den person du vill anklaga."
+            )
 
         while True:
             question = input("Question (new/exit): ")

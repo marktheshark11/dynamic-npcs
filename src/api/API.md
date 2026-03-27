@@ -209,8 +209,13 @@ Request body:
 Behavior:
 
 - If `message` is empty, the API returns the scripted menu text.
-- If `message` is a whole number such as `1`, `2`, or `3`, the API returns the response for that choice.
-- If `message` is not a whole number, the API returns `400`.
+- `1` returns the current hint text for the player.
+- `2` returns a closing text string from the commissioner.
+- `3` starts a multi-step accusation flow and returns a numbered list of hardcoded suspects.
+- After the suspect list is shown, send another message with the suspect number to complete the accusation.
+- When the accusation is completed, the backend marks the player as having finished the game and stores whether the accusation was correct.
+- Players with completed games are blocked from future `/chat_static_npc` calls.
+- If a number is expected but the input is invalid, the API returns `400`.
 
 Example request to show menu:
 
@@ -227,7 +232,11 @@ Example menu response:
 ```json
 {
   "npc_id": "npc_terminal_1",
-  "response": "1. Få ledtråd\n2. Jag vet vem mördaren är\n3. Avsluta"
+  "response": "1. Få ledtråd\n2. Avsluta\n3. Jag vet vem mördaren är, jag vill anklaga den och sedan avsluta spelet",
+  "game_completed": false,
+  "accused_correct_npc": null,
+  "accused_npc_id": null,
+  "completed_at": null
 }
 ```
 
@@ -236,7 +245,7 @@ Example choice request:
 ```json
 {
   "npc_id": "npc_terminal_1",
-  "message": "1",
+  "message": "3",
   "player_id": "player_1"
 }
 ```
@@ -246,7 +255,34 @@ Example choice response:
 ```json
 {
   "npc_id": "npc_terminal_1",
-  "response": "Placeholder: val 1 valt. Här kan du senare ge en ledtråd."
+  "response": "Vem anklagar du?\n1. Beatrice Wolmarsson\n2. Wilhelm Wolmarsson\n3. Pamela Smith Wolmarsson\n4. Herr Bergström\n5. Mariana Martinez\nSvara med siffran för den person du vill anklaga.",
+  "game_completed": false,
+  "accused_correct_npc": null,
+  "accused_npc_id": null,
+  "completed_at": null
+}
+```
+
+Example follow-up request in the accusation flow:
+
+```json
+{
+  "npc_id": "npc_terminal_1",
+  "message": "1",
+  "player_id": "player_1"
+}
+```
+
+Example accusation result:
+
+```json
+{
+  "npc_id": "npc_terminal_1",
+  "response": "Ja. Det stämmer med det du har lagt fram.'",
+  "game_completed": true,
+  "accused_correct_npc": true,
+  "accused_npc_id": "npc_beatrice",
+  "completed_at": "2026-03-27T12:34:56Z"
 }
 ```
 
@@ -254,7 +290,15 @@ Validation / error response for non-integer input:
 
 ```json
 {
-  "detail": "Ogiltigt val. Skicka ett heltal, till exempel 1, 2 eller 3."
+  "detail": "Ogiltigt val. Välj en kandidat genom att skicka en siffra mellan 1 och 5."
+}
+```
+
+Validation / error response for a completed player:
+
+```json
+{
+  "detail": "Spelet är redan avslutat för den här spelaren."
 }
 ```
 
@@ -291,6 +335,8 @@ If the conversation does not exist, the API returns:
 ## POST /players
 
 Create a new player.
+
+The backend stores `created_at` and initializes game state fields on the `PLAYER` node.
 
 Request body:
 
@@ -343,11 +389,13 @@ Validation errors:
 
 ## GET /players
 
-Return all players, or players owned by a specific user if `user_id` is provided.
+Return all active players, or active players owned by a specific user if `user_id` is provided.
 
 Query parameters:
 
 - `user_id` (string, optional) - If provided, only returns players owned by this user
+
+Completed players are excluded from this list.
 
 Example request (all players):
 

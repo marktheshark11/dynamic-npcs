@@ -24,6 +24,10 @@ class ChatResponse(BaseModel):
 class StaticNpcChatResponse(BaseModel):
     npc_id: str
     response: str
+    game_completed: bool = False
+    accused_correct_npc: bool | None = None
+    accused_npc_id: str | None = None
+    completed_at: str | None = None
 
 class ChatRequest(BaseModel):
     npc_id: str
@@ -337,6 +341,10 @@ async def chat_static_npc(
         return StaticNpcChatResponse(
             npc_id=payload.npc_id,
             response=result["response"],
+            game_completed=bool(result.get("game_completed")),
+            accused_correct_npc=result.get("accused_correct_npc"),
+            accused_npc_id=result.get("accused_npc_id"),
+            completed_at=result.get("completed_at"),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
