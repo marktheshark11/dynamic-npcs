@@ -8,7 +8,7 @@ from .commands import (
     CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, ListNPCsCommand,
     CreateGroupCommand, DeleteGroupCommand, ListGroupsCommand,
     CreateClaimCommand, EditClaimCommand, DeleteClaimCommand,
-    ListClaimsCommand, ReindexClaimIdsCommand, RegenerateEmbeddingsCommand,
+    ListClaimsCommand, RegenerateEmbeddingsCommand,
     CreateObjectCommand, CreatePlaceCommand, CreateItemCommand, CreateDoorCommand,
     DeleteObjectCommand, DeletePlaceCommand, DeleteItemCommand, DeleteDoorCommand,
     EditItemCommand, EditDoorCommand,
@@ -81,7 +81,6 @@ class App:
                 EditClaimCommand(self._claim_repo, ui),
                 DeleteClaimCommand(self._claim_repo, ui),
                 ListClaimsCommand(self._claim_repo, ui),
-                ReindexClaimIdsCommand(self._claim_repo, ui),
                 RegenerateEmbeddingsCommand(self._claim_repo, ui),
             ]),
             SubMenu("Konstanter (Objekt/Platser)", [
