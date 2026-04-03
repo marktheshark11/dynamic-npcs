@@ -1,4 +1,5 @@
 import os
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -35,6 +36,25 @@ class ChatRequest(BaseModel):
     message: str
     player_id: str | None = None
     conversation_id: str | None = None
+
+
+def _print_chat_debug(result: dict) -> None:
+    flat_prompt = result.get("flat_prompt") or "(ingen prompt tillganglig)"
+    response_text = result.get("response") or ""
+    used_claims = result.get("used_claims") or []
+
+    print("\n" + "=" * 24 + " PROMPT " + "=" * 24, file=sys.stderr)
+    print(flat_prompt, file=sys.stderr)
+    print("=" * 57, file=sys.stderr)
+    print("\n" + "=" * 22 + " RESULTAT " + "=" * 21, file=sys.stderr)
+    print(f"npc_id: {result.get('npc_id')}", file=sys.stderr)
+    print(f"conversation_id: {result.get('conversation_id')}", file=sys.stderr)
+    print(
+        f"used_claims: {', '.join(used_claims) if used_claims else '(inga)'}",
+        file=sys.stderr,
+    )
+    print(f"response: {response_text}", file=sys.stderr)
+    print("=" * 57, file=sys.stderr)
 
 
 class StaticNpcChatRequest(BaseModel):
@@ -312,6 +332,7 @@ async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_cha
         )
         if not result:
             return ChatResponse(npc_id=payload.npc_id, response="No response")
+        _print_chat_debug(result)
         return ChatResponse(
             npc_id=payload.npc_id,
             conversation_id=result.get("conversation_id"),
