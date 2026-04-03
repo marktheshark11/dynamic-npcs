@@ -29,6 +29,7 @@ class PromptRequest:
     player_name: str | None = None
     player_appearance: str | None = None
     recent_exchanges: list[dict[str, Any]] = field(default_factory=list)
+    prior_conversation_summaries: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

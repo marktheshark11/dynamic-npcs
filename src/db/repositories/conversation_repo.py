@@ -8,6 +8,40 @@ def _now_utc_iso() -> str:
 
 
 class ConversationRepo(BaseRepository):
+    def list_recent_summaries_for_npc_and_player(
+        self,
+        npc_id: str,
+        player_id: str,
+        exclude_conversation_id: str | None = None,
+        limit: int = 2,
+    ) -> list[dict]:
+        if limit <= 0:
+            return []
+
+        records = self._run(
+            "MATCH (npc:NPC {id: $npc_id})-[:HAS_CONVERSATION]->(c:CONVERSATION) "
+            "MATCH (player:PLAYER {player_id: $player_id})-[:HAS_CONVERSATION]->(c) "
+            "WHERE c.summary IS NOT NULL AND trim(c.summary) <> '' "
+            "AND ($exclude_conversation_id IS NULL OR c.conv_id <> $exclude_conversation_id) "
+            "RETURN c.conv_id AS conv_id, c.summary AS summary, c.created_at AS created_at, "
+            "c.summary_updated_at AS summary_updated_at "
+            "ORDER BY coalesce(c.summary_updated_at, c.created_at) DESC "
+            "LIMIT $limit",
+            npc_id=npc_id,
+            player_id=player_id,
+            exclude_conversation_id=exclude_conversation_id,
+            limit=limit,
+        )
+        return [
+            {
+                "conv_id": r["conv_id"],
+                "summary": r.get("summary"),
+                "created_at": r.get("created_at"),
+                "summary_updated_at": r.get("summary_updated_at"),
+            }
+            for r in records
+        ]
+
     def _next_conversation_id(self) -> str:
         records = self._run(
             "MATCH (c:CONVERSATION) "

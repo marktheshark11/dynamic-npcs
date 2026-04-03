@@ -188,6 +188,7 @@ class RAGPipeline:
         top_k=3,
         player_profile=None,
         recent_exchanges=None,
+        prior_conversation_summaries=None,
         player_id=None,
         conversation_claim_ids=None,
     ):
@@ -272,6 +273,7 @@ class RAGPipeline:
             player_name=(player_profile or {}).get("name"),
             player_appearance=(player_profile or {}).get("appearance"),
             recent_exchanges=recent_exchanges or [],
+            prior_conversation_summaries=prior_conversation_summaries or [],
         )
 
         prompt_result = self.prompt_builder.build(
@@ -287,6 +289,7 @@ class RAGPipeline:
         npc_id,
         player_profile=None,
         recent_exchanges=None,
+        prior_conversation_summaries=None,
     ):
         npc_data = self.npc_repo.get_profile_by_id(npc_id)
         if not npc_data:
@@ -305,6 +308,7 @@ class RAGPipeline:
             player_name=(player_profile or {}).get("name"),
             player_appearance=(player_profile or {}).get("appearance"),
             recent_exchanges=recent_exchanges or [],
+            prior_conversation_summaries=prior_conversation_summaries or [],
         )
 
         prompt_result = self.prompt_builder.build(

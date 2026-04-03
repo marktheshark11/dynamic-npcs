@@ -100,6 +100,25 @@ class DetectiveContextSection:
         return "\n\n".join(blocks)
 
 
+class ConversationMemorySection:
+    @staticmethod
+    def render(request: PromptRequest) -> str:
+        summaries = request.prior_conversation_summaries or []
+        if not summaries:
+            return ""
+
+        lines = ["TIDIGARE SUMMERADE SAMTAL MED DETEKTIVEN:"]
+        for index, summary_item in enumerate(summaries, start=1):
+            summary_text = (summary_item.get("summary") or "").strip()
+            if not summary_text:
+                continue
+            lines.append(f"- Samtal {index}: {summary_text}")
+
+        if len(lines) == 1:
+            return ""
+        return "\n".join(lines)
+
+
 class SceneEventSection:
     @staticmethod
     def render(request: PromptRequest) -> str:

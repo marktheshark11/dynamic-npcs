@@ -17,6 +17,14 @@ from services.scripted_npc_service import ScriptedNpcService
 SCRIPTED_NPC_IDS = {"npc_police_officer"}
 
 
+def _print_prompt_debug(result: dict) -> None:
+    flat_prompt = result.get("flat_prompt") or "(ingen prompt tillganglig)"
+
+    print("\n" + "=" * 24 + " PROMPT " + "=" * 24)
+    print(flat_prompt)
+    print("=" * 57)
+
+
 def _extract_claim_ids_from_chains(chain_metadata: list[dict]) -> list[str]:
     """Extraherar alla claim-IDs ur chain_metadata content."""
     ids: list[str] = []
@@ -170,6 +178,8 @@ def _start_dynamic_conversation(
     conversation_id = result.get("conversation_id")
     chain_metadata = result.get("chain_metadata", [])
     used_claims = result.get("used_claims") or []
+    _print_prompt_debug(result)
+    print("\n" + "=" * 22 + " RESULTAT " + "=" * 21)
     print("\n[Hittade claims:]")
     if chain_metadata:
         for chain in chain_metadata:
@@ -180,6 +190,7 @@ def _start_dynamic_conversation(
     if conversation_id:
         print(f"[Konversation: {conversation_id}]")
     print(f"\nNPC: {result['response']}")
+    print("=" * 57)
     return conversation_id
 
 
@@ -288,6 +299,8 @@ def main():
 
                 chain_metadata = result.get("chain_metadata", [])
                 used_claims = result.get("used_claims") or []
+                _print_prompt_debug(result)
+                print("\n" + "=" * 22 + " RESULTAT " + "=" * 21)
                 print("\n[Hittade claims:]")
                 if chain_metadata:
                     for chain in chain_metadata:
@@ -303,6 +316,8 @@ def main():
                         print(f"[Konversation: {conversation_id}]")
 
             print(f"\nNPC: {result['response']}")
+            if not is_scripted_npc:
+                print("=" * 57)
     finally:
         config.close()
 

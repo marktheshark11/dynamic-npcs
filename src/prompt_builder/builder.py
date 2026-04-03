@@ -6,6 +6,7 @@ from .models import (
 )
 from .sections import (
     ContextSection,
+    ConversationMemorySection,
     DetectiveContextSection,
     IdentitySection,
     OutputFormatSection,
@@ -31,6 +32,7 @@ class PromptBuilder:
         story_background_text = StoryBackgroundSection.render(profile)
         world_context_text = ContextSection.render(rag_context)
         detective_context_text = DetectiveContextSection.render(request)
+        conversation_memory_text = ConversationMemorySection.render(request)
         scene_event_text = SceneEventSection.render(request)
         task_text = TaskSection.render(request)
 
@@ -48,6 +50,8 @@ class PromptBuilder:
             system_parts.append(world_context_text)
         if detective_context_text:
             system_parts.append(detective_context_text)
+        if conversation_memory_text:
+            system_parts.append(conversation_memory_text)
         if scene_event_text:
             system_parts.append(scene_event_text)
         system_text = "\n\n".join(system_parts)
@@ -68,6 +72,7 @@ class PromptBuilder:
                 "story_background": story_background_text,
                 "world_context": world_context_text,
                 "detective_context": detective_context_text,
+                "conversation_memory": conversation_memory_text,
                 "scene_event": scene_event_text,
                 "task": task_text,
             },

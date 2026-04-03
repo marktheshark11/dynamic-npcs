@@ -19,6 +19,7 @@ class ChatService:
         question,
         player_profile=None,
         recent_exchanges=None,
+        prior_conversation_summaries=None,
         player_id=None,
         conversation_claim_ids=None,
     ):
@@ -27,8 +28,20 @@ class ChatService:
             question,
             player_profile=player_profile,
             recent_exchanges=recent_exchanges,
+            prior_conversation_summaries=prior_conversation_summaries,
             player_id=player_id,
             conversation_claim_ids=conversation_claim_ids,
+        )
+
+    def _get_prior_conversation_summaries(self, npc_id, player_id, conversation_id):
+        if not player_id:
+            return []
+
+        return self.conversation_repo.list_recent_summaries_for_npc_and_player(
+            npc_id=npc_id,
+            player_id=player_id,
+            exclude_conversation_id=conversation_id,
+            limit=2,
         )
 
     @staticmethod
@@ -77,7 +90,7 @@ class ChatService:
                     "- Beskriv vad jag fick veta, vad jag berättade, vad jag undvek, vad jag misstänker, och hur jag uppfattade detektiven om det är relevant.\n"
                     "- Nämn detektiven som 'detektiven', aldrig som 'jag'.\n"
                     "- Skriv aldrig om mig själv i tredje person eller med mitt namn som om jag vore någon annan.\n"
-                    "- Var kortfattad men tillräckligt konkret för att vara användbar som minnesanteckning inför framtida samtal.\n"
+                    "- Var kortfattad men tillräckligt konkret för att vara användbar som minnesanteckning inför framtida samtal. Ca 1-2 meningar är bra.\n"
                     "- Ta med sådant som är viktigt för karaktären att minnas, och utelämna ointressant fluff."
                 ),
             },
@@ -247,12 +260,18 @@ class ChatService:
 
         recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=5)
         conversation_claim_ids = self.conversation_repo.get_mentioned_claim_ids(resolved_conversation_id)
+        prior_conversation_summaries = self._get_prior_conversation_summaries(
+            npc_id=npc_id,
+            player_id=effective_player_id,
+            conversation_id=resolved_conversation_id,
+        )
 
         if not normalized_question:
             prompt_result, chain_metadata = self.pipeline.run_start_dialog(
                 npc_id,
                 player_profile=player_profile,
                 recent_exchanges=recent_exchanges,
+                prior_conversation_summaries=prior_conversation_summaries,
             )
         else:
             prompt_result, chain_metadata = self.build_prompt(
@@ -260,6 +279,7 @@ class ChatService:
                 normalized_question,
                 player_profile=player_profile,
                 recent_exchanges=recent_exchanges,
+                prior_conversation_summaries=prior_conversation_summaries,
                 player_id=effective_player_id,
                 conversation_claim_ids=conversation_claim_ids,
             )
