@@ -1,6 +1,7 @@
 import os
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from starlette.middleware.base import RequestResponseEndpoint
@@ -200,6 +201,7 @@ async def lifespan(app: FastAPI):
 
     app.state.config = config
     app.state.api_key = api_key
+    app.state.startup_timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     app.state.chat_service = ChatService(config.driver, config.embed_model)
     app.state.scripted_npc_service = ScriptedNpcService(config.driver)
     try:
@@ -265,8 +267,11 @@ async def check_api_key(request: Request, call_next: RequestResponseEndpoint) ->
 
 
 @app.get("/health")
-async def health_check():
-    return {"status": "ok"}
+async def health_check(request: Request):
+    return {
+        "status": "ok",
+        "startup_timestamp": request.app.state.startup_timestamp,
+    }
 
 
 @app.post("/users/register", response_model=RegisterResponse)
