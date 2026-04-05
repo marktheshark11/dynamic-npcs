@@ -3,6 +3,7 @@ from typing import Any
 from .base import ChatPipeline
 from .default_rag import DefaultRAGPipeline
 from .direct_rag import DirectRAGPipeline
+from .wide_select_rag import WideSelectRAGPipeline
 
 
 def build_pipelines(
@@ -12,6 +13,7 @@ def build_pipelines(
     pipelines = [
         DefaultRAGPipeline(driver, embed_model),
         DirectRAGPipeline(driver, embed_model),
+        WideSelectRAGPipeline(driver, embed_model),
     ]
     return {pipeline.pipeline_id: pipeline for pipeline in pipelines}
 

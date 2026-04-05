@@ -1,3 +1,5 @@
+import json
+import re
 import sys
 from typing import Any
 
@@ -317,6 +319,18 @@ def _build_chain_payload(
     chain_nodes: list[dict[str, Any]],
     already_mentioned: set[str] | None,
 ) -> dict[str, Any]:
+    claim_entries = [
+        {
+            "id": chain_claim["id"],
+            "claim_id": chain_claim.get("claim_id"),
+            "content": chain_claim["content"],
+            "prefix": chain_claim.get("prefix"),
+            "suffix": chain_claim.get("suffix"),
+            "overwrite_suffix": chain_claim.get("overwrite_suffix"),
+            "type": chain_claim.get("type"),
+        }
+        for chain_claim in chain_nodes
+    ]
     return {
         "content": _render_chain_content(chain_nodes, already_mentioned),
         "ids": [chain_claim["id"] for chain_claim in chain_nodes],
@@ -329,6 +343,7 @@ def _build_chain_payload(
         "has_relation_type": any(
             chain_claim.get("type") == "relation" for chain_claim in chain_nodes
         ),
+        "claims": claim_entries,
     }
 
 
@@ -376,6 +391,149 @@ def split_chain_content(
             knowledge_claims.append(chain["content"])
 
     return knowledge_claims, relation_claims
+
+
+def _build_selector_history_block(recent_exchanges: list[dict[str, Any]] | None) -> str:
+    history_lines: list[str] = []
+    for exchange in recent_exchanges or []:
+        player_text = (exchange.get("player_text") or "").strip()
+        npc_text = (exchange.get("npc_text") or "").strip()
+        if player_text:
+            history_lines.append(f"- DETEKTIVEN: {player_text}")
+        if npc_text:
+            history_lines.append(f"- NPC: {npc_text}")
+    return "\n".join(history_lines) if history_lines else "(ingen historik)"
+
+
+def _build_selector_candidates(chains: list[dict[str, Any]]) -> str:
+    candidate_lines: list[str] = []
+    for chain_index, chain in enumerate(chains, start=1):
+        candidate_lines.append(f"KEDJA {chain_index}:")
+        for claim in chain.get("claims") or []:
+            claim_id = claim.get("claim_id") or "(utan claim-id)"
+            candidate_lines.append(f"- {claim_id}: {claim.get('content', '')}")
+    return "\n".join(candidate_lines) if candidate_lines else "(inga kandidater)"
+
+
+def _extract_json_object(raw_response: str) -> dict[str, Any] | None:
+    if not raw_response:
+        return None
+
+    text = raw_response.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text).strip()
+
+    candidates = [text]
+    json_match = re.search(r"\{[\s\S]*\}", text)
+    if json_match:
+        candidates.append(json_match.group(0))
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+
+    return None
+
+
+def _normalize_selected_claim_ids(raw_ids: Any, allowed_ids: set[str]) -> list[str]:
+    if not isinstance(raw_ids, list):
+        return []
+
+    selected: list[str] = []
+    seen: set[str] = set()
+    for raw_id in raw_ids:
+        if not isinstance(raw_id, str):
+            continue
+        match = re.search(r"C\d+", raw_id.upper())
+        if not match:
+            continue
+        claim_id = match.group(0)
+        if claim_id in seen or claim_id not in allowed_ids:
+            continue
+        seen.add(claim_id)
+        selected.append(claim_id)
+    return selected
+
+
+def select_relevant_claim_ids(
+    question: str,
+    recent_exchanges: list[dict[str, Any]] | None,
+    story_background: str | None,
+    chains: list[dict[str, Any]],
+) -> list[str]:
+    from llms.llm_groq import chat as groq_chat
+
+    allowed_ids = {
+        claim_id.upper()
+        for chain in chains
+        for claim_id in (chain.get("claim_ids") or [])
+        if isinstance(claim_id, str)
+    }
+    if not allowed_ids:
+        return []
+
+    selector_messages = [
+        {
+            "role": "system",
+            "content": (
+                "Du väljer vilka fakta som ska skickas vidare till en annan LLM som svarar i karaktär.\n"
+                "Målet är hög recall i retrieval men snäv relevans i slutprompten.\n"
+                "Välj bara claim-IDn som verkligen behövs för att besvara detektivens senaste fråga.\n"
+                "Regler:\n"
+                "- Returnera ENDAST giltig JSON med exakt nyckeln 'selected_claim_ids'.\n"
+                "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
+                "- Välj bara claim-IDn från kandidatlistan.\n"
+                "- Ta med fakta som direkt besvarar frågan eller behövs för att förstå svaret.\n"
+                "- Uteslut sidospår, dubletter och bakgrund som inte behövs för just frågan.\n"
+                "- Om inget av kandidatmaterialet är relevant, returnera en tom lista []."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"BERÄTTELSEBAKGRUND:\n{(story_background or '(ingen bakgrund)').strip()}\n\n"
+                f"SENASTE KONVERSATION:\n{_build_selector_history_block(recent_exchanges)}\n\n"
+                f"DETEKTIVENS SENASTE FRÅGA:\n{question}\n\n"
+                f"KANDIDATFAKTA:\n{_build_selector_candidates(chains)}\n\n"
+                "Returnera nu JSON."
+            ),
+        },
+    ]
+
+    raw_response = groq_chat(messages=selector_messages, max_tokens=256)
+    parsed = _extract_json_object(raw_response)
+    if not parsed:
+        return []
+    return _normalize_selected_claim_ids(parsed.get("selected_claim_ids"), allowed_ids)
+
+
+def filter_claim_chains_by_selected_claim_ids(
+    chains: list[dict[str, Any]],
+    selected_claim_ids: list[str],
+    already_mentioned: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    selected_lookup = {claim_id.upper() for claim_id in selected_claim_ids if isinstance(claim_id, str)}
+    if not selected_lookup:
+        return []
+
+    filtered_chains: list[dict[str, Any]] = []
+    for chain in chains:
+        filtered_claims = [
+            claim
+            for claim in chain.get("claims") or []
+            if isinstance(claim.get("claim_id"), str)
+            and claim["claim_id"].upper() in selected_lookup
+        ]
+        if not filtered_claims:
+            continue
+        filtered_chains.append(_build_chain_payload(filtered_claims, already_mentioned))
+
+    return filtered_chains
 
 
 def build_rag_context(
