@@ -1,17 +1,26 @@
 import json
 import re
 
-from rag.pipeline import RAGPipeline
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
+from pipelines import ChatPipeline
 
 
 class ChatService:
-    def __init__(self, driver, embed_model, default_model="llama-3.3-70b-versatile"):
-        self.pipeline = RAGPipeline(driver, embed_model)
+    def __init__(
+        self,
+        driver,
+        embed_model,
+        pipeline: ChatPipeline,
+        default_model="llama-3.3-70b-versatile",
+    ):
+        self.pipeline = pipeline
         self.conversation_repo = ConversationRepo(driver)
         self.npc_repo = NPCRepo(driver)
         self.player_repo = PlayerRepo(driver)
         self.default_model = default_model
+
+    def _get_pipeline(self) -> ChatPipeline:
+        return self.pipeline
 
     def build_prompt(
         self,
@@ -23,7 +32,7 @@ class ChatService:
         player_id=None,
         conversation_claim_ids=None,
     ):
-        return self.pipeline.run(
+        return self._get_pipeline().run(
             npc_id,
             question,
             player_profile=player_profile,
@@ -143,15 +152,6 @@ class ChatService:
         return conversation_id
 
     @staticmethod
-    def _extract_available_claim_ids(chain_metadata: list[dict]) -> set[str]:
-        available_ids: set[str] = set()
-        for chain in chain_metadata or []:
-            content = chain.get("content") or ""
-            for match in re.findall(r"<\s*(C\d+)\s*>", content, flags=re.IGNORECASE):
-                available_ids.add(match.upper())
-        return available_ids
-
-    @staticmethod
     def _normalize_claim_ids(raw_ids: list[str], allowed_ids: set[str]) -> list[str]:
         normalized: list[str] = []
         seen: set[str] = set()
@@ -267,14 +267,14 @@ class ChatService:
         )
 
         if not normalized_question:
-            prompt_result, chain_metadata = self.pipeline.run_start_dialog(
+            pipeline_result = self._get_pipeline().run_start_dialog(
                 npc_id,
                 player_profile=player_profile,
                 recent_exchanges=recent_exchanges,
                 prior_conversation_summaries=prior_conversation_summaries,
             )
         else:
-            prompt_result, chain_metadata = self.build_prompt(
+            pipeline_result = self.build_prompt(
                 npc_id,
                 normalized_question,
                 player_profile=player_profile,
@@ -283,6 +283,8 @@ class ChatService:
                 player_id=effective_player_id,
                 conversation_claim_ids=conversation_claim_ids,
             )
+        prompt_result = pipeline_result.prompt_result
+        chain_metadata = pipeline_result.chain_metadata
         if not prompt_result:
             return None
 
@@ -290,7 +292,7 @@ class ChatService:
             messages=prompt_result.messages,
             model=model or self.default_model,
         )
-        available_claim_ids = self._extract_available_claim_ids(chain_metadata)
+        available_claim_ids = {claim_id.upper() for claim_id in pipeline_result.available_claim_ids}
         response_text, used_claims = self._parse_llm_chat_payload(
             raw_response=raw_response_text,
             allowed_ids=available_claim_ids,

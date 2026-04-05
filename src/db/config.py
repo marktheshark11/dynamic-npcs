@@ -14,9 +14,15 @@ from db.services.hf_embeddings import HuggingFaceEmbeddings
 class Config:
     """Application configuration. Loads environment and creates shared resources."""
 
-    def __init__(self, driver: Driver, embed_model: HuggingFaceEmbeddings) -> None:
+    def __init__(
+        self,
+        driver: Driver,
+        embed_model: HuggingFaceEmbeddings,
+        pipeline_id: str,
+    ) -> None:
         self.driver = driver
         self.embed_model = embed_model
+        self.pipeline_id = pipeline_id
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -39,8 +45,13 @@ class Config:
         driver = GraphDatabase.driver(db_uri, auth=(db_user, db_password))
         embedding_model = os.getenv("EMBED_MODEL", "mixedbread-ai/mxbai-embed-large-v1")
         embed_model = HuggingFaceEmbeddings(model=embedding_model, api_key=hf_token)
+        pipeline_id = os.getenv("CHAT_PIPELINE", "default_rag")
 
-        return cls(driver=driver, embed_model=embed_model)
+        return cls(
+            driver=driver,
+            embed_model=embed_model,
+            pipeline_id=pipeline_id,
+        )
 
     def close(self) -> None:
         """Close the database driver."""

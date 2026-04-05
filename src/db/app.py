@@ -27,6 +27,7 @@ from .commands import (
     ClearAwareOfCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
+from pipelines import get_pipeline
 from services.chat_service import ChatService
 
 
@@ -47,7 +48,16 @@ class App:
         self._mystery_repo = MysteryRepo(config.driver)
         self._conversation_repo = ConversationRepo(config.driver)
         self._player_repo = PlayerRepo(config.driver)
-        self._chat_service = ChatService(config.driver, config.embed_model)
+        pipeline = get_pipeline(
+            pipeline_id=config.pipeline_id,
+            driver=config.driver,
+            embed_model=config.embed_model,
+        )
+        self._chat_service = ChatService(
+            config.driver,
+            config.embed_model,
+            pipeline=pipeline,
+        )
 
         # UI
         self._ui = InputHelpers()

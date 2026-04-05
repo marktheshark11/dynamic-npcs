@@ -8,8 +8,7 @@ if __name__ == "__main__" and __package__ is None:
 
 from db.config import Config
 from db.repositories import NPCRepo
-
-from .pipeline import RAGPipeline
+from pipelines import get_pipeline
 
 def select_from_menu(prompt, options):
     print(f"\n{prompt}")
@@ -25,7 +24,11 @@ def main():
     config = Config.from_env()
     driver = config.driver
     embed_model = config.embed_model
-    pipeline = RAGPipeline(driver, embed_model)
+    pipeline = get_pipeline(
+        pipeline_id=config.pipeline_id,
+        driver=driver,
+        embed_model=embed_model,
+    )
     npc_repo = NPCRepo(driver)
     print("=" * 50)
     print("         HITTA INFO")
@@ -40,7 +43,8 @@ def main():
     npc_id = npcs[selected_index]["id"]
     question = input("\nSkriv din fråga: ")
     print("\n" + "-" * 50)
-    prompt_result, chain_metadata = pipeline.run(npc_id, question)
+    result = pipeline.run(npc_id, question)
+    prompt_result = result.prompt_result
     if not prompt_result:
         print("⚠ Inga claims hittades")
         return

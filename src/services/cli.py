@@ -10,6 +10,7 @@ if __name__ == "__main__" and __package__ is None:
 from db.config import Config
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
 from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
+from pipelines import get_pipeline
 from services.chat_service import ChatService
 from services.scripted_npc_service import ScriptedNpcService
 
@@ -203,7 +204,16 @@ def main():
         npc_repo = NPCRepo(driver)
         player_repo = PlayerRepo(driver)
         conversation_repo = ConversationRepo(driver)
-        chat_service = ChatService(driver, embed_model)
+        pipeline = get_pipeline(
+            pipeline_id=config.pipeline_id,
+            driver=driver,
+            embed_model=embed_model,
+        )
+        chat_service = ChatService(
+            driver,
+            embed_model,
+            pipeline=pipeline,
+        )
         scripted_npc_service = ScriptedNpcService(driver)
 
         npcs = npc_repo.list_for_selection()

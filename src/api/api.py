@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from db.config import Config
 from db.repositories import ConstantRepo, PlayerRepo, UserRepo
 from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
+from pipelines import get_pipeline
 from services.chat_service import ChatService
 from services.door_service import DoorService
 from services.scripted_npc_service import ScriptedNpcService
@@ -202,7 +203,16 @@ async def lifespan(app: FastAPI):
     app.state.config = config
     app.state.api_key = api_key
     app.state.startup_timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    app.state.chat_service = ChatService(config.driver, config.embed_model)
+    pipeline = get_pipeline(
+        pipeline_id=config.pipeline_id,
+        driver=config.driver,
+        embed_model=config.embed_model,
+    )
+    app.state.chat_service = ChatService(
+        config.driver,
+        config.embed_model,
+        pipeline=pipeline,
+    )
     app.state.scripted_npc_service = ScriptedNpcService(config.driver)
     try:
         yield

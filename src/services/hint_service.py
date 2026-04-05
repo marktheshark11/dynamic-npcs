@@ -70,8 +70,8 @@ class HintService:
                 matcher=lambda state: state.has_seen_door("door_study") and not state.has_opened_door("door_study"),
             ),
             HintRule(
-                text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet. Se om du kan lista ut vad den kan vara.",
-                matcher=lambda state: state.has_seen_door("object_safe") and not state.has_opened_door("object_safe"),
+                text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet. Se om du kan lista ut vad den kan vara genom att prata med karaktärerna.",
+                matcher=lambda state: state.has_opened_door("door_study") and not state.has_opened_door("object_safe"),
             ), 
         ]
 
