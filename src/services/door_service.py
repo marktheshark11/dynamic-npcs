@@ -19,7 +19,7 @@ class DoorService:
                 "player_id": player_id,
                 "object_id": door.object_id,
                 "door_name": door.name,
-                "opened": True,
+                "opened": False,
                 "already_open": True,
                 "lock_type": door.lock_type,
                 "required_item_id": door.required_item_id,
