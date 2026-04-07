@@ -27,6 +27,7 @@ class ChatResponse(BaseModel):
 
 class StaticNpcChatResponse(BaseModel):
     npc_id: str
+    conversation_id: str | None = None
     response: str
     game_completed: bool = False
     accused_correct_npc: bool | None = None
@@ -63,6 +64,7 @@ class StaticNpcChatRequest(BaseModel):
     npc_id: str
     message: str = ""
     player_id: str | None = None
+    conversation_id: str | None = None
 
 
 class ConversationSummaryRequest(BaseModel):
@@ -400,9 +402,11 @@ async def chat_static_npc(
             npc_id=payload.npc_id,
             question=payload.message,
             player_id=player_id,
+            conversation_id=payload.conversation_id,
         )
         return StaticNpcChatResponse(
             npc_id=payload.npc_id,
+            conversation_id=result.get("conversation_id"),
             response=result["response"],
             game_completed=bool(result.get("game_completed")),
             accused_correct_npc=result.get("accused_correct_npc"),

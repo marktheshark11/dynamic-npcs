@@ -286,6 +286,7 @@ def main():
                         npc_id=npc_id,
                         question=question,
                         player_id=player_id,
+                        conversation_id=conversation_id,
                     )
                 except ValueError as exc:
                     print(f"Error: {exc}")
@@ -304,8 +305,9 @@ def main():
 
             previous_conversation_id = conversation_id
 
+            conversation_id = result.get("conversation_id")
+
             if not is_scripted_npc:
-                conversation_id = result.get("conversation_id")
 
                 chain_metadata = result.get("chain_metadata", [])
                 used_claims = result.get("used_claims") or []

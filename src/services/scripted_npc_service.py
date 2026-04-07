@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from db.repositories import NPCRepo, PlayerRepo
+from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
 from services.hint_service import HintService
 
 
@@ -32,19 +32,38 @@ class ScriptedNpcService:
     _ABOUT_GAME_TEXT ="Det här är ett mordmysteriumspel där du är detektiven som ska lösa mordet. Behöver du hjälp? Gå in på Clues eller fråga mig om ledtrådar. Lycka till.d "
 
     def __init__(self, driver):
+        self.conversation_repo = ConversationRepo(driver)
         self.hint_service = HintService(driver)
         self.npc_repo = NPCRepo(driver)
         self.player_repo = PlayerRepo(driver)
-        self._session_states: dict[tuple[str, str], ScriptedNpcSessionState] = {}
+        self._session_states: dict[tuple[str, str, str], ScriptedNpcSessionState] = {}
         self._menu_text = (
             "1. Om spelet\n"
             "2. Få ledtråd\n"
             "3. Jag vet vem mördaren är, jag vill anklaga den och sedan avsluta spelet"
         )
 
-    def ask_npc(self, npc_id: str, question: str | None = None, player_id: str | None = None) -> dict:
+    def ask_npc(
+        self,
+        npc_id: str,
+        question: str | None = None,
+        player_id: str | None = None,
+        conversation_id: str | None = None,
+    ) -> dict:
+        resolved_conversation_id = self._resolve_conversation_id(
+            npc_id=npc_id,
+            player_id=player_id,
+            conversation_id=conversation_id,
+        )
+        if not resolved_conversation_id:
+            raise ValueError("Kunde inte skapa konversation för scripted NPC.")
+
         normalized_question = (question or "").strip()
-        session_key = self._session_key(npc_id=npc_id, player_id=player_id)
+        session_key = self._session_key(
+            npc_id=npc_id,
+            player_id=player_id,
+            conversation_id=resolved_conversation_id,
+        )
         session_state = self._session_states.get(session_key, ScriptedNpcSessionState())
 
         if player_id:
@@ -69,11 +88,19 @@ class ScriptedNpcService:
                 npc_id=npc_id,
                 player_id=player_id,
                 choice=self._parse_choice(normalized_question),
+                conversation_id=resolved_conversation_id,
             )
+
+        self.conversation_repo.append_exchange(
+            conversation_id=resolved_conversation_id,
+            player_text=normalized_question,
+            npc_text=reply.response,
+        )
 
         return {
             "npc_id": npc_id,
             "player_id": player_id,
+            "conversation_id": resolved_conversation_id,
             "response": reply.response,
             "game_completed": reply.game_completed,
             "accused_correct_npc": reply.accused_correct_npc,
@@ -81,9 +108,31 @@ class ScriptedNpcService:
             "completed_at": reply.completed_at,
         }
 
+    def _resolve_conversation_id(
+        self,
+        npc_id: str,
+        player_id: str | None,
+        conversation_id: str | None,
+    ) -> str | None:
+        if conversation_id:
+            existing = self.conversation_repo.get_conversation(conversation_id)
+            if existing and existing.get("npc_id") == npc_id:
+                existing_player_id = existing.get("player_id")
+                if player_id and existing_player_id and existing_player_id != player_id:
+                    return self.conversation_repo.create_conversation(npc_id, player_id=player_id)
+                if player_id and not existing_player_id:
+                    self.conversation_repo.link_player(conversation_id, player_id)
+                return conversation_id
+
+        return self.conversation_repo.create_conversation(npc_id, player_id=player_id)
+
     @staticmethod
-    def _session_key(npc_id: str, player_id: str | None) -> tuple[str, str]:
-        return npc_id, player_id or "__anonymous__"
+    def _session_key(
+        npc_id: str,
+        player_id: str | None,
+        conversation_id: str,
+    ) -> tuple[str, str, str]:
+        return npc_id, player_id or "__anonymous__", conversation_id
 
     @staticmethod
     def _parse_choice(raw_choice: str) -> int:
@@ -92,7 +141,13 @@ class ScriptedNpcService:
         except ValueError as exc:
             raise ValueError("Ogiltigt val. Skicka ett heltal, till exempel 1, 2 eller 3.") from exc
 
-    def _handle_choice(self, npc_id: str, player_id: str | None, choice: int) -> ScriptedNpcReply:
+    def _handle_choice(
+        self,
+        npc_id: str,
+        player_id: str | None,
+        choice: int,
+        conversation_id: str,
+    ) -> ScriptedNpcReply:
         if choice == 1:
             return ScriptedNpcReply(response=self._ABOUT_GAME_TEXT)
         if choice == 2:
@@ -100,10 +155,19 @@ class ScriptedNpcService:
                 raise ValueError("player_id krävs för att hämta hintar.")
             return ScriptedNpcReply(response=self.hint_service.get_hint_text(player_id=player_id))
         if choice == 3:
-            return self._begin_accusation_flow(npc_id=npc_id, player_id=player_id)
+            return self._begin_accusation_flow(
+                npc_id=npc_id,
+                player_id=player_id,
+                conversation_id=conversation_id,
+            )
         return ScriptedNpcReply(response="Ogiltigt val. Skicka tomt för att se menyn eller skriv 1, 2 eller 3.")
 
-    def _begin_accusation_flow(self, npc_id: str, player_id: str | None) -> ScriptedNpcReply:
+    def _begin_accusation_flow(
+        self,
+        npc_id: str,
+        player_id: str | None,
+        conversation_id: str,
+    ) -> ScriptedNpcReply:
         candidate_lines: list[str] = []
         candidate_ids: list[str] = []
 
@@ -117,7 +181,11 @@ class ScriptedNpcService:
         if not candidate_ids:
             raise ValueError("Kunde inte hämta kandidater för anklagelsen.")
 
-        self._session_states[self._session_key(npc_id=npc_id, player_id=player_id)] = ScriptedNpcSessionState(
+        self._session_states[self._session_key(
+            npc_id=npc_id,
+            player_id=player_id,
+            conversation_id=conversation_id,
+        )] = ScriptedNpcSessionState(
             mode=self._ACCUSE_MODE,
             accusation_candidate_ids=candidate_ids,
         )
@@ -135,7 +203,7 @@ class ScriptedNpcService:
         npc_id: str,
         player_id: str | None,
         choice_text: str,
-        session_key: tuple[str, str],
+        session_key: tuple[str, str, str],
         session_state: ScriptedNpcSessionState,
     ) -> ScriptedNpcReply:
         candidate_ids = session_state.accusation_candidate_ids or []

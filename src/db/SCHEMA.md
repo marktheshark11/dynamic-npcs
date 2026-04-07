@@ -292,6 +292,18 @@ Tracks that a player has encountered or attempted to open a door.
 (PLAYER)-[:SEEN_DOOR {created_at: datetime()}]->(OBJECT:DOOR)
 ```
 
+### DOOR_ENTERED (PLAYER --> DOOR)
+
+Tracks each successful door passage for a player. Unlike `HAS_OPENED`, this is append-only and a new relationship is created every time the player goes through the door.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `created_at` | datetime | When the player went through the door |
+
+```
+(PLAYER)-[:DOOR_ENTERED {created_at: datetime()}]->(OBJECT:DOOR)
+```
+
 ---
 
 ### PART_OF (CLAIM --> MYSTERY)

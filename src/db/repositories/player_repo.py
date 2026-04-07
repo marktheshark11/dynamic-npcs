@@ -356,6 +356,17 @@ class PlayerRepo(BaseRepository):
         )
         return record is not None
 
+    def mark_door_entered(self, player_id: str, object_id: str) -> bool:
+        record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) "
+            "MATCH (d:OBJECT:DOOR {object_id: $object_id}) "
+            "CREATE (p)-[:DOOR_ENTERED {created_at: datetime()}]->(d) "
+            "RETURN d.object_id AS object_id",
+            player_id=player_id,
+            object_id=object_id,
+        )
+        return record is not None
+
     def mark_seen_object(self, player_id: str, object_id: str) -> bool:
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
