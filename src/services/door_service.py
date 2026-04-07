@@ -15,6 +15,7 @@ class DoorService:
 
         already_open = self.player_repo.has_opened_door(player_id, object_id)
         if already_open:
+            self.player_repo.mark_door_entered(player_id, object_id)
             return {
                 "player_id": player_id,
                 "object_id": door.object_id,
@@ -28,6 +29,7 @@ class DoorService:
 
         if not door.is_locked or door.lock_type == "none":
             self.player_repo.mark_opened_door(player_id, object_id)
+            self.player_repo.mark_door_entered(player_id, object_id)
             return {
                 "player_id": player_id,
                 "object_id": door.object_id,
@@ -63,6 +65,7 @@ class DoorService:
                     "detail": "Du har inte rätt nyckel.",
                 }
             self.player_repo.mark_opened_door(player_id, object_id)
+            self.player_repo.mark_door_entered(player_id, object_id)
             return {
                 "player_id": player_id,
                 "object_id": door.object_id,
@@ -88,6 +91,7 @@ class DoorService:
             }
 
         self.player_repo.mark_opened_door(player_id, object_id)
+        self.player_repo.mark_door_entered(player_id, object_id)
         return {
             "player_id": player_id,
             "object_id": door.object_id,
