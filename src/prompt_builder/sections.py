@@ -98,7 +98,7 @@ class OutputFormatSection:
             "- 'used_claim_ids' får endast innehålla claim-IDn vars information faktiskt används i svaret.\n"
             "- Om informationen inte kommer från en claim utan från bakgrundsbeskrivningen, ska inget claim-ID inkluderas.\n"
             "- Kontrollera alltid att varje claim-ID motsvarar något som uttrycks i svaret.\n"
-            " - En claim får bara anses använd om hela claimens informationsinnehåll uttrycks i svaret. Om bara en del av claimen uttrycks, ska claimen inte tas med.\n"
+            "- En claim får bara anses använd om hela claimens informationsinnehåll uttrycks i svaret. Om bara en del av claimen uttrycks, ska claimen inte tas med.\n"
             "- Svara på engelska, även om frågan är på ett annat språk."
         )
 
