@@ -4,6 +4,14 @@ from .base import BaseRepository
 class RAGRepo(BaseRepository):
     """Read queries used by the RAG retrieval pipeline."""
 
+    @staticmethod
+    def _claim_content_expr(locale: str, alias: str = "c") -> str:
+        return f"{alias}.content_en" if locale == "en" else f"{alias}.content"
+
+    @staticmethod
+    def _name_expr(locale: str, alias: str = "target") -> str:
+        return f"{alias}.name_en" if locale == "en" else f"{alias}.name"
+
     def supports_group_membership(self) -> bool:
         try:
             labels_result = self._run_single(
@@ -19,10 +27,11 @@ class RAGRepo(BaseRepository):
         rels = set(rels_result["rels"] if rels_result else [])
         return "GROUP" in labels and "MEMBER_OF" in rels
 
-    def find_top_claims(self, npc_id: str, query_vector: list[float], top_k: int) -> list[dict]:
+    def find_top_claims(self, npc_id: str, query_vector: list[float], top_k: int, locale: str = "sv") -> list[dict]:
+        content_expr = self._claim_content_expr(locale)
         records = self._run(
-            """
-            MATCH (n:NPC {id: $npc_id})
+            f"""
+            MATCH (n:NPC {{id: $npc_id}})
             OPTIONAL MATCH (n)-[:HAS_OPINION]->(c1:CLAIM)
             OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(c2:CLAIM)
 
@@ -33,7 +42,7 @@ class RAGRepo(BaseRepository):
             WITH c, vector.similarity.cosine(c.embedding, $query_vector) AS score
             RETURN elementId(c) AS id,
                    c.claim_id AS claim_id,
-                   c.content AS content,
+                   {content_expr} AS content,
                    c.type AS type,
                    score
             ORDER BY score DESC
@@ -45,13 +54,15 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
-    def find_claims_by_claim_ids(self, npc_id: str, claim_ids: list[str]) -> list[dict]:
+    def find_claims_by_claim_ids(self, npc_id: str, claim_ids: list[str], locale: str = "sv") -> list[dict]:
         if not claim_ids:
             return []
 
+        content_expr = self._claim_content_expr(locale)
+
         records = self._run(
-            """
-            MATCH (n:NPC {id: $npc_id})
+            f"""
+            MATCH (n:NPC {{id: $npc_id}})
             OPTIONAL MATCH (n)-[:HAS_OPINION]->(c1:CLAIM)
             OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(c2:CLAIM)
 
@@ -61,7 +72,7 @@ class RAGRepo(BaseRepository):
 
             RETURN elementId(c) AS id,
                    c.claim_id AS claim_id,
-                   c.content AS content,
+                   {content_expr} AS content,
                    c.type AS type
             """,
             npc_id=npc_id,
@@ -69,9 +80,11 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
-    def expand_from_claims(self, claim_ids: list[str]) -> tuple[list[dict], list[dict]]:
+    def expand_from_claims(self, claim_ids: list[str], locale: str = "sv") -> tuple[list[dict], list[dict]]:
+        content_expr = self._claim_content_expr(locale)
+        name_expr = self._name_expr(locale)
         record = self._run_single(
-            """
+            f"""
             MATCH (start:CLAIM) WHERE elementId(start) IN $claim_ids
             OPTIONAL MATCH (start)-[:REFERENCE*0..]->(sub:CLAIM)
             WITH collect(DISTINCT sub) AS all_claims
@@ -79,8 +92,8 @@ class RAGRepo(BaseRepository):
             OPTIONAL MATCH (c)-[:REFERENCE]->(target)
             WHERE target:NPC OR target:PLACE OR target:OBJECT OR target:MYSTERY
             RETURN
-                collect(DISTINCT {id: elementId(c), claim_id: c.claim_id, type: c.type, content: c.content}) AS claims,
-                collect(DISTINCT {id: elementId(target), name: target.name, type: labels(target)[0]}) AS constants
+                collect(DISTINCT {{id: elementId(c), claim_id: c.claim_id, type: c.type, content: {content_expr}}}) AS claims,
+                collect(DISTINCT {{id: elementId(target), name: {name_expr}, type: labels(target)[0]}}) AS constants
             """,
             claim_ids=claim_ids,
         )
@@ -91,10 +104,11 @@ class RAGRepo(BaseRepository):
         constants = [c for c in record["constants"] if c.get("id")]
         return claims, constants
 
-    def find_relational_candidates(self, npc_id: str, constant_ids: list[str]) -> list[dict]:
+    def find_relational_candidates(self, npc_id: str, constant_ids: list[str], locale: str = "sv") -> list[dict]:
+        content_expr = self._claim_content_expr(locale, "rc")
         records = self._run(
-            """
-            MATCH (n:NPC {id: $npc_id})
+            f"""
+            MATCH (n:NPC {{id: $npc_id}})
             OPTIONAL MATCH (n)-[:HAS_OPINION]->(rc1:CLAIM)
             OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(rc2:CLAIM)
 
@@ -111,7 +125,7 @@ class RAGRepo(BaseRepository):
             WHERE size(overlaps) >= 2
 
             RETURN DISTINCT elementId(rc) AS id,
-                            rc.content AS content,
+                            {content_expr} AS content,
                             rc.type AS type
             """,
             npc_id=npc_id,
@@ -119,11 +133,12 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
-    def find_mystery_claims(self, mystery_ids: list[str], npc_id: str) -> list[dict]:
+    def find_mystery_claims(self, mystery_ids: list[str], npc_id: str, locale: str = "sv") -> list[dict]:
         """Find NPC claims that reference any of the given MYSTERY nodes (threshold=1)."""
+        content_expr = self._claim_content_expr(locale, "rc")
         records = self._run(
-            """
-            MATCH (n:NPC {id: $npc_id})
+            f"""
+            MATCH (n:NPC {{id: $npc_id}})
             OPTIONAL MATCH (n)-[:HAS_OPINION]->(rc1:CLAIM)
             OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(rc2:CLAIM)
             WITH collect(rc1) + collect(rc2) AS all_rc
@@ -133,7 +148,7 @@ class RAGRepo(BaseRepository):
             WHERE elementId(m) IN $mystery_ids
             RETURN DISTINCT elementId(rc) AS id,
                             rc.claim_id AS claim_id,
-                            rc.content AS content,
+                            {content_expr} AS content,
                             rc.type AS type
             """,
             mystery_ids=mystery_ids,
@@ -141,21 +156,22 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
-    def get_reference_chain(self, claim_id: str, npc_id: str, include_group: bool) -> list[dict]:
+    def get_reference_chain(self, claim_id: str, npc_id: str, include_group: bool, locale: str = "sv") -> list[dict]:
+        content_expr = self._claim_content_expr(locale, "ref")
         if include_group:
-            query = """
+            query = f"""
                 MATCH path = (start:CLAIM)-[:REFERENCE*0..5]->(ref:CLAIM)
                 WHERE elementId(start) = $claim_id
                 WITH ref, length(path) AS depth
                 ORDER BY depth ASC
-                OPTIONAL MATCH (n:NPC {id: $npc_id})-[o:HAS_OPINION]->(ref)
-                OPTIONAL MATCH (n:NPC {id: $npc_id})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
+                OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
+                OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
                 WITH ref, depth,
                      COALESCE(o.prefix, go.prefix) AS prefix,
                      COALESCE(o.suffix, go.suffix) AS suffix,
                      COALESCE(o.overwrite_suffix, go.overwrite_suffix) AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
-                       ref.content AS content,
+                       {content_expr} AS content,
                        ref.claim_id AS claim_id,
                        ref.type AS type,
                        depth,
@@ -164,19 +180,19 @@ class RAGRepo(BaseRepository):
                        overwrite_suffix
             """
         else:
-            query = """
+            query = f"""
                 MATCH path = (start:CLAIM)-[:REFERENCE*0..5]->(ref:CLAIM)
                 WHERE elementId(start) = $claim_id
                 WITH ref, length(path) AS depth
                 ORDER BY depth ASC
-                OPTIONAL MATCH (n:NPC {id: $npc_id})-[o:HAS_OPINION]->(ref)
+                OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
                 WITH ref, depth,
                      o.prefix AS prefix,
                      o.suffix AS suffix,
                      o.overwrite_suffix AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
-                       ref.content AS content,
+                       {content_expr} AS content,
                        ref.type AS type,
                        depth,
                        prefix,
@@ -187,7 +203,8 @@ class RAGRepo(BaseRepository):
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)
         return [dict(r) for r in records]
 
-    def get_upstream_claims(self, claim_id: str, npc_id: str, up_steps: int, include_group: bool) -> list[dict]:
+    def get_upstream_claims(self, claim_id: str, npc_id: str, up_steps: int, include_group: bool, locale: str = "sv") -> list[dict]:
+        content_expr = self._claim_content_expr(locale, "ref")
         if include_group:
             query = f"""
                 MATCH path = (ref:CLAIM)-[:REFERENCE*1..{up_steps}]->(start:CLAIM)
@@ -201,7 +218,7 @@ class RAGRepo(BaseRepository):
                      COALESCE(o.suffix, go.suffix) AS suffix,
                      COALESCE(o.overwrite_suffix, go.overwrite_suffix) AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
-                       ref.content AS content,
+                       {content_expr} AS content,
                        ref.claim_id AS claim_id,
                        ref.type AS type,
                        depth,
@@ -222,7 +239,7 @@ class RAGRepo(BaseRepository):
                      o.overwrite_suffix AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
-                       ref.content AS content,
+                       {content_expr} AS content,
                        ref.type AS type,
                        depth,
                        prefix,

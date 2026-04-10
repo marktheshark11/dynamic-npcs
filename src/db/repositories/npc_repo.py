@@ -5,6 +5,12 @@ from ..models import NPC, Group
 class NPCRepo(BaseRepository):
     """CRUD operations for NPC nodes."""
 
+    @staticmethod
+    def _select_localized_text(record: dict, base_key: str, locale: str) -> str | None:
+        if locale == "en":
+            return record.get(f"{base_key}_en")
+        return record.get(base_key)
+
     def create(self, npc: NPC) -> None:
         self._run(
             "MERGE (npc:NPC {id: $id}) "
@@ -77,7 +83,7 @@ class NPCRepo(BaseRepository):
             for r in records
         ]
 
-    def get_detail_by_id(self, npc_id: str) -> dict | None:
+    def get_detail_by_id(self, npc_id: str, locale: str = "sv") -> dict | None:
         record = self._run_single(
             "MATCH (n:NPC {id: $npc_id}) "
             "RETURN n.id AS id, n.name AS name, n.age AS age, "
@@ -92,14 +98,14 @@ class NPCRepo(BaseRepository):
             "id": record["id"],
             "name": record["name"],
             "age": record.get("age"),
-            "personality": record.get("personality"),
+            "personality": self._select_localized_text(record, "personality", locale),
             "personality_en": record.get("personality_en"),
             "backstory": record.get("backstory"),
-            "story_background": record.get("story_background"),
+            "story_background": self._select_localized_text(record, "story_background", locale),
             "story_background_en": record.get("story_background_en"),
         }
 
-    def get_profile_by_id(self, npc_id: str) -> dict | None:
+    def get_profile_by_id(self, npc_id: str, locale: str = "sv") -> dict | None:
         record = self._run_single(
             "MATCH (n:NPC {id: $npc_id}) "
             "RETURN n.name AS name, n.personality AS personality, n.personality_en AS personality_en, "
@@ -111,10 +117,10 @@ class NPCRepo(BaseRepository):
             return None
         return {
             "name": record["name"],
-            "personality": record.get("personality"),
+            "personality": self._select_localized_text(record, "personality", locale),
             "personality_en": record.get("personality_en"),
             "backstory": record.get("backstory"),
-            "story_background": record.get("story_background"),
+            "story_background": self._select_localized_text(record, "story_background", locale),
             "story_background_en": record.get("story_background_en"),
         }
 

@@ -16,6 +16,7 @@ from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_p
 from pipelines import get_pipeline
 from services.chat_service import ChatService
 from services.door_service import DoorService
+from services.locale_service import LocaleService
 from services.scripted_npc_service import ScriptedNpcService
 
 class ChatResponse(BaseModel):
@@ -551,7 +552,8 @@ async def list_aware_claims(player_id: str, config: Config = Depends(get_config)
 
         _get_player_or_404(player_repo, player_id)
 
-        claims = player_repo.get_aware_claims(player_id)
+        locale = LocaleService(config.driver).get_player_locale(player_id)
+        claims = player_repo.get_aware_claims(player_id, locale=locale)
         return [AwareClaimResponse(**c) for c in claims]
     except HTTPException:
         raise
@@ -570,7 +572,8 @@ async def list_player_clues(player_id: str, config: Config = Depends(get_config)
 
         _get_player_or_404(player_repo, player_id)
 
-        clues = player_repo.get_clues(player_id)
+        locale = LocaleService(config.driver).get_player_locale(player_id)
+        clues = player_repo.get_clues(player_id, locale=locale)
         return ClueResponse(
             claims=[AwareClaimResponse(**claim) for claim in clues.get("claims", [])],
             items=[ClueItemResponse(**item) for item in clues.get("items", [])],
@@ -600,8 +603,9 @@ async def inspect_item(
         constant_repo = ConstantRepo(config.driver)
 
         _get_player_or_404(player_repo, player_id)
+        locale = LocaleService(config.driver).get_player_locale(player_id)
 
-        item = constant_repo.get_item(object_id)
+        item = constant_repo.get_item(object_id, locale=locale)
         if not item:
             raise HTTPException(status_code=404, detail="Item not found")
 
@@ -641,13 +645,15 @@ async def pickup_item(
         constant_repo = ConstantRepo(config.driver)
 
         _get_player_or_404(player_repo, player_id)
+        locale = LocaleService(config.driver).get_player_locale(player_id)
 
-        item = constant_repo.get_item(object_id)
+        item = constant_repo.get_item(object_id, locale=locale)
         if not item:
             raise HTTPException(status_code=404, detail="Item not found")
 
-        picked_up, detail = player_repo.pickup_item(player_id, item.object_id)
-        if not picked_up and detail == "Item eller player hittades inte":
+        locale = LocaleService(config.driver).get_player_locale(player_id)
+        picked_up, detail = player_repo.pickup_item(player_id, item.object_id, locale=locale)
+        if not picked_up and detail in {"Item eller player hittades inte", "Item or player not found"}:
             raise HTTPException(status_code=404, detail=detail)
 
         return PickupItemResponse(
@@ -682,8 +688,9 @@ async def open_door(
         door_service = DoorService(config.driver)
 
         _get_player_or_404(player_repo, player_id)
+        locale = LocaleService(config.driver).get_player_locale(player_id)
 
-        result = door_service.open_door(player_id, object_id, code=payload.code)
+        result = door_service.open_door(player_id, object_id, code=payload.code, locale=locale)
         if result["detail"] == "Door not found":
             raise HTTPException(status_code=404, detail=result["detail"])
         return OpenDoorResponse(**result)

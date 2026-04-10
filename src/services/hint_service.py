@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from db.repositories import PlayerRepo
+from db.repositories import PlayerRepo, UserRepo
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,7 @@ class HintCheck:
 @dataclass(frozen=True)
 class HintRule:
     text: str
+    text_en: str | None = None
     check: HintCheck | None = None
     matcher: Callable[[PlayerStateSnapshot], bool] | None = None
 
@@ -52,37 +53,53 @@ class HintRule:
 class HintService:
     def __init__(self, driver):
         self.player_repo = PlayerRepo(driver)
+        self.user_repo = UserRepo(driver)
         self._text_rules: list[HintRule] = [
             HintRule(
                 text="Gå och undersök kroppen. Den finns i huvudsovrummet. Det är det sista rummet till höger på övervåning.",
+                text_en="Go and examine the body. It is in the master bedroom. It is the last room on the right upstairs.",
                 matcher=lambda state: not state.has_seen_object("object_body"),
             ),
             HintRule(
                 text="Du borde tala med Wilhelm, sonen till den avlidne. Han är i sitt rum, det första rummet till vänster på övervåningen. Han verkar ha hört någonting, undersök var ljudet kom ifrån.",
+                text_en="You should talk to Wilhelm, the son of the deceased. He is in his room, the first room on the left upstairs. He seems to have heard something; investigate where the sound came from.",
                 matcher=lambda state: state.has_seen_object("object_body") and not state.knows_claim("C79"),
             ),
             HintRule(
                 text="Wilhelm sa att han hörde ett ljud från arbetsrummet. Det kan vara värt att undersöka det rummet lite mer noggrant.",
+                text_en="Wilhelm said he heard a sound from the study. It may be worth investigating that room more carefully.",
                 matcher=lambda state: state.knows_claim("C79") and not state.has_seen_door("door_study"),
             ),
             HintRule(
                 text="Det verkar som att du behöver en nyckel för att kunna komma in i arbetsrummet. Fråga runt efter den.",
+                text_en="It seems you need a key to get into the study. Ask around about it.",
                 matcher=lambda state: state.has_seen_door("door_study") and not state.has_opened_door("door_study"),
             ),
             HintRule(
                 text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet. Se om du kan lista ut vad den kan vara genom att prata med karaktärerna.",
+                text_en="You need a 4-digit code to open the safe. See if you can figure out what it might be by talking to the characters.",
                 matcher=lambda state: state.has_opened_door("door_study") and not state.has_opened_door("object_safe"),
             ), 
         ]
+
+    @staticmethod
+    def _is_english(locale: str | None) -> bool:
+        return (locale or "sv").strip().lower() == "en"
 
     def get_hint_text(self, player_id: str) -> str:
         player_profile = self.player_repo.get_profile_by_id(player_id)
         if not player_profile:
             raise ValueError("Kunde inte hämta hint: spelaren hittades inte.")
 
+        locale = self.user_repo.get_locale_by_player_id(player_id)
         state = self._build_player_state(player_id)
-        lines = self._collect_matching_texts(state)
+        lines = self._collect_matching_texts(state, locale)
         if not lines:
+            if self._is_english(locale):
+                return (
+                    "The commissioner shakes his head. 'You do not have anything concrete enough yet. "
+                    "Examine more objects and talk to more people first.'"
+                )
             return (
                 "Kommissarien skakar på huvudet. 'Du har inget tillräckligt konkret ännu. "
                 "Undersök fler föremål och prata med fler personer först.'"
@@ -112,11 +129,12 @@ class HintService:
             opened_door_ids=self.player_repo.get_opened_door_ids(player_id),
         )
 
-    def _collect_matching_texts(self, state: PlayerStateSnapshot) -> list[str]:
+    def _collect_matching_texts(self, state: PlayerStateSnapshot, locale: str) -> list[str]:
         lines: list[str] = []
+        is_english = self._is_english(locale)
         for rule in self._text_rules:
             if self._matches_rule(state, check=rule.check, matcher=rule.matcher):
-                lines.append(rule.text)
+                lines.append(rule.text_en if is_english else rule.text)
         return lines
 
     @classmethod

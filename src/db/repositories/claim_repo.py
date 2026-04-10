@@ -78,7 +78,13 @@ class ClaimRepo(BaseRepository):
                 return (0, int(numeric_part), claim_id)
         return (1, 0, claim_id or "")
 
-    def list_all(self) -> list[Claim]:
+    @staticmethod
+    def _localized_content(record: dict, locale: str) -> str | None:
+        if locale == "en":
+            return record.get("content_en")
+        return record.get("content")
+
+    def list_all(self, locale: str = "sv") -> list[Claim]:
         records = self._run(
             "MATCH (c:CLAIM) "
             "RETURN c.claim_id AS claim_id, c.content AS content, c.content_en AS content_en, "
@@ -87,7 +93,7 @@ class ClaimRepo(BaseRepository):
         claims = [
             Claim(
                 claim_id=r["claim_id"],
-                content=r["content"],
+                content=self._localized_content(r, locale) or "",
                 content_en=r.get("content_en"),
                 type=r["type"],
             )
@@ -146,7 +152,7 @@ class ClaimRepo(BaseRepository):
 
         return [(item["old_id"], item["new_id"]) for item in updates]
 
-    def get_by_id(self, claim_id: str) -> Claim | None:
+    def get_by_id(self, claim_id: str, locale: str = "sv") -> Claim | None:
         record = self._run_single(
             "MATCH (c:CLAIM {claim_id: $claim_id}) "
             "RETURN c.claim_id AS claim_id, c.content AS content, c.content_en AS content_en, "
@@ -157,7 +163,7 @@ class ClaimRepo(BaseRepository):
             return None
         return Claim(
             claim_id=record["claim_id"],
-            content=record["content"],
+            content=self._localized_content(record, locale) or "",
             content_en=record.get("content_en"),
             type=record["type"],
         )

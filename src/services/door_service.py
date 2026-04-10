@@ -6,8 +6,13 @@ class DoorService:
         self.constant_repo = ConstantRepo(driver)
         self.player_repo = PlayerRepo(driver)
 
-    def open_door(self, player_id: str, object_id: str, code: str | None = None) -> dict:
-        door = self.constant_repo.get_door(object_id)
+    @staticmethod
+    def _is_english(locale: str | None) -> bool:
+        return (locale or "sv").strip().lower() == "en"
+
+    def open_door(self, player_id: str, object_id: str, code: str | None = None, locale: str = "sv") -> dict:
+        is_english = self._is_english(locale)
+        door = self.constant_repo.get_door(object_id, locale=locale)
         if not door:
             raise ValueError("Door not found")
 
@@ -24,7 +29,7 @@ class DoorService:
                 "already_open": True,
                 "lock_type": door.lock_type,
                 "required_item_id": door.required_item_id,
-                "detail": "Dörren är redan öppnad.",
+                "detail": "The door is already open." if is_english else "Dörren är redan öppnad.",
             }
 
         if not door.is_locked or door.lock_type == "none":
@@ -38,7 +43,7 @@ class DoorService:
                 "already_open": False,
                 "lock_type": door.lock_type,
                 "required_item_id": door.required_item_id,
-                "detail": "Dörren öppnades.",
+                "detail": "The door was opened." if is_english else "Dörren öppnades.",
             }
 
         if door.lock_type == "item":
@@ -51,7 +56,7 @@ class DoorService:
                     "already_open": False,
                     "lock_type": door.lock_type,
                     "required_item_id": None,
-                    "detail": "Dörren saknar konfigurerad nyckel.",
+                    "detail": "The door has no configured key." if is_english else "Dörren saknar konfigurerad nyckel.",
                 }
             if not self.player_repo.has_item(player_id, door.required_item_id):
                 return {
@@ -62,7 +67,7 @@ class DoorService:
                     "already_open": False,
                     "lock_type": door.lock_type,
                     "required_item_id": door.required_item_id,
-                    "detail": "Du har inte rätt nyckel.",
+                    "detail": "You do not have the right key." if is_english else "Du har inte rätt nyckel.",
                 }
             self.player_repo.mark_opened_door(player_id, object_id)
             self.player_repo.mark_door_entered(player_id, object_id)
@@ -74,7 +79,7 @@ class DoorService:
                 "already_open": False,
                 "lock_type": door.lock_type,
                 "required_item_id": door.required_item_id,
-                "detail": "Dörren öppnades med nyckel.",
+                "detail": "The door was opened with a key." if is_english else "Dörren öppnades med nyckel.",
             }
 
         submitted_code = (code or "").strip()
@@ -87,7 +92,7 @@ class DoorService:
                 "already_open": False,
                 "lock_type": door.lock_type,
                 "required_item_id": None,
-                "detail": "Fel kod.",
+                "detail": "Wrong code." if is_english else "Fel kod.",
             }
 
         self.player_repo.mark_opened_door(player_id, object_id)
@@ -100,5 +105,5 @@ class DoorService:
             "already_open": False,
             "lock_type": door.lock_type,
             "required_item_id": None,
-            "detail": "Dörren öppnades med kod.",
+            "detail": "The door was opened with a code." if is_english else "Dörren öppnades med kod.",
         }

@@ -27,8 +27,8 @@ def _is_english(locale: str | None) -> bool:
     return (locale or "sv").strip().lower() == "en"
 
 
-def get_npc_data(services: RAGPipelineServices, npc_id: str) -> dict[str, Any]:
-    npc_data = services.npc_repo.get_profile_by_id(npc_id)
+def get_npc_data(services: RAGPipelineServices, npc_id: str, locale: str = "sv") -> dict[str, Any]:
+    npc_data = services.npc_repo.get_profile_by_id(npc_id, locale=locale)
     if not npc_data:
         raise ValueError(f"NPC with ID '{npc_id}' not found.")
     return npc_data
@@ -38,10 +38,12 @@ def get_remembered_claim_hits(
     services: RAGPipelineServices,
     npc_id: str,
     conversation_claim_ids: list[str] | None,
+    locale: str = "sv",
 ) -> list[dict[str, Any]]:
     return services.rag_repo.find_claims_by_claim_ids(
         npc_id=npc_id,
         claim_ids=conversation_claim_ids or [],
+        locale=locale,
     )
 
 
@@ -177,11 +179,13 @@ def get_top_claims(
     npc_id: str,
     query_embedding: list[float],
     top_k: int,
+    locale: str = "sv",
 ) -> list[dict[str, Any]]:
     return services.rag_repo.find_top_claims(
         npc_id=npc_id,
         query_vector=query_embedding,
         top_k=top_k,
+        locale=locale,
     )
 
 
@@ -196,9 +200,10 @@ def expand_candidate_claims(
     services: RAGPipelineServices,
     npc_id: str,
     combined_hits: list[dict[str, Any]],
+    locale: str = "sv",
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     initial_ids = [claim["id"] for claim in combined_hits]
-    all_expanded_claims, constants = services.rag_repo.expand_from_claims(initial_ids)
+    all_expanded_claims, constants = services.rag_repo.expand_from_claims(initial_ids, locale=locale)
     constant_ids = [constant["id"] for constant in constants if constant.get("id")]
     mystery_ids = [
         constant["id"]
@@ -206,11 +211,12 @@ def expand_candidate_claims(
         if constant.get("id") and constant.get("type") == "MYSTERY"
     ]
     mystery_claims = (
-        services.rag_repo.find_mystery_claims(mystery_ids, npc_id) if mystery_ids else []
+        services.rag_repo.find_mystery_claims(mystery_ids, npc_id, locale=locale) if mystery_ids else []
     )
     relational_candidates = services.rag_repo.find_relational_candidates(
         npc_id=npc_id,
         constant_ids=constant_ids,
+        locale=locale,
     )
     return all_expanded_claims, constants, mystery_claims + relational_candidates
 
@@ -238,12 +244,14 @@ def _get_reference_chain(
     claim_id: str,
     npc_id: str,
     up_steps: int,
+    locale: str,
 ) -> list[dict[str, Any]]:
     include_group = services.supports_group_membership()
     downstream_claims = services.rag_repo.get_reference_chain(
         claim_id=claim_id,
         npc_id=npc_id,
         include_group=include_group,
+        locale=locale,
     )
     upstream_claims = (
         services.rag_repo.get_upstream_claims(
@@ -251,6 +259,7 @@ def _get_reference_chain(
             npc_id=npc_id,
             up_steps=up_steps,
             include_group=include_group,
+            locale=locale,
         )
         if up_steps > 0
         else []
@@ -274,13 +283,14 @@ def _collect_chain_graph(
     claims: list[dict[str, Any]],
     npc_id: str,
     up_steps: int,
+    locale: str,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, list[str]], set[str]]:
     all_nodes: dict[str, dict[str, Any]] = {}
     adjacency: dict[str, list[str]] = {}
     potential_roots: set[str] = set()
 
     for claim in claims:
-        chain = _get_reference_chain(services, claim["id"], npc_id, up_steps)
+        chain = _get_reference_chain(services, claim["id"], npc_id, up_steps, locale)
         if not chain:
             continue
         _add_chain_nodes(chain, all_nodes, adjacency, potential_roots)
@@ -394,6 +404,7 @@ def build_claim_chains(
     npc_id: str,
     already_mentioned: set[str] | None = None,
     up_steps: int = 3,
+    locale: str = "sv",
 ) -> list[dict[str, Any]]:
     if not claims:
         return []
@@ -403,6 +414,7 @@ def build_claim_chains(
         claims=claims,
         npc_id=npc_id,
         up_steps=up_steps,
+        locale=locale,
     )
 
     final_chains: list[dict[str, Any]] = []

@@ -1,4 +1,4 @@
-__all__ = ["ChatService", "DoorService", "HintService", "ScriptedNpcService"]
+__all__ = ["ChatService", "DoorService", "HintService", "LocaleService", "ScriptedNpcService"]
 
 
 def __getattr__(name):
@@ -18,4 +18,8 @@ def __getattr__(name):
         from .scripted_npc_service import ScriptedNpcService
 
         return ScriptedNpcService
+    if name == "LocaleService":
+        from .locale_service import LocaleService
+
+        return LocaleService
     raise AttributeError(f"module 'services' has no attribute '{name}'")

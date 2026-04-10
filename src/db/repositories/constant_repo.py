@@ -7,6 +7,18 @@ class ConstantRepo(BaseRepository):
 
     DOOR_LOCK_TYPES = {"none", "item", "code"}
 
+    @staticmethod
+    def _localized_name(record: dict, locale: str) -> str:
+        if locale == "en":
+            return record.get("name_en") or ""
+        return record.get("name") or ""
+
+    @staticmethod
+    def _localized_inspect_text(record: dict, locale: str) -> str:
+        if locale == "en":
+            return record.get("inspect_text_en") or ""
+        return record.get("inspect_text") or ""
+
     @classmethod
     def _normalize_door_lock_config(
         cls,
@@ -295,7 +307,7 @@ class ConstantRepo(BaseRepository):
             for r in records
         ]
 
-    def get_item(self, object_id: str) -> Item | None:
+    def get_item(self, object_id: str, locale: str = "sv") -> Item | None:
         self._ensure_object_ids()
         record = self._run_single(
             "MATCH (o:OBJECT:ITEM {object_id: $object_id}) "
@@ -307,14 +319,14 @@ class ConstantRepo(BaseRepository):
             return None
         return Item(
             object_id=record["object_id"],
-            name=record["name"],
+            name=self._localized_name(record, locale),
             name_en=record.get("name_en"),
-            inspect_text=record.get("inspect_text") or "",
+            inspect_text=self._localized_inspect_text(record, locale),
             inspect_text_en=record.get("inspect_text_en"),
             pickupable=bool(record.get("pickupable")),
         )
 
-    def get_door(self, object_id: str) -> Door | None:
+    def get_door(self, object_id: str, locale: str = "sv") -> Door | None:
         self._ensure_object_ids()
         record = self._run_single(
             "MATCH (o:OBJECT:DOOR {object_id: $object_id}) "
@@ -328,9 +340,9 @@ class ConstantRepo(BaseRepository):
             return None
         return Door(
             object_id=record["object_id"],
-            name=record["name"],
+            name=self._localized_name(record, locale),
             name_en=record.get("name_en"),
-            inspect_text=record.get("inspect_text") or "",
+            inspect_text=self._localized_inspect_text(record, locale),
             inspect_text_en=record.get("inspect_text_en"),
             is_locked=bool(record.get("is_locked")),
             lock_type=(record.get("lock_type") or "none"),

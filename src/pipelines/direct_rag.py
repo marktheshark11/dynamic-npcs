@@ -40,11 +40,12 @@ class DirectRAGPipeline(ChatPipeline):
         conversation_claim_ids: list[str] | None = None,
         locale: str = "sv",
     ) -> PipelineRunResult:
-        npc_data = get_npc_data(self._services, npc_id)
+        npc_data = get_npc_data(self._services, npc_id, locale=locale)
         remembered_claim_hits = get_remembered_claim_hits(
             self._services,
             npc_id=npc_id,
             conversation_claim_ids=conversation_claim_ids,
+            locale=locale,
         )
         search_query = build_search_query(
             question=question,
@@ -60,12 +61,14 @@ class DirectRAGPipeline(ChatPipeline):
             npc_id=npc_id,
             query_embedding=query_embedding,
             top_k=top_k,
+            locale=locale,
         )
         combined_hits = combine_claim_hits(top_claims, remembered_claim_hits)
         expanded_claims, constants, extra_claims = expand_candidate_claims(
             self._services,
             npc_id=npc_id,
             combined_hits=combined_hits,
+            locale=locale,
         )
         available_claims = merge_unique_claims(combined_hits, expanded_claims, extra_claims)
         already_mentioned = get_already_mentioned_claim_ids(
@@ -79,6 +82,7 @@ class DirectRAGPipeline(ChatPipeline):
             npc_id=npc_id,
             already_mentioned=already_mentioned,
             up_steps=self._up_steps,
+            locale=locale,
         )
         rag_context = build_rag_context(chain_metadata, constants)
         prompt_request = build_prompt_request(
@@ -108,7 +112,7 @@ class DirectRAGPipeline(ChatPipeline):
         prior_conversation_summaries: list[dict[str, Any]] | None = None,
         locale: str = "sv",
     ) -> PipelineRunResult:
-        npc_data = get_npc_data(self._services, npc_id)
+        npc_data = get_npc_data(self._services, npc_id, locale=locale)
         prompt_request = build_prompt_request(
             question="",
             locale=locale,

@@ -11,6 +11,18 @@ class PlayerRepo(BaseRepository):
         created_at = item.get("created_at") or ""
         return item.get("created_at") is None, created_at, item.get(id_key, "")
 
+    @staticmethod
+    def _claim_content_expression(locale: str) -> str:
+        return "c.content_en" if locale == "en" else "c.content"
+
+    @staticmethod
+    def _name_expression(locale: str, alias: str) -> str:
+        return f"{alias}.name_en" if locale == "en" else f"{alias}.name"
+
+    @staticmethod
+    def _inspect_text_expression(locale: str, alias: str) -> str:
+        return f"{alias}.inspect_text_en" if locale == "en" else f"{alias}.inspect_text"
+
     def _next_player_id(self) -> str:
         record = self._run_single(
             "MATCH (p:PLAYER) "
@@ -229,12 +241,13 @@ class PlayerRepo(BaseRepository):
         )
         return record["total"] if record else 0
 
-    def get_aware_claims(self, player_id: str) -> list[dict]:
+    def get_aware_claims(self, player_id: str, locale: str = "sv") -> list[dict]:
         """Returnerar alla claims som spelaren känner till via AWARE_OF."""
+        content_expr = self._claim_content_expression(locale)
         records = self._run(
-            """
-            MATCH (p:PLAYER {player_id: $player_id})-[r:AWARE_OF]->(c:CLAIM)
-            RETURN c.claim_id AS claim_id, c.content AS content, c.type AS type,
+            f"""
+            MATCH (p:PLAYER {{player_id: $player_id}})-[r:AWARE_OF]->(c:CLAIM)
+            RETURN c.claim_id AS claim_id, {content_expr} AS content, c.type AS type,
                    r.created_at AS created_at, r.npc_ids AS npc_ids
             ORDER BY c.claim_id
             """,
@@ -379,7 +392,8 @@ class PlayerRepo(BaseRepository):
         )
         return record is not None
 
-    def pickup_item(self, player_id: str, object_id: str) -> tuple[bool, str]:
+    def pickup_item(self, player_id: str, object_id: str, locale: str = "sv") -> tuple[bool, str]:
+        is_english = locale == "en"
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
             "MATCH (o:OBJECT:ITEM {object_id: $object_id}) "
@@ -395,15 +409,17 @@ class PlayerRepo(BaseRepository):
             object_id=object_id,
         )
         if not record:
-            return False, "Item eller player hittades inte"
+            return False, "Item or player not found" if is_english else "Item eller player hittades inte"
         if not record["pickupable"]:
-            return False, "Det itemet kan inte plockas upp"
-        return True, "Item upplockat"
+            return False, "That item cannot be picked up" if is_english else "Det itemet kan inte plockas upp"
+        return True, "Item picked up" if is_english else "Item upplockat"
 
-    def list_inventory(self, player_id: str) -> list[Item]:
+    def list_inventory(self, player_id: str, locale: str = "sv") -> list[Item]:
+        name_expr = self._name_expression(locale, "o")
+        inspect_expr = self._inspect_text_expression(locale, "o")
         records = self._run(
-            "MATCH (:PLAYER {player_id: $player_id})-[:HAS_ITEM]->(o:OBJECT:ITEM) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
+            f"MATCH (:PLAYER {{player_id: $player_id}})-[:HAS_ITEM]->(o:OBJECT:ITEM) "
+            f"RETURN o.object_id AS object_id, {name_expr} AS name, {inspect_expr} AS inspect_text, o.pickupable AS pickupable "
             "ORDER BY o.object_id",
             player_id=player_id,
         )
@@ -417,13 +433,15 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
-    def get_seen_doors(self, player_id: str) -> list[dict]:
+    def get_seen_doors(self, player_id: str, locale: str = "sv") -> list[dict]:
+        name_expr = self._name_expression(locale, "d")
+        inspect_expr = self._inspect_text_expression(locale, "d")
         records = self._run(
-            """
-            MATCH (:PLAYER {player_id: $player_id})-[r:SEEN_DOOR]->(d:OBJECT:DOOR)
+            f"""
+            MATCH (:PLAYER {{player_id: $player_id}})-[r:SEEN_DOOR]->(d:OBJECT:DOOR)
             RETURN d.object_id AS object_id,
-                   d.name AS name,
-                   d.inspect_text AS inspect_text,
+                   {name_expr} AS name,
+                   {inspect_expr} AS inspect_text,
                    d.lock_type AS lock_type,
                    r.created_at AS created_at
             ORDER BY d.object_id
@@ -443,13 +461,15 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
-    def get_opened_doors(self, player_id: str) -> list[dict]:
+    def get_opened_doors(self, player_id: str, locale: str = "sv") -> list[dict]:
+        name_expr = self._name_expression(locale, "d")
+        inspect_expr = self._inspect_text_expression(locale, "d")
         records = self._run(
-            """
-            MATCH (:PLAYER {player_id: $player_id})-[r:HAS_OPENED]->(d:OBJECT:DOOR)
+            f"""
+            MATCH (:PLAYER {{player_id: $player_id}})-[r:HAS_OPENED]->(d:OBJECT:DOOR)
             RETURN d.object_id AS object_id,
-                   d.name AS name,
-                   d.inspect_text AS inspect_text,
+                   {name_expr} AS name,
+                   {inspect_expr} AS inspect_text,
                    d.lock_type AS lock_type,
                    r.created_at AS created_at
             ORDER BY d.object_id
@@ -469,13 +489,15 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
-    def get_seen_items(self, player_id: str) -> list[dict]:
+    def get_seen_items(self, player_id: str, locale: str = "sv") -> list[dict]:
+        name_expr = self._name_expression(locale, "o")
+        inspect_expr = self._inspect_text_expression(locale, "o")
         records = self._run(
-            """
-            MATCH (:PLAYER {player_id: $player_id})-[r:SEEN_OBJECT]->(o:OBJECT:ITEM)
+            f"""
+            MATCH (:PLAYER {{player_id: $player_id}})-[r:SEEN_OBJECT]->(o:OBJECT:ITEM)
             RETURN o.object_id AS object_id,
-                   o.name AS name,
-                   o.inspect_text AS inspect_text,
+                   {name_expr} AS name,
+                   {inspect_expr} AS inspect_text,
                    o.pickupable AS pickupable,
                    r.created_at AS created_at
             ORDER BY o.object_id
@@ -495,13 +517,15 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
-    def get_picked_up_items(self, player_id: str) -> list[dict]:
+    def get_picked_up_items(self, player_id: str, locale: str = "sv") -> list[dict]:
+        name_expr = self._name_expression(locale, "o")
+        inspect_expr = self._inspect_text_expression(locale, "o")
         records = self._run(
-            """
-            MATCH (:PLAYER {player_id: $player_id})-[r:HAS_ITEM]->(o:OBJECT:ITEM)
+            f"""
+            MATCH (:PLAYER {{player_id: $player_id}})-[r:HAS_ITEM]->(o:OBJECT:ITEM)
             RETURN o.object_id AS object_id,
-                   o.name AS name,
-                   o.inspect_text AS inspect_text,
+                   {name_expr} AS name,
+                   {inspect_expr} AS inspect_text,
                    o.pickupable AS pickupable,
                    r.created_at AS created_at
             ORDER BY o.object_id
@@ -521,12 +545,12 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
-    def get_clues(self, player_id: str) -> dict:
-        claims = self.get_aware_claims(player_id)
-        seen_items = self.get_seen_items(player_id)
-        picked_up_items = self.get_picked_up_items(player_id)
-        seen_doors = self.get_seen_doors(player_id)
-        opened_doors = self.get_opened_doors(player_id)
+    def get_clues(self, player_id: str, locale: str = "sv") -> dict:
+        claims = self.get_aware_claims(player_id, locale=locale)
+        seen_items = self.get_seen_items(player_id, locale=locale)
+        picked_up_items = self.get_picked_up_items(player_id, locale=locale)
+        seen_doors = self.get_seen_doors(player_id, locale=locale)
+        opened_doors = self.get_opened_doors(player_id, locale=locale)
 
         items_by_id: dict[str, dict] = {}
         for item in seen_items:
