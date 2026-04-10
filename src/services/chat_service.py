@@ -257,10 +257,6 @@ class ChatService:
         from llms.llm_groq import chat as groq_chat
         from llms.prompt_guard import is_malicious
 
-        refusal_message = (
-            "Jag kommer inte att svara på den typen av frågor."
-        )
-
         resolved_conversation_id = self._resolve_conversation_id(
             npc_id=npc_id,
             conversation_id=conversation_id,
@@ -278,6 +274,11 @@ class ChatService:
                 effective_player_id = conversation.get("player_id")
 
         locale = self._resolve_locale(effective_player_id)
+        refusal_message = (
+            "I will not answer that kind of question."
+            if self._is_english(locale)
+            else "Jag kommer inte att svara på den typen av frågor."
+        )
 
         if normalized_question and is_malicious(normalized_question):
             npc_profile = self.npc_repo.get_profile_by_id(npc_id, locale=locale)

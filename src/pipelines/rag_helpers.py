@@ -86,11 +86,13 @@ def _build_history_block_for_locale(
     return "(no history)" if is_english else "(ingen historik)"
 
 
-def _build_mentioned_block(mentioned_claims: list[dict[str, Any]] | None) -> str:
+def _build_mentioned_block(mentioned_claims: list[dict[str, Any]] | None, locale: str = "sv") -> str:
     mentioned_lines = [
         claim["content"] for claim in mentioned_claims or [] if claim.get("content")
     ]
-    return "\n".join(f"- {line}" for line in mentioned_lines) if mentioned_lines else "(inga)"
+    if mentioned_lines:
+        return "\n".join(f"- {line}" for line in mentioned_lines)
+    return "(none)" if _is_english(locale) else "(inga)"
 
 
 def rewrite_query(
@@ -104,7 +106,7 @@ def rewrite_query(
 
     is_english = _is_english(locale)
     history_block = _build_history_block_for_locale(recent_exchanges, locale)
-    mentioned_block = _build_mentioned_block(mentioned_claims)
+    mentioned_block = _build_mentioned_block(mentioned_claims, locale)
     background_block = story_background.strip() if story_background else ("(no background)" if is_english else "(ingen bakgrund)")
 
     messages = [
@@ -343,13 +345,14 @@ def _walk_chain(
 def _render_chain_content(
     chain_nodes: list[dict[str, Any]],
     already_mentioned: set[str] | None,
+    locale: str,
 ) -> str:
     rendered_claims = [
         Rendering.render_claim_static(
             chain_claim.get("claim_id"),
             chain_claim["content"],
             prefix=chain_claim.get("prefix"),
-            suffix=_resolve_chain_suffix(chain_claim, already_mentioned),
+            suffix=_resolve_chain_suffix(chain_claim, already_mentioned, locale),
         )
         for chain_claim in chain_nodes
     ]
@@ -359,16 +362,20 @@ def _render_chain_content(
 def _resolve_chain_suffix(
     chain_claim: dict[str, Any],
     already_mentioned: set[str] | None,
+    locale: str,
 ) -> str | None:
     claim_id = chain_claim.get("claim_id")
     if already_mentioned and claim_id in already_mentioned:
-        return chain_claim.get("overwrite_suffix") or "och detta har du redan nämnt"
+        return chain_claim.get("overwrite_suffix") or (
+            "and you have already mentioned this" if locale == "en" else "och detta har du redan nämnt"
+        )
     return chain_claim.get("suffix")
 
 
 def _build_chain_payload(
     chain_nodes: list[dict[str, Any]],
     already_mentioned: set[str] | None,
+    locale: str,
 ) -> dict[str, Any]:
     claim_entries = [
         {
@@ -383,7 +390,7 @@ def _build_chain_payload(
         for chain_claim in chain_nodes
     ]
     return {
-        "content": _render_chain_content(chain_nodes, already_mentioned),
+        "content": _render_chain_content(chain_nodes, already_mentioned, locale),
         "ids": [chain_claim["id"] for chain_claim in chain_nodes],
         "claim_ids": [
             chain_claim["claim_id"]
@@ -425,7 +432,7 @@ def build_claim_chains(
         chain_nodes = _walk_chain(root_id, all_nodes, adjacency, visited)
         if not chain_nodes:
             continue
-        final_chains.append(_build_chain_payload(chain_nodes, already_mentioned))
+        final_chains.append(_build_chain_payload(chain_nodes, already_mentioned, locale))
     return final_chains
 
 

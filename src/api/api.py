@@ -261,6 +261,10 @@ def _get_player_or_404(player_repo: PlayerRepo, player_id: str) -> dict:
     return player_profile
 
 
+def _localized_detail(locale: str, english_text: str, swedish_text: str) -> str:
+    return english_text if locale == "en" else swedish_text
+
+
 def _ensure_player_not_completed(player_profile: dict, locale: str = "sv") -> None:
     if player_profile.get("has_completed_game"):
         raise HTTPException(
@@ -616,11 +620,11 @@ async def inspect_item(
 
         item = constant_repo.get_item(object_id, locale=locale)
         if not item:
-            raise HTTPException(status_code=404, detail="Item not found")
+            raise HTTPException(status_code=404, detail=_localized_detail(locale, "Item not found", "Item hittades inte"))
 
         seen = player_repo.mark_seen_object(player_id, item.object_id)
         if not seen:
-            raise HTTPException(status_code=500, detail="Could not mark item as seen")
+            raise HTTPException(status_code=500, detail=_localized_detail(locale, "Could not mark item as seen", "Kunde inte markera item som sett"))
 
         return InspectItemResponse(
             player_id=player_id,
@@ -658,7 +662,7 @@ async def pickup_item(
 
         item = constant_repo.get_item(object_id, locale=locale)
         if not item:
-            raise HTTPException(status_code=404, detail="Item not found")
+            raise HTTPException(status_code=404, detail=_localized_detail(locale, "Item not found", "Item hittades inte"))
 
         locale = LocaleService(config.driver).get_player_locale(player_id)
         picked_up, detail = player_repo.pickup_item(player_id, item.object_id, locale=locale)
@@ -700,11 +704,11 @@ async def open_door(
         locale = LocaleService(config.driver).get_player_locale(player_id)
 
         result = door_service.open_door(player_id, object_id, code=payload.code, locale=locale)
-        if result["detail"] == "Door not found":
+        if result["detail"] in {"Door not found", "Dörr hittades inte"}:
             raise HTTPException(status_code=404, detail=result["detail"])
         return OpenDoorResponse(**result)
     except ValueError as exc:
-        if str(exc) == "Door not found":
+        if str(exc) in {"Door not found", "Dörr hittades inte"}:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPException:

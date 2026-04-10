@@ -14,7 +14,7 @@ class DoorService:
         is_english = self._is_english(locale)
         door = self.constant_repo.get_door(object_id, locale=locale)
         if not door:
-            raise ValueError("Door not found")
+            raise ValueError("Door not found" if is_english else "Dörr hittades inte")
 
         self.player_repo.mark_seen_door(player_id, object_id)
 
