@@ -32,6 +32,7 @@ class ChatPipeline(ABC):
         prior_conversation_summaries: list[dict[str, Any]] | None = None,
         player_id: str | None = None,
         conversation_claim_ids: list[str] | None = None,
+        locale: str = "sv",
     ) -> PipelineRunResult:
         raise NotImplementedError
 
@@ -42,5 +43,6 @@ class ChatPipeline(ABC):
         player_profile: dict[str, Any] | None = None,
         recent_exchanges: list[dict[str, Any]] | None = None,
         prior_conversation_summaries: list[dict[str, Any]] | None = None,
+        locale: str = "sv",
     ) -> PipelineRunResult:
         raise NotImplementedError

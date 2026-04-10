@@ -47,13 +47,15 @@ Request body:
 
 - `username` (string, required, minimum 3 characters)
 - `password` (string, required, minimum 3 characters)
+- `locale` (string, optional, `sv` or `en`, defaults to `sv`)
 
 Example request:
 
 ```json
 {
   "username": "john_doe",
-  "password": "secret123"
+  "password": "secret123",
+  "locale": "en"
 }
 ```
 
@@ -62,7 +64,8 @@ Example response:
 ```json
 {
   "user_id": "user_2",
-  "username": "john_doe"
+  "username": "john_doe",
+  "locale": "en"
 }
 ```
 
@@ -89,6 +92,12 @@ Validation / error responses:
 ```json
 {
   "detail": "password must be at least 3 characters"
+}
+```
+
+```json
+{
+  "detail": "locale must be 'sv' or 'en'"
 }
 ```
 
@@ -123,7 +132,8 @@ Example response:
 ```json
 {
   "user_id": "user_2",
-  "username": "john_doe"
+  "username": "john_doe",
+  "locale": "en"
 }
 ```
 
@@ -146,6 +156,53 @@ If credentials are invalid:
 ```json
 {
   "detail": "Invalid username or password"
+}
+```
+
+## PATCH /users/{user_id}/locale
+
+Update a user's preferred locale.
+
+Request body:
+
+- `locale` (string, required, `sv` or `en`)
+
+Example request:
+
+```json
+{
+  "locale": "en"
+}
+```
+
+Example response:
+
+```json
+{
+  "user_id": "user_2",
+  "locale": "en"
+}
+```
+
+Validation / error responses:
+
+```json
+{
+  "detail": "user_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "locale must be 'sv' or 'en'"
+}
+```
+
+If the user does not exist:
+
+```json
+{
+  "detail": "User not found"
 }
 ```
 

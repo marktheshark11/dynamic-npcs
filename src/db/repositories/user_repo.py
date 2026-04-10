@@ -113,6 +113,18 @@ class UserRepo(BaseRepository):
             locale=record.get("locale") or "sv",
         )
 
+    def get_locale_by_player_id(self, player_id: str) -> str:
+        """Resolve the owning user's locale for a player. Falls back to sv."""
+        record = self._run_single(
+            "MATCH (u:USER)-[:HAS_CHARACTER]->(:PLAYER {player_id: $player_id}) "
+            "RETURN coalesce(head(collect(DISTINCT u.locale)), 'sv') AS locale",
+            player_id=player_id,
+        )
+        if not record:
+            return "sv"
+        locale = record.get("locale") or "sv"
+        return locale if locale in self.SUPPORTED_LOCALES else "sv"
+
     def list_all(self) -> list[User]:
         """List all users."""
         records = self._run(

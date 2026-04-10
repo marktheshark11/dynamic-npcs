@@ -1,7 +1,7 @@
 import json
 import re
 
-from db.repositories import ConversationRepo, NPCRepo, PlayerRepo
+from db.repositories import ConversationRepo, NPCRepo, PlayerRepo, UserRepo
 from pipelines import ChatPipeline
 
 
@@ -17,6 +17,7 @@ class ChatService:
         self.conversation_repo = ConversationRepo(driver)
         self.npc_repo = NPCRepo(driver)
         self.player_repo = PlayerRepo(driver)
+        self.user_repo = UserRepo(driver)
         self.default_model = default_model
 
     def _get_pipeline(self) -> ChatPipeline:
@@ -31,6 +32,7 @@ class ChatService:
         prior_conversation_summaries=None,
         player_id=None,
         conversation_claim_ids=None,
+        locale="sv",
     ):
         return self._get_pipeline().run(
             npc_id,
@@ -40,7 +42,13 @@ class ChatService:
             prior_conversation_summaries=prior_conversation_summaries,
             player_id=player_id,
             conversation_claim_ids=conversation_claim_ids,
+            locale=locale,
         )
+
+    def _resolve_locale(self, player_id: str | None) -> str:
+        if not player_id:
+            return "sv"
+        return self.user_repo.get_locale_by_player_id(player_id)
 
     def _get_prior_conversation_summaries(self, npc_id, player_id, conversation_id):
         if not player_id:
@@ -257,6 +265,7 @@ class ChatService:
         player_profile = None
         if effective_player_id:
             player_profile = self.player_repo.get_profile_by_id(effective_player_id)
+        locale = self._resolve_locale(effective_player_id)
 
         recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=5)
         conversation_claim_ids = self.conversation_repo.get_mentioned_claim_ids(resolved_conversation_id)
@@ -272,6 +281,7 @@ class ChatService:
                 player_profile=player_profile,
                 recent_exchanges=recent_exchanges,
                 prior_conversation_summaries=prior_conversation_summaries,
+                locale=locale,
             )
         else:
             pipeline_result = self.build_prompt(
@@ -282,6 +292,7 @@ class ChatService:
                 prior_conversation_summaries=prior_conversation_summaries,
                 player_id=effective_player_id,
                 conversation_claim_ids=conversation_claim_ids,
+                locale=locale,
             )
         prompt_result = pipeline_result.prompt_result
         chain_metadata = pipeline_result.chain_metadata

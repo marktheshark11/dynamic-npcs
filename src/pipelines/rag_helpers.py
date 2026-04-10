@@ -559,6 +559,7 @@ def build_npc_profile(npc_data: dict[str, Any]) -> NPCProfile:
 
 def build_prompt_request(
     question: str,
+    locale: str = "sv",
     player_profile: dict[str, Any] | None = None,
     recent_exchanges: list[dict[str, Any]] | None = None,
     prior_conversation_summaries: list[dict[str, Any]] | None = None,
@@ -567,6 +568,7 @@ def build_prompt_request(
     return PromptRequest(
         question=question,
         scene_event=scene_event,
+        locale=locale,
         player_name=(player_profile or {}).get("name"),
         player_appearance=(player_profile or {}).get("appearance"),
         recent_exchanges=recent_exchanges or [],

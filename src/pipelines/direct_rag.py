@@ -38,6 +38,7 @@ class DirectRAGPipeline(ChatPipeline):
         prior_conversation_summaries: list[dict[str, Any]] | None = None,
         player_id: str | None = None,
         conversation_claim_ids: list[str] | None = None,
+        locale: str = "sv",
     ) -> PipelineRunResult:
         npc_data = get_npc_data(self._services, npc_id)
         remembered_claim_hits = get_remembered_claim_hits(
@@ -81,6 +82,7 @@ class DirectRAGPipeline(ChatPipeline):
         rag_context = build_rag_context(chain_metadata, constants)
         prompt_request = build_prompt_request(
             question=question,
+            locale=locale,
             player_profile=player_profile,
             recent_exchanges=recent_exchanges,
             prior_conversation_summaries=prior_conversation_summaries,
@@ -103,10 +105,12 @@ class DirectRAGPipeline(ChatPipeline):
         player_profile: dict[str, Any] | None = None,
         recent_exchanges: list[dict[str, Any]] | None = None,
         prior_conversation_summaries: list[dict[str, Any]] | None = None,
+        locale: str = "sv",
     ) -> PipelineRunResult:
         npc_data = get_npc_data(self._services, npc_id)
         prompt_request = build_prompt_request(
             question="",
+            locale=locale,
             player_profile=player_profile,
             recent_exchanges=recent_exchanges,
             prior_conversation_summaries=prior_conversation_summaries,
