@@ -22,7 +22,8 @@ A non-player character in the game world.
 | Property | Type | Notes |
 |----------|------|-------|
 | `id` | string | Unique identifier (e.g. "npc_01") |
-| `name` | string | Display name (e.g. "Anna") |
+| `name` | string | Display name in Swedish (e.g. "Anna") |
+| `name_en` | string? | English translation of `name` |
 | `age` | int | |
 | `personality` | string | Free-text personality description in Swedish |
 | `personality_en` | string? | English translation of `personality` |

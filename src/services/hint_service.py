@@ -88,10 +88,10 @@ class HintService:
 
     def get_hint_text(self, player_id: str) -> str:
         player_profile = self.player_repo.get_profile_by_id(player_id)
-        if not player_profile:
-            raise ValueError("Kunde inte hämta hint: spelaren hittades inte.")
-
         locale = self.user_repo.get_locale_by_player_id(player_id)
+        if not player_profile:
+            raise ValueError("Could not fetch hint: player not found." if self._is_english(locale) else "Kunde inte hämta hint: spelaren hittades inte.")
+
         state = self._build_player_state(player_id)
         lines = self._collect_matching_texts(state, locale)
         if not lines:
@@ -114,8 +114,9 @@ class HintService:
         matcher: Callable[[PlayerStateSnapshot], bool] | None = None,
     ) -> bool:
         player_profile = self.player_repo.get_profile_by_id(player_id)
+        locale = self.user_repo.get_locale_by_player_id(player_id)
         if not player_profile:
-            raise ValueError("Kunde inte kontrollera hintar: spelaren hittades inte.")
+            raise ValueError("Could not check hints: player not found." if self._is_english(locale) else "Kunde inte kontrollera hintar: spelaren hittades inte.")
 
         state = self._build_player_state(player_id)
         return self._matches_rule(state, check=check, matcher=matcher)

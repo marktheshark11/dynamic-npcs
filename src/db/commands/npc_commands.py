@@ -16,6 +16,7 @@ class CreateNPCCommand(Command):
     def execute(self) -> None:
         id_val = self._ui.prompt("id")
         name_val = self._ui.prompt("namn")
+        name_en_val = self._ui.prompt_optional("name_en")
         age_val = self._ui.prompt_int("ålder")
         personality_val = self._ui.prompt("personlighet")
         personality_en_val = self._ui.prompt_optional("personality_en")
@@ -26,6 +27,7 @@ class CreateNPCCommand(Command):
         npc = NPC(
             id=id_val,
             name=name_val,
+            name_en=name_en_val,
             age=age_val,
             personality=personality_val,
             personality_en=personality_en_val,
@@ -53,6 +55,7 @@ class EditNPCCommand(Command):
             return
 
         name_val = self._ui.prompt_optional("namn")
+        name_en_val = self._ui.prompt_optional("name_en")
         age_val = self._ui.prompt_optional_int("ålder")
         personality_val = self._ui.prompt_optional("personlighet")
         personality_en_val = self._ui.prompt_optional("personality_en")
@@ -63,6 +66,7 @@ class EditNPCCommand(Command):
         if self._repo.update(
             selected.id,
             name_val,
+            name_en_val,
             age_val,
             personality_val,
             personality_en_val,

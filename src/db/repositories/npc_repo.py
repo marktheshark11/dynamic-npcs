@@ -6,6 +6,12 @@ class NPCRepo(BaseRepository):
     """CRUD operations for NPC nodes."""
 
     @staticmethod
+    def _select_localized_name(record: dict, locale: str) -> str | None:
+        if locale == "en":
+            return record.get("name_en")
+        return record.get("name")
+
+    @staticmethod
     def _select_localized_text(record: dict, base_key: str, locale: str) -> str | None:
         if locale == "en":
             return record.get(f"{base_key}_en")
@@ -14,11 +20,12 @@ class NPCRepo(BaseRepository):
     def create(self, npc: NPC) -> None:
         self._run(
             "MERGE (npc:NPC {id: $id}) "
-            "SET npc.name = $name, npc.age = $age, npc.personality = $personality, "
+            "SET npc.name = $name, npc.name_en = $name_en, npc.age = $age, npc.personality = $personality, "
             "npc.personality_en = $personality_en, npc.status = $status, "
             "npc.story_background = $story_background, npc.story_background_en = $story_background_en",
             id=npc.id,
             name=npc.name,
+            name_en=npc.name_en,
             age=npc.age,
             personality=npc.personality,
             personality_en=npc.personality_en,
@@ -27,10 +34,10 @@ class NPCRepo(BaseRepository):
             story_background_en=npc.story_background_en,
         )
 
-    def get_by_id(self, id: str) -> NPC | None:
+    def get_by_id(self, id: str, locale: str = "sv") -> NPC | None:
         record = self._run_single(
             "MATCH (npc:NPC {id: $id}) "
-            "RETURN npc.id AS id, npc.name AS name, npc.age AS age, "
+            "RETURN npc.id AS id, npc.name AS name, npc.name_en AS name_en, npc.age AS age, "
             "npc.personality AS personality, npc.status AS status, "
             "npc.personality_en AS personality_en, npc.story_background AS story_background, "
             "npc.story_background_en AS story_background_en",
@@ -40,7 +47,8 @@ class NPCRepo(BaseRepository):
             return None
         return NPC(
             id=record["id"],
-            name=record["name"],
+            name=self._select_localized_name(record, locale) or "",
+            name_en=record.get("name_en"),
             age=record["age"],
             personality=record["personality"],
             personality_en=record.get("personality_en"),
@@ -52,7 +60,7 @@ class NPCRepo(BaseRepository):
     def list_all(self) -> list[NPC]:
         records = self._run(
             "MATCH (npc:NPC) "
-            "RETURN npc.id AS id, npc.name AS name, npc.age AS age, "
+            "RETURN npc.id AS id, npc.name AS name, npc.name_en AS name_en, npc.age AS age, "
             "npc.personality AS personality, npc.status AS status, "
             "npc.personality_en AS personality_en, npc.story_background AS story_background, "
             "npc.story_background_en AS story_background_en "
@@ -62,6 +70,7 @@ class NPCRepo(BaseRepository):
             NPC(
                 id=r["id"],
                 name=r["name"],
+                name_en=r.get("name_en"),
                 age=r["age"],
                 personality=r["personality"],
                 personality_en=r.get("personality_en"),
@@ -75,18 +84,18 @@ class NPCRepo(BaseRepository):
     def list_for_selection(self) -> list[dict]:
         records = self._run(
             "MATCH (n:NPC) "
-            "RETURN n.id AS id, n.name AS name, n.age AS age "
+            "RETURN n.id AS id, n.name AS name, n.name_en AS name_en, n.age AS age "
             "ORDER BY n.name"
         )
         return [
-            {"id": r["id"], "name": r["name"], "age": r.get("age")}
+            {"id": r["id"], "name": r["name"], "name_en": r.get("name_en"), "age": r.get("age")}
             for r in records
         ]
 
     def get_detail_by_id(self, npc_id: str, locale: str = "sv") -> dict | None:
         record = self._run_single(
             "MATCH (n:NPC {id: $npc_id}) "
-            "RETURN n.id AS id, n.name AS name, n.age AS age, "
+            "RETURN n.id AS id, n.name AS name, n.name_en AS name_en, n.age AS age, "
             "n.personality AS personality, n.personality_en AS personality_en, "
             "n.backstory AS backstory, n.story_background AS story_background, n.story_background_en AS story_background_en "
             "LIMIT 1",
@@ -96,7 +105,8 @@ class NPCRepo(BaseRepository):
             return None
         return {
             "id": record["id"],
-            "name": record["name"],
+            "name": self._select_localized_name(record, locale) or "",
+            "name_en": record.get("name_en"),
             "age": record.get("age"),
             "personality": self._select_localized_text(record, "personality", locale),
             "personality_en": record.get("personality_en"),
@@ -108,7 +118,7 @@ class NPCRepo(BaseRepository):
     def get_profile_by_id(self, npc_id: str, locale: str = "sv") -> dict | None:
         record = self._run_single(
             "MATCH (n:NPC {id: $npc_id}) "
-            "RETURN n.name AS name, n.personality AS personality, n.personality_en AS personality_en, "
+            "RETURN n.name AS name, n.name_en AS name_en, n.personality AS personality, n.personality_en AS personality_en, "
             "n.backstory AS backstory, n.story_background AS story_background, n.story_background_en AS story_background_en "
             "LIMIT 1",
             npc_id=npc_id,
@@ -116,7 +126,8 @@ class NPCRepo(BaseRepository):
         if not record:
             return None
         return {
-            "name": record["name"],
+            "name": self._select_localized_name(record, locale) or "",
+            "name_en": record.get("name_en"),
             "personality": self._select_localized_text(record, "personality", locale),
             "personality_en": record.get("personality_en"),
             "backstory": record.get("backstory"),
@@ -128,6 +139,7 @@ class NPCRepo(BaseRepository):
         self,
         id: str,
         name: str | None = None,
+        name_en: str | None = None,
         age: int | None = None,
         personality: str | None = None,
         personality_en: str | None = None,
@@ -141,6 +153,9 @@ class NPCRepo(BaseRepository):
         if name is not None:
             set_clauses.append("npc.name = $name")
             params["name"] = name
+        if name_en is not None:
+            set_clauses.append("npc.name_en = $name_en")
+            params["name_en"] = name_en
         if age is not None:
             set_clauses.append("npc.age = $age")
             params["age"] = age

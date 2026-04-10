@@ -71,8 +71,9 @@ class ScriptedNpcService:
             player_id=player_id,
             conversation_id=conversation_id,
         )
+        locale = self._resolve_locale(player_id)
         if not resolved_conversation_id:
-            raise ValueError("Kunde inte skapa konversation för scripted NPC.")
+            raise ValueError("Could not create a conversation for the scripted NPC." if self._is_english(locale) else "Kunde inte skapa konversation för scripted NPC.")
 
         normalized_question = (question or "").strip()
         session_key = self._session_key(
@@ -81,14 +82,12 @@ class ScriptedNpcService:
             conversation_id=resolved_conversation_id,
         )
         session_state = self._session_states.get(session_key, ScriptedNpcSessionState())
-        locale = self._resolve_locale(player_id)
-
         if player_id:
             player_profile = self.player_repo.get_profile_by_id(player_id)
             if not player_profile:
-                raise ValueError("Kunde inte hitta spelaren.")
+                raise ValueError("Could not find the player." if self._is_english(locale) else "Kunde inte hitta spelaren.")
             if player_profile.get("has_completed_game"):
-                raise ValueError("Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.")
+                raise ValueError("The game is already completed for this player. Create a new player to continue." if self._is_english(locale) else "Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.")
 
         if session_state.mode == self._ACCUSE_MODE:
             reply = self._handle_accusation_follow_up(
@@ -105,7 +104,7 @@ class ScriptedNpcService:
             reply = self._handle_choice(
                 npc_id=npc_id,
                 player_id=player_id,
-                choice=self._parse_choice(normalized_question),
+                choice=self._parse_choice(normalized_question, locale),
                 conversation_id=resolved_conversation_id,
                 locale=locale,
             )
@@ -154,11 +153,12 @@ class ScriptedNpcService:
         return npc_id, player_id or "__anonymous__", conversation_id
 
     @staticmethod
-    def _parse_choice(raw_choice: str) -> int:
+    def _parse_choice(raw_choice: str, locale: str) -> int:
         try:
             return int(raw_choice)
         except ValueError as exc:
-            raise ValueError("Ogiltigt val. Skicka ett heltal, till exempel 1, 2 eller 3.") from exc
+            is_english = ScriptedNpcService._is_english(locale)
+            raise ValueError("Invalid choice. Send a whole number, for example 1, 2 or 3." if is_english else "Ogiltigt val. Skicka ett heltal, till exempel 1, 2 eller 3.") from exc
 
     def _handle_choice(
         self,
@@ -196,7 +196,7 @@ class ScriptedNpcService:
         candidate_ids: list[str] = []
 
         for npc_candidate_id in self._ACCUSATION_CANDIDATE_IDS:
-            npc = self.npc_repo.get_by_id(npc_candidate_id)
+            npc = self.npc_repo.get_by_id(npc_candidate_id, locale=locale)
             if not npc:
                 continue
             candidate_ids.append(npc.id)
@@ -260,7 +260,7 @@ class ScriptedNpcService:
         is_english = self._is_english(locale)
         lines: list[str] = []
         for index, npc_candidate_id in enumerate(candidate_ids, start=1):
-            npc = self.npc_repo.get_by_id(npc_candidate_id)
+            npc = self.npc_repo.get_by_id(npc_candidate_id, locale=locale)
             if not npc:
                 continue
             lines.append(f"{index}. {npc.name}")
@@ -272,11 +272,11 @@ class ScriptedNpcService:
 
     def _resolve_accusation(self, npc_id: str, player_id: str | None, accused_npc_id: str, locale: str) -> ScriptedNpcReply:
         is_english = self._is_english(locale)
-        accused_npc = self.npc_repo.get_by_id(accused_npc_id)
+        accused_npc = self.npc_repo.get_by_id(accused_npc_id, locale=locale)
         if not accused_npc:
             raise ValueError("Could not load the accused person." if is_english else "Kunde inte hämta den anklagade personen.")
 
-        result = self._finalize_game(player_id=player_id, npc_id=npc_id, accused_npc_id=accused_npc_id)
+        result = self._finalize_game(player_id=player_id, npc_id=npc_id, accused_npc_id=accused_npc_id, locale=locale)
         is_correct = bool(result["accused_correct_npc"])
 
         if is_correct:
@@ -301,11 +301,13 @@ class ScriptedNpcService:
         player_id: str | None,
         npc_id: str,
         accused_npc_id: str,
+        locale: str,
     ) -> dict:
         del npc_id
+        is_english = self._is_english(locale)
 
         if not player_id:
-            raise ValueError("player_id krävs för att avsluta spelet.")
+            raise ValueError("player_id is required to complete the game." if is_english else "player_id krävs för att avsluta spelet.")
 
         result = self.player_repo.complete_game(
             player_id=player_id,
@@ -313,5 +315,5 @@ class ScriptedNpcService:
             correct_npc_id=self._CORRECT_MURDERER_ID,
         )
         if not result:
-            raise ValueError("Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.")
+            raise ValueError("The game is already completed for this player. Create a new player to continue." if is_english else "Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.")
         return result

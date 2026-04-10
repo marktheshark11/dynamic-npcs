@@ -259,11 +259,15 @@ def _get_player_or_404(player_repo: PlayerRepo, player_id: str) -> dict:
     return player_profile
 
 
-def _ensure_player_not_completed(player_profile: dict) -> None:
+def _ensure_player_not_completed(player_profile: dict, locale: str = "sv") -> None:
     if player_profile.get("has_completed_game"):
         raise HTTPException(
             status_code=409,
-            detail="Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta.",
+            detail=(
+                "The game is already completed for this player. Create a new player to continue."
+                if locale == "en"
+                else "Spelet är redan avslutat för den här spelaren. Skapa en ny spelare för att fortsätta."
+            ),
         )
 
 # Enable CORS for web frontend integration
@@ -441,7 +445,8 @@ async def chat_static_npc(
         if player_id:
             player_repo = PlayerRepo(config.driver)
             player_profile = _get_player_or_404(player_repo, player_id)
-            _ensure_player_not_completed(player_profile)
+            locale = LocaleService(config.driver).get_player_locale(player_id)
+            _ensure_player_not_completed(player_profile, locale=locale)
 
         result = scripted_npc_service.ask_npc(
             npc_id=payload.npc_id,

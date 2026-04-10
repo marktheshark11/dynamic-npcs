@@ -95,7 +95,7 @@ class ChatService:
 
         locale = self._resolve_locale(conversation.get("player_id"))
         is_english = self._is_english(locale)
-        npc_profile = self.npc_repo.get_profile_by_id(conversation.get("npc_id"))
+        npc_profile = self.npc_repo.get_profile_by_id(conversation.get("npc_id"), locale=locale)
         exchanges = self.conversation_repo.list_exchanges(conversation_id)
         transcript = self._format_all_exchanges_for_summary(exchanges, locale=locale)
         npc_name = (npc_profile or {}).get("name") or conversation.get("npc_id") or ("the NPC" if is_english else "NPC:n")

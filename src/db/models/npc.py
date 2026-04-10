@@ -8,6 +8,7 @@ class NPC:
     age: int
     personality: str
     status: str
+    name_en: str | None = None
     personality_en: str | None = None
     story_background: str | None = None
     story_background_en: str | None = None
