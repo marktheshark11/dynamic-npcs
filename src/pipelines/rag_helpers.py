@@ -23,6 +23,10 @@ class RAGPipelineServices:
         return self._group_support
 
 
+def _is_english(locale: str | None) -> bool:
+    return (locale or "sv").strip().lower() == "en"
+
+
 def get_npc_data(services: RAGPipelineServices, npc_id: str) -> dict[str, Any]:
     npc_data = services.npc_repo.get_profile_by_id(npc_id)
     if not npc_data:
@@ -62,6 +66,24 @@ def _build_history_block(recent_exchanges: list[dict[str, Any]] | None) -> str:
     return "\n".join(history_lines) if history_lines else "(ingen historik)"
 
 
+def _build_history_block_for_locale(
+    recent_exchanges: list[dict[str, Any]] | None,
+    locale: str,
+) -> str:
+    history_lines: list[str] = []
+    is_english = _is_english(locale)
+    for exchange in recent_exchanges or []:
+        player_text = exchange.get("player_text") or ""
+        npc_text = exchange.get("npc_text") or ""
+        if player_text:
+            history_lines.append(f"{'Player' if is_english else 'Spelare'}: {player_text}")
+        if npc_text:
+            history_lines.append(f"NPC: {npc_text}")
+    if history_lines:
+        return "\n".join(history_lines)
+    return "(no history)" if is_english else "(ingen historik)"
+
+
 def _build_mentioned_block(mentioned_claims: list[dict[str, Any]] | None) -> str:
     mentioned_lines = [
         claim["content"] for claim in mentioned_claims or [] if claim.get("content")
@@ -74,17 +96,28 @@ def rewrite_query(
     recent_exchanges: list[dict[str, Any]] | None,
     story_background: str | None = None,
     mentioned_claims: list[dict[str, Any]] | None = None,
+    locale: str = "sv",
 ) -> str:
     from llms.llm_groq import chat as groq_chat
 
-    history_block = _build_history_block(recent_exchanges)
+    is_english = _is_english(locale)
+    history_block = _build_history_block_for_locale(recent_exchanges, locale)
     mentioned_block = _build_mentioned_block(mentioned_claims)
-    background_block = story_background.strip() if story_background else "(ingen bakgrund)"
+    background_block = story_background.strip() if story_background else ("(no background)" if is_english else "(ingen bakgrund)")
 
     messages = [
         {
             "role": "system",
             "content": (
+                "You are a question-rewriting tool for RAG (Retrieval-Augmented Generation).\n"
+                "Your job is to rewrite the player's question into an information-rich search phrase optimized for vector database retrieval.\n"
+                "You have access to the story background, previously mentioned information, and conversation history.\n"
+                "Rules:\n"
+                "- Replace all pronouns (he, she, it, there, etc.) with concrete names and places from the context.\n"
+                "- The search phrase must include only information that maps exactly to what the player is asking for.\n"
+                "- Write in English.\n"
+                "- Return ONLY the search phrase as plain text, without explanation or comments."
+            ) if is_english else (
                 "Du är ett verktyg för frågeomskrivning för RAG (Retrieval-Augmented Generation).\n"
                 "Din uppgift är att ta spelarens fråga och skriva om den till en informationsrik "
                 "sökfras optimerad för vektordatabassökning.\n"
@@ -99,6 +132,12 @@ def rewrite_query(
         {
             "role": "user",
             "content": (
+                f"STORY BACKGROUND:\n{background_block}\n\n"
+                f"PREVIOUSLY MENTIONED FACTS:\n{mentioned_block}\n\n"
+                f"CONVERSATION HISTORY:\n{history_block}\n\n"
+                f"PLAYER QUESTION: {question}\n\n"
+                "SEARCH PHRASE:"
+            ) if is_english else (
                 f"BERÄTTELSENS BAKGRUND:\n{background_block}\n\n"
                 f"TIDIGARE NÄMNDA FAKTA:\n{mentioned_block}\n\n"
                 f"KONVERSATIONSHISTORIK:\n{history_block}\n\n"
@@ -120,6 +159,7 @@ def build_search_query(
     story_background: str | None,
     remembered_claim_hits: list[dict[str, Any]],
     should_rewrite: bool,
+    locale: str = "sv",
 ) -> str:
     if not should_rewrite:
         return question
@@ -128,6 +168,7 @@ def build_search_query(
         recent_exchanges=recent_exchanges,
         story_background=story_background,
         mentioned_claims=remembered_claim_hits,
+        locale=locale,
     )
 
 
@@ -405,6 +446,24 @@ def _build_selector_history_block(recent_exchanges: list[dict[str, Any]] | None)
     return "\n".join(history_lines) if history_lines else "(ingen historik)"
 
 
+def _build_selector_history_block_for_locale(
+    recent_exchanges: list[dict[str, Any]] | None,
+    locale: str,
+) -> str:
+    history_lines: list[str] = []
+    is_english = _is_english(locale)
+    for exchange in recent_exchanges or []:
+        player_text = (exchange.get("player_text") or "").strip()
+        npc_text = (exchange.get("npc_text") or "").strip()
+        if player_text:
+            history_lines.append(f"- {'DETECTIVE' if is_english else 'DETEKTIVEN'}: {player_text}")
+        if npc_text:
+            history_lines.append(f"- NPC: {npc_text}")
+    if history_lines:
+        return "\n".join(history_lines)
+    return "(no history)" if is_english else "(ingen historik)"
+
+
 def _build_selector_candidates(chains: list[dict[str, Any]]) -> str:
     candidate_lines: list[str] = []
     for chain_index, chain in enumerate(chains, start=1):
@@ -465,9 +524,11 @@ def select_relevant_claim_ids(
     recent_exchanges: list[dict[str, Any]] | None,
     story_background: str | None,
     chains: list[dict[str, Any]],
+    locale: str = "sv",
 ) -> list[str]:
     from llms.llm_groq import chat as groq_chat
 
+    is_english = _is_english(locale)
     allowed_ids = {
         claim_id.upper()
         for chain in chains
@@ -481,6 +542,17 @@ def select_relevant_claim_ids(
         {
             "role": "system",
             "content": (
+                "You choose which facts should be sent to another LLM that answers in character.\n"
+                "The goal is high recall in retrieval but narrow relevance in the final prompt.\n"
+                "Select only the claim IDs that are truly needed to answer the detective's latest question.\n"
+                "Rules:\n"
+                "- Return ONLY valid JSON with exactly the key 'selected_claim_ids'.\n"
+                "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
+                "- Select only claim IDs from the candidate list.\n"
+                "- Include facts that directly answer the question or are needed to understand the answer.\n"
+                "- Exclude side tracks, duplicates, and background that is not needed for this question.\n"
+                "- If none of the candidate material is relevant, return an empty list []."
+            ) if is_english else (
                 "Du väljer vilka fakta som ska skickas vidare till en annan LLM som svarar i karaktär.\n"
                 "Målet är hög recall i retrieval men snäv relevans i slutprompten.\n"
                 "Välj bara claim-IDn som verkligen behövs för att besvara detektivens senaste fråga.\n"
@@ -496,8 +568,14 @@ def select_relevant_claim_ids(
         {
             "role": "user",
             "content": (
+                f"STORY BACKGROUND:\n{(story_background or '(no background)').strip()}\n\n"
+                f"LATEST CONVERSATION:\n{_build_selector_history_block_for_locale(recent_exchanges, locale)}\n\n"
+                f"DETECTIVE'S LATEST QUESTION:\n{question}\n\n"
+                f"CANDIDATE FACTS:\n{_build_selector_candidates(chains)}\n\n"
+                "Return the JSON now."
+            ) if is_english else (
                 f"BERÄTTELSEBAKGRUND:\n{(story_background or '(ingen bakgrund)').strip()}\n\n"
-                f"SENASTE KONVERSATION:\n{_build_selector_history_block(recent_exchanges)}\n\n"
+                f"SENASTE KONVERSATION:\n{_build_selector_history_block_for_locale(recent_exchanges, locale)}\n\n"
                 f"DETEKTIVENS SENASTE FRÅGA:\n{question}\n\n"
                 f"KANDIDATFAKTA:\n{_build_selector_candidates(chains)}\n\n"
                 "Returnera nu JSON."

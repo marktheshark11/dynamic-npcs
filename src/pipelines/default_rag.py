@@ -52,6 +52,7 @@ class DefaultRAGPipeline(ChatPipeline):
             story_background=npc_data.get("story_background"),
             remembered_claim_hits=remembered_claim_hits,
             should_rewrite=self.should_rewrite_query,
+            locale=locale,
         )
         query_embedding = create_query_embedding(self._services, search_query)
         top_claims = get_top_claims(

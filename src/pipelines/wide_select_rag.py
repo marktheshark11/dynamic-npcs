@@ -55,6 +55,7 @@ class WideSelectRAGPipeline(ChatPipeline):
             story_background=npc_data.get("story_background"),
             remembered_claim_hits=remembered_claim_hits,
             should_rewrite=self.should_rewrite_query,
+            locale=locale,
         )
         query_embedding = create_query_embedding(self._services, search_query)
         top_claims = get_top_claims(
@@ -88,6 +89,7 @@ class WideSelectRAGPipeline(ChatPipeline):
             recent_exchanges=recent_exchanges,
             story_background=npc_data.get("story_background"),
             chains=chain_metadata,
+            locale=locale,
         )
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(

@@ -24,13 +24,14 @@ class PromptBuilder:
         rag_context: RAGContext,
         request: PromptRequest,
     ) -> PromptBuildResult:
-        identity_text = IdentitySection.render(profile)
-        rules_text = RulesSection.render()
+        locale = request.locale
+        identity_text = IdentitySection.render(profile, locale)
+        rules_text = RulesSection.render(locale)
         #print('rules_text:', rules_text)
-        output_format_text = OutputFormatSection.render()
+        output_format_text = OutputFormatSection.render(locale)
         #print('output_format_text:', output_format_text)
-        story_background_text = StoryBackgroundSection.render(profile)
-        world_context_text = ContextSection.render(rag_context)
+        story_background_text = StoryBackgroundSection.render(profile, locale)
+        world_context_text = ContextSection.render(rag_context, locale)
         detective_context_text = DetectiveContextSection.render(request)
         conversation_memory_text = ConversationMemorySection.render(request)
         scene_event_text = SceneEventSection.render(request)

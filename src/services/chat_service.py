@@ -62,9 +62,14 @@ class ChatService:
         )
 
     @staticmethod
-    def _format_all_exchanges_for_summary(exchanges):
+    def _is_english(locale: str | None) -> bool:
+        return (locale or "sv").strip().lower() == "en"
+
+    @staticmethod
+    def _format_all_exchanges_for_summary(exchanges, locale="sv"):
+        is_english = ChatService._is_english(locale)
         if not exchanges:
-            return "(Inga meddelanden i konversationen)"
+            return "(No messages in the conversation)" if is_english else "(Inga meddelanden i konversationen)"
 
         lines = []
         for exchange in exchanges:
@@ -72,9 +77,13 @@ class ChatService:
             player_text = exchange.get("player_text") or ""
             npc_text = exchange.get("npc_text") or ""
             if player_text:
-                lines.append(f"Tur {turn_index} - DETEKTIVEN: {player_text}")
+                prefix = "Turn" if is_english else "Tur"
+                speaker = "DETECTIVE" if is_english else "DETEKTIVEN"
+                lines.append(f"{prefix} {turn_index} - {speaker}: {player_text}")
             if npc_text:
-                lines.append(f"Tur {turn_index} - DU: {npc_text}")
+                prefix = "Turn" if is_english else "Tur"
+                speaker = "YOU" if is_english else "DU"
+                lines.append(f"{prefix} {turn_index} - {speaker}: {npc_text}")
         return "\n".join(lines)
 
     def summarize_conversation(self, conversation_id, model=None):
@@ -84,25 +93,41 @@ class ChatService:
         if not conversation:
             return None
 
+        locale = self._resolve_locale(conversation.get("player_id"))
+        is_english = self._is_english(locale)
         npc_profile = self.npc_repo.get_profile_by_id(conversation.get("npc_id"))
         exchanges = self.conversation_repo.list_exchanges(conversation_id)
-        transcript = self._format_all_exchanges_for_summary(exchanges)
-        npc_name = (npc_profile or {}).get("name") or conversation.get("npc_id") or "NPC:n"
-        personality = (npc_profile or {}).get("personality") or "Okänd"
-        backstory = (npc_profile or {}).get("backstory") or "Okänd"
-        story_background = (npc_profile or {}).get("story_background") or "Okänt"
+        transcript = self._format_all_exchanges_for_summary(exchanges, locale=locale)
+        npc_name = (npc_profile or {}).get("name") or conversation.get("npc_id") or ("the NPC" if is_english else "NPC:n")
+        personality = (npc_profile or {}).get("personality") or ("Unknown" if is_english else "Okänd")
+        backstory = (npc_profile or {}).get("backstory") or ("Unknown" if is_english else "Okänd")
+        story_background = (npc_profile or {}).get("story_background") or ("Unknown" if is_english else "Okänt")
 
         messages = [
             {
                 "role": "system",
                 "content": (
+                    "You are writing a conversation summary as the NPC themself, in first person.\n\n"
+                    f"You are {npc_name}.\n"
+                    f"Personality: {personality}\n"
+                    f"Background: {backstory}\n"
+                    f"What has happened in the story: {story_background}\n\n"
+                    "Instructions:\n"
+                    "- The only language you understand is English. If you receive input in another language, say you don't understand it.\n"
+                    "- Write in first person, from your own perspective.\n"
+                    "- Describe what I learned, what I told them, what I avoided, what I suspect, and how I perceived the detective if relevant.\n"
+                    "- Refer to the detective as 'the detective', never as 'I'.\n"
+                    "- Never write about me in third person or with my name as if I were someone else.\n"
+                    "- Be concise but concrete enough to be useful as a memory note for future conversations. About 1-2 sentences is good.\n"
+                    "- Include what is important for the character to remember, and leave out unimportant fluff."
+                ) if is_english else (
                     "Du skriver en konversationssammanfattning som NPC:n själv, i jag-form.\n\n"
                     f"Du är {npc_name}.\n"
                     f"Personlighet: {personality}\n"
                     f"Bakgrund: {backstory}\n"
                     f"Vad som har hänt i berättelsen: {story_background}\n\n"
                     "Instruktioner:\n"
-                    "- Skriv på svenska.\n"
+                    "- Det enda språket du förstår är svenska. Om du får indata på ett annat språk, säg att du inte förstår det.\n"
                     "- Skriv i första person, ur ditt eget perspektiv.\n"
                     "- Beskriv vad jag fick veta, vad jag berättade, vad jag undvek, vad jag misstänker, och hur jag uppfattade detektiven om det är relevant.\n"
                     "- Nämn detektiven som 'detektiven', aldrig som 'jag'.\n"
@@ -114,6 +139,12 @@ class ChatService:
             {
                 "role": "user",
                 "content": (
+                    "Here is the full conversation to summarize.\n\n"
+                    f"Conversation ID: {conversation_id}\n"
+                    f"NPC ID: {conversation.get('npc_id')}\n\n"
+                    f"Conversation:\n{transcript}\n\n"
+                    "Now write the summary in first person from the NPC's perspective."
+                ) if is_english else (
                     "Här är hela samtalet som ska sammanfattas.\n\n"
                     f"Konversations-ID: {conversation_id}\n"
                     f"NPC ID: {conversation.get('npc_id')}\n\n"
@@ -128,7 +159,7 @@ class ChatService:
             model=model or self.default_model,
         ).strip()
         if not summary:
-            summary = "Ingen sammanfattning kunde genereras."
+            summary = "No summary could be generated." if is_english else "Ingen sammanfattning kunde genereras."
 
         updated = self.conversation_repo.update_summary(conversation_id, summary)
         if not updated:
