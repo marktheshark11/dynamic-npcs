@@ -86,6 +86,7 @@ class OutputFormatSection:
                 "- If the information comes from the background description instead of a claim, no claim ID should be included.\n"
                 "- Always verify that each claim ID corresponds to something expressed in the response.\n"
                 "- A claim only counts as used if the full informational content of the claim is expressed in the response. If only part of the claim is expressed, do not include it."
+                "- Reply in English, even if the question is in another language."
             )
         return (
             "SVARFORMAT (viktigt):\n"
@@ -98,6 +99,7 @@ class OutputFormatSection:
             "- Om informationen inte kommer från en claim utan från bakgrundsbeskrivningen, ska inget claim-ID inkluderas.\n"
             "- Kontrollera alltid att varje claim-ID motsvarar något som uttrycks i svaret.\n"
             " - En claim får bara anses använd om hela claimens informationsinnehåll uttrycks i svaret. Om bara en del av claimen uttrycks, ska claimen inte tas med."
+            "- Svara på engelska, även om frågan är på ett annat språk."
         )
 
 
