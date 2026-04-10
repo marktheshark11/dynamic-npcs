@@ -29,6 +29,7 @@ class RAGRepo(BaseRepository):
 
     def find_top_claims(self, npc_id: str, query_vector: list[float], top_k: int, locale: str = "sv") -> list[dict]:
         content_expr = self._claim_content_expr(locale)
+        embedding_expr = "c.embedding_en" if locale == "en" else "c.embedding"
         records = self._run(
             f"""
             MATCH (n:NPC {{id: $npc_id}})
@@ -37,9 +38,9 @@ class RAGRepo(BaseRepository):
 
             WITH collect(c1) + collect(c2) AS all_c
             UNWIND all_c AS c
-            WITH DISTINCT c WHERE c IS NOT NULL AND c.embedding IS NOT NULL
+            WITH DISTINCT c WHERE c IS NOT NULL AND {embedding_expr} IS NOT NULL
 
-            WITH c, vector.similarity.cosine(c.embedding, $query_vector) AS score
+            WITH c, vector.similarity.cosine({embedding_expr}, $query_vector) AS score
             RETURN elementId(c) AS id,
                    c.claim_id AS claim_id,
                    {content_expr} AS content,
