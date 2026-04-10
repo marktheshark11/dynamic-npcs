@@ -21,6 +21,7 @@ from services.scripted_npc_service import ScriptedNpcService
 
 class ChatResponse(BaseModel):
     npc_id: str
+    npc_name: str = ""
     conversation_id: str | None = None
     response: str
     used_claims: list[str] = Field(default_factory=list)
@@ -28,6 +29,7 @@ class ChatResponse(BaseModel):
 
 class StaticNpcChatResponse(BaseModel):
     npc_id: str
+    npc_name: str = ""
     conversation_id: str | None = None
     response: str
     game_completed: bool = False
@@ -397,10 +399,11 @@ async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_cha
             conversation_id=payload.conversation_id,
         )
         if not result:
-            return ChatResponse(npc_id=payload.npc_id, response="No response")
+            return ChatResponse(npc_id=payload.npc_id, npc_name="", response="No response")
         _print_chat_debug(result)
         return ChatResponse(
             npc_id=payload.npc_id,
+            npc_name=result.get("npc_name") or "",
             conversation_id=result.get("conversation_id"),
             response=result["response"],
             used_claims=result.get("used_claims") or [],
@@ -456,6 +459,7 @@ async def chat_static_npc(
         )
         return StaticNpcChatResponse(
             npc_id=payload.npc_id,
+            npc_name=result.get("npc_name") or "",
             conversation_id=result.get("conversation_id"),
             response=result["response"],
             game_completed=bool(result.get("game_completed")),

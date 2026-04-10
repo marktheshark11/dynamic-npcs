@@ -271,7 +271,16 @@ class ChatService:
 
         normalized_question = (question or "").strip()
 
+        effective_player_id = player_id
+        if not effective_player_id:
+            conversation = self.conversation_repo.get_conversation(resolved_conversation_id)
+            if conversation:
+                effective_player_id = conversation.get("player_id")
+
+        locale = self._resolve_locale(effective_player_id)
+
         if normalized_question and is_malicious(normalized_question):
+            npc_profile = self.npc_repo.get_profile_by_id(npc_id, locale=locale)
             self.conversation_repo.append_exchange(
                 conversation_id=resolved_conversation_id,
                 player_text=normalized_question,
@@ -279,6 +288,7 @@ class ChatService:
             )
             return {
                 "npc_id": npc_id,
+                "npc_name": (npc_profile or {}).get("name") or "",
                 "conversation_id": resolved_conversation_id,
                 "response": refusal_message,
                 "used_claims": [],
@@ -287,16 +297,9 @@ class ChatService:
                 "chain_metadata": [],
             }
 
-        effective_player_id = player_id
-        if not effective_player_id:
-            conversation = self.conversation_repo.get_conversation(resolved_conversation_id)
-            if conversation:
-                effective_player_id = conversation.get("player_id")
-
         player_profile = None
         if effective_player_id:
             player_profile = self.player_repo.get_profile_by_id(effective_player_id)
-        locale = self._resolve_locale(effective_player_id)
 
         recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=5)
         conversation_claim_ids = self.conversation_repo.get_mentioned_claim_ids(resolved_conversation_id)
@@ -330,6 +333,9 @@ class ChatService:
         if not prompt_result:
             return None
 
+        npc_profile = self.npc_repo.get_profile_by_id(npc_id, locale=locale)
+        localized_npc_name = (npc_profile or {}).get("name") or ""
+
         raw_response_text = groq_chat(
             messages=prompt_result.messages,
             model=model or self.default_model,
@@ -354,6 +360,7 @@ class ChatService:
 
         return {
             "npc_id": npc_id,
+            "npc_name": localized_npc_name,
             "conversation_id": resolved_conversation_id,
             "response": response_text,
             "used_claims": used_claims,

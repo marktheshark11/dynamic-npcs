@@ -72,6 +72,7 @@ class ScriptedNpcService:
             conversation_id=conversation_id,
         )
         locale = self._resolve_locale(player_id)
+        npc = self.npc_repo.get_by_id(npc_id, locale=locale)
         if not resolved_conversation_id:
             raise ValueError("Could not create a conversation for the scripted NPC." if self._is_english(locale) else "Kunde inte skapa konversation för scripted NPC.")
 
@@ -117,6 +118,7 @@ class ScriptedNpcService:
 
         return {
             "npc_id": npc_id,
+            "npc_name": npc.name if npc else "",
             "player_id": player_id,
             "conversation_id": resolved_conversation_id,
             "response": reply.response,
