@@ -24,8 +24,11 @@ A non-player character in the game world.
 | `id` | string | Unique identifier (e.g. "npc_01") |
 | `name` | string | Display name (e.g. "Anna") |
 | `age` | int | |
-| `personality` | string | Free-text personality description |
+| `personality` | string | Free-text personality description in Swedish |
+| `personality_en` | string? | English translation of `personality` |
 | `backstory` | string | Background/history of the character |
+| `story_background` | string? | Story context in Swedish |
+| `story_background_en` | string? | English translation of `story_background` |
 
 ### GROUP
 A named group that NPCs can belong to (e.g. "Kyrkan", "Handelsgillet").
@@ -40,9 +43,11 @@ A statement or piece of knowledge that exists in the world. CLAIMs are the centr
 | Property | Type | Notes |
 |----------|------|-------|
 | `claim_id` | string | Auto-generated: C1, C2, C3, ... |
-| `content` | string | The statement in natural language |
+| `content` | string | The statement in natural language in Swedish |
+| `content_en` | string? | English translation of `content` |
 | `type` | string? | Optional. Currently only value is `"relation"` (marks claims about relationships between entities) |
 | `embedding` | float[] | Vector embedding of `content`, auto-generated on create/edit using mxbai-embed-large |
+| `embedding_en` | float[]? | Vector embedding of `content_en`, auto-generated when English content exists |
 
 ### OBJECT
 A thing in the world (e.g. "Svard", "Bok").
@@ -51,6 +56,7 @@ A thing in the world (e.g. "Svard", "Bok").
 |----------|------|-------|
 | `object_id` | string | Stable object identity, normally set explicitly when creating the object/item (e.g. `object_brev`, `item_key`) |
 | `name` | string | Unique, capitalized |
+| `name_en` | string? | English translation of `name` |
 
 Some `OBJECT` nodes may also carry the `ITEM` label for gameplay interactions.
 
@@ -61,7 +67,9 @@ A gameplay-interactable object. Implemented as an extra label on `OBJECT` (`:OBJ
 |----------|------|-------|
 | `object_id` | string | Shared object identifier on the underlying `OBJECT` node |
 | `name` | string | Shared with the underlying `OBJECT` node |
+| `name_en` | string? | English translation of `name` |
 | `inspect_text` | string | Text shown when the player inspects the item |
+| `inspect_text_en` | string? | English translation of `inspect_text` |
 | `pickupable` | bool | `true` if the player can pick it up |
 
 ### DOOR
@@ -71,7 +79,9 @@ A gameplay door represented as an `OBJECT` with the extra `DOOR` label.
 |----------|------|-------|
 | `object_id` | string | Stable door identifier |
 | `name` | string | Door name |
+| `name_en` | string? | English translation of `name` |
 | `inspect_text` | string | Text shown when the player inspects the door |
+| `inspect_text_en` | string? | English translation of `inspect_text` |
 | `is_locked` | bool | Whether the door requires a condition before it can be opened |
 | `lock_type` | string | `none`, `item`, or `code` |
 | `unlock_code` | string? | Present only when `lock_type` is `code` |
@@ -82,6 +92,7 @@ A location in the world (e.g. "Torget", "Kyrkan").
 | Property | Type | Notes |
 |----------|------|-------|
 | `name` | string | Unique, capitalized |
+| `name_en` | string? | English translation of `name` |
 
 ### MYSTERY
 An organizational grouping for the database builder. Used to categorize claims by plot thread / storyline (e.g. "Mordet", "Otroheten"). Has no impact on the RAG pipeline — purely a structural aid for the person building the database.

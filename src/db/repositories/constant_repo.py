@@ -76,18 +76,18 @@ class ConstantRepo(BaseRepository):
 
     # --- OBJECT ---
 
-    def create_object(self, name: str, object_id: str | None = None) -> Object:
+    def create_object(self, name: str, object_id: str | None = None, name_en: str | None = None) -> Object:
         self._ensure_object_ids()
         formatted = name.capitalize()
         normalized_id = (object_id or "").strip() or None
         existing = self._run_single(
-            "MATCH (o:OBJECT {name: $name}) RETURN o.object_id AS object_id, o.name AS name LIMIT 1",
+            "MATCH (o:OBJECT {name: $name}) RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en LIMIT 1",
             name=formatted,
         )
         if existing:
             if normalized_id and existing["object_id"] != normalized_id:
                 raise ValueError("Det finns redan ett objekt med samma namn men annat ID")
-            return Object(object_id=existing["object_id"], name=existing["name"])
+            return Object(object_id=existing["object_id"], name=existing["name"], name_en=existing.get("name_en"))
 
         final_object_id = normalized_id or self._next_object_id("object")
         conflicting = self._run_single(
@@ -98,18 +98,19 @@ class ConstantRepo(BaseRepository):
             raise ValueError("Det finns redan ett objekt med samma ID")
 
         self._run(
-            "CREATE (o:OBJECT {object_id: $object_id, name: $name})",
+            "CREATE (o:OBJECT {object_id: $object_id, name: $name, name_en: $name_en})",
             object_id=final_object_id,
             name=formatted,
+            name_en=name_en,
         )
-        return Object(object_id=final_object_id, name=formatted)
+        return Object(object_id=final_object_id, name=formatted, name_en=name_en)
 
     def list_objects(self) -> list[Object]:
         self._ensure_object_ids()
         records = self._run(
-            "MATCH (o:OBJECT) RETURN o.object_id AS object_id, o.name AS name ORDER BY o.object_id"
+            "MATCH (o:OBJECT) RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en ORDER BY o.object_id"
         )
-        return [Object(object_id=r["object_id"], name=r["name"]) for r in records]
+        return [Object(object_id=r["object_id"], name=r["name"], name_en=r.get("name_en")) for r in records]
 
     def delete_object(self, object_id: str) -> bool:
         self._ensure_object_ids()
@@ -124,7 +125,9 @@ class ConstantRepo(BaseRepository):
     def create_door(
         self,
         name: str,
+        name_en: str | None,
         inspect_text: str,
+        inspect_text_en: str | None,
         is_locked: bool,
         lock_type: str = "none",
         unlock_code: str | None = None,
@@ -146,7 +149,7 @@ class ConstantRepo(BaseRepository):
         normalized_id = (object_id or "").strip() or None
         existing = self._run_single(
             "MATCH (o:OBJECT {name: $name}) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.is_locked AS is_locked, "
             "       o.lock_type AS lock_type, o.unlock_code AS unlock_code "
             "LIMIT 1",
             name=formatted,
@@ -165,11 +168,13 @@ class ConstantRepo(BaseRepository):
         self._run(
             "MERGE (o:OBJECT {name: $name}) "
             "ON CREATE SET o.object_id = $object_id "
-            "SET o:DOOR, o.inspect_text = $inspect_text, o.is_locked = $is_locked, "
+            "SET o:DOOR, o.name_en = $name_en, o.inspect_text = $inspect_text, o.inspect_text_en = $inspect_text_en, o.is_locked = $is_locked, "
             "    o.lock_type = $lock_type, o.unlock_code = $unlock_code",
             object_id=final_object_id,
             name=formatted,
+            name_en=name_en,
             inspect_text=inspect_text,
+            inspect_text_en=inspect_text_en,
             is_locked=normalized_is_locked,
             lock_type=normalized_lock_type,
             unlock_code=normalized_code,
@@ -189,7 +194,9 @@ class ConstantRepo(BaseRepository):
         return Door(
             object_id=final_object_id,
             name=formatted,
+            name_en=name_en,
             inspect_text=inspect_text,
+            inspect_text_en=inspect_text_en,
             is_locked=normalized_is_locked,
             lock_type=normalized_lock_type,
             unlock_code=normalized_code,
@@ -199,7 +206,9 @@ class ConstantRepo(BaseRepository):
     def create_item(
         self,
         name: str,
+        name_en: str | None,
         inspect_text: str,
+        inspect_text_en: str | None,
         pickupable: bool,
         object_id: str | None = None,
     ) -> Item:
@@ -208,7 +217,7 @@ class ConstantRepo(BaseRepository):
         normalized_id = (object_id or "").strip() or None
         existing = self._run_single(
             "MATCH (o:OBJECT {name: $name}) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.pickupable AS pickupable "
             "LIMIT 1",
             name=formatted,
         )
@@ -226,16 +235,20 @@ class ConstantRepo(BaseRepository):
         self._run(
             "MERGE (o:OBJECT {name: $name}) "
             "ON CREATE SET o.object_id = $object_id "
-            "SET o:ITEM, o.inspect_text = $inspect_text, o.pickupable = $pickupable",
+            "SET o:ITEM, o.name_en = $name_en, o.inspect_text = $inspect_text, o.inspect_text_en = $inspect_text_en, o.pickupable = $pickupable",
             object_id=final_object_id,
             name=formatted,
+            name_en=name_en,
             inspect_text=inspect_text,
+            inspect_text_en=inspect_text_en,
             pickupable=pickupable,
         )
         return Item(
             object_id=final_object_id,
             name=formatted,
+            name_en=name_en,
             inspect_text=inspect_text,
+            inspect_text_en=inspect_text_en,
             pickupable=pickupable,
         )
 
@@ -243,14 +256,16 @@ class ConstantRepo(BaseRepository):
         self._ensure_object_ids()
         records = self._run(
             "MATCH (o:OBJECT:ITEM) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.pickupable AS pickupable "
             "ORDER BY o.object_id"
         )
         return [
             Item(
                 object_id=r["object_id"],
                 name=r["name"],
+                name_en=r.get("name_en"),
                 inspect_text=r.get("inspect_text") or "",
+                inspect_text_en=r.get("inspect_text_en"),
                 pickupable=bool(r.get("pickupable")),
             )
             for r in records
@@ -261,7 +276,7 @@ class ConstantRepo(BaseRepository):
         records = self._run(
             "MATCH (o:OBJECT:DOOR) "
             "OPTIONAL MATCH (o)-[:REQUIRES_ITEM]->(required:OBJECT:ITEM) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.is_locked AS is_locked, "
             "       o.lock_type AS lock_type, o.unlock_code AS unlock_code, required.object_id AS required_item_id "
             "ORDER BY o.object_id"
         )
@@ -269,7 +284,9 @@ class ConstantRepo(BaseRepository):
             Door(
                 object_id=r["object_id"],
                 name=r["name"],
+                name_en=r.get("name_en"),
                 inspect_text=r.get("inspect_text") or "",
+                inspect_text_en=r.get("inspect_text_en"),
                 is_locked=bool(r.get("is_locked")),
                 lock_type=(r.get("lock_type") or "none"),
                 unlock_code=r.get("unlock_code"),
@@ -282,7 +299,7 @@ class ConstantRepo(BaseRepository):
         self._ensure_object_ids()
         record = self._run_single(
             "MATCH (o:OBJECT:ITEM {object_id: $object_id}) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.pickupable AS pickupable "
             "LIMIT 1",
             object_id=object_id,
         )
@@ -291,7 +308,9 @@ class ConstantRepo(BaseRepository):
         return Item(
             object_id=record["object_id"],
             name=record["name"],
+            name_en=record.get("name_en"),
             inspect_text=record.get("inspect_text") or "",
+            inspect_text_en=record.get("inspect_text_en"),
             pickupable=bool(record.get("pickupable")),
         )
 
@@ -300,7 +319,7 @@ class ConstantRepo(BaseRepository):
         record = self._run_single(
             "MATCH (o:OBJECT:DOOR {object_id: $object_id}) "
             "OPTIONAL MATCH (o)-[:REQUIRES_ITEM]->(required:OBJECT:ITEM) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.is_locked AS is_locked, "
             "       o.lock_type AS lock_type, o.unlock_code AS unlock_code, required.object_id AS required_item_id "
             "LIMIT 1",
             object_id=object_id,
@@ -310,7 +329,9 @@ class ConstantRepo(BaseRepository):
         return Door(
             object_id=record["object_id"],
             name=record["name"],
+            name_en=record.get("name_en"),
             inspect_text=record.get("inspect_text") or "",
+            inspect_text_en=record.get("inspect_text_en"),
             is_locked=bool(record.get("is_locked")),
             lock_type=(record.get("lock_type") or "none"),
             unlock_code=record.get("unlock_code"),
@@ -342,13 +363,15 @@ class ConstantRepo(BaseRepository):
         current_object_id: str,
         object_id: str | None = None,
         name: str | None = None,
+        name_en: str | None = None,
         inspect_text: str | None = None,
+        inspect_text_en: str | None = None,
         pickupable: bool | None = None,
     ) -> bool:
         self._ensure_object_ids()
         existing = self._run_single(
             "MATCH (o:OBJECT:ITEM {object_id: $current_object_id}) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.pickupable AS pickupable "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.pickupable AS pickupable "
             "LIMIT 1",
             current_object_id=current_object_id,
         )
@@ -387,6 +410,12 @@ class ConstantRepo(BaseRepository):
         if inspect_text is not None:
             set_clauses.append("o.inspect_text = $inspect_text")
             params["inspect_text"] = inspect_text
+        if name_en is not None:
+            set_clauses.append("o.name_en = $name_en")
+            params["name_en"] = name_en
+        if inspect_text_en is not None:
+            set_clauses.append("o.inspect_text_en = $inspect_text_en")
+            params["inspect_text_en"] = inspect_text_en
 
         if pickupable is not None:
             set_clauses.append("o.pickupable = $pickupable")
@@ -403,7 +432,9 @@ class ConstantRepo(BaseRepository):
         current_object_id: str,
         object_id: str | None = None,
         name: str | None = None,
+        name_en: str | None = None,
         inspect_text: str | None = None,
+        inspect_text_en: str | None = None,
         is_locked: bool | None = None,
         lock_type: str | None = None,
         unlock_code: str | None = None,
@@ -413,7 +444,7 @@ class ConstantRepo(BaseRepository):
         existing = self._run_single(
             "MATCH (o:OBJECT:DOOR {object_id: $current_object_id}) "
             "OPTIONAL MATCH (o)-[:REQUIRES_ITEM]->(required:OBJECT:ITEM) "
-            "RETURN o.object_id AS object_id, o.name AS name, o.inspect_text AS inspect_text, o.is_locked AS is_locked, "
+            "RETURN o.object_id AS object_id, o.name AS name, o.name_en AS name_en, o.inspect_text AS inspect_text, o.inspect_text_en AS inspect_text_en, o.is_locked AS is_locked, "
             "       o.lock_type AS lock_type, o.unlock_code AS unlock_code, required.object_id AS required_item_id "
             "LIMIT 1",
             current_object_id=current_object_id,
@@ -473,6 +504,12 @@ class ConstantRepo(BaseRepository):
         if inspect_text is not None:
             set_clauses.append("o.inspect_text = $inspect_text")
             params["inspect_text"] = inspect_text
+        if name_en is not None:
+            set_clauses.append("o.name_en = $name_en")
+            params["name_en"] = name_en
+        if inspect_text_en is not None:
+            set_clauses.append("o.inspect_text_en = $inspect_text_en")
+            params["inspect_text_en"] = inspect_text_en
 
         record = self._run_single(
             f"MATCH (o:OBJECT:DOOR {{object_id: $current_object_id}}) SET {', '.join(set_clauses)} RETURN o",
@@ -498,7 +535,7 @@ class ConstantRepo(BaseRepository):
         self._ensure_object_ids()
         record = self._run_single(
             "MATCH (:OBJECT:DOOR {object_id: $object_id})-[:REQUIRES_ITEM]->(i:OBJECT:ITEM) "
-            "RETURN i.object_id AS object_id, i.name AS name, i.inspect_text AS inspect_text, i.pickupable AS pickupable "
+            "RETURN i.object_id AS object_id, i.name AS name, i.name_en AS name_en, i.inspect_text AS inspect_text, i.inspect_text_en AS inspect_text_en, i.pickupable AS pickupable "
             "LIMIT 1",
             object_id=object_id,
         )
@@ -507,22 +544,24 @@ class ConstantRepo(BaseRepository):
         return Item(
             object_id=record["object_id"],
             name=record["name"],
+            name_en=record.get("name_en"),
             inspect_text=record.get("inspect_text") or "",
+            inspect_text_en=record.get("inspect_text_en"),
             pickupable=bool(record.get("pickupable")),
         )
 
     # --- PLACE ---
 
-    def create_place(self, name: str) -> Place:
+    def create_place(self, name: str, name_en: str | None = None) -> Place:
         formatted = name.capitalize()
-        self._run("MERGE (p:PLACE {name: $name})", name=formatted)
-        return Place(name=formatted)
+        self._run("MERGE (p:PLACE {name: $name}) SET p.name_en = $name_en", name=formatted, name_en=name_en)
+        return Place(name=formatted, name_en=name_en)
 
     def list_places(self) -> list[Place]:
         records = self._run(
-            "MATCH (p:PLACE) RETURN p.name AS name ORDER BY p.name"
+            "MATCH (p:PLACE) RETURN p.name AS name, p.name_en AS name_en ORDER BY p.name"
         )
-        return [Place(name=r["name"]) for r in records]
+        return [Place(name=r["name"], name_en=r.get("name_en")) for r in records]
 
     def delete_place(self, name: str) -> bool:
         record = self._run_single(
@@ -541,7 +580,7 @@ class ConstantRepo(BaseRepository):
         records = self._run(
             "MATCH (c) WHERE c:OBJECT OR c:PLACE "
             "RETURN c:OBJECT AS is_object, c:ITEM AS is_item, c:DOOR AS is_door, "
-            "c.object_id AS object_id, c.name AS name, c.inspect_text AS inspect_text, "
+            "c.object_id AS object_id, c.name AS name, c.name_en AS name_en, c.inspect_text AS inspect_text, c.inspect_text_en AS inspect_text_en, "
             "c.pickupable AS pickupable, c.is_locked AS is_locked "
             "ORDER BY labels(c)[0], c.object_id, c.name"
         )
@@ -552,7 +591,9 @@ class ConstantRepo(BaseRepository):
                     Item(
                         object_id=r.get("object_id") or "",
                         name=r["name"],
+                        name_en=r.get("name_en"),
                         inspect_text=r.get("inspect_text") or "",
+                        inspect_text_en=r.get("inspect_text_en"),
                         pickupable=bool(r.get("pickupable")),
                     )
                 )
@@ -561,12 +602,14 @@ class ConstantRepo(BaseRepository):
                     Door(
                         object_id=r.get("object_id") or "",
                         name=r["name"],
+                        name_en=r.get("name_en"),
                         inspect_text=r.get("inspect_text") or "",
+                        inspect_text_en=r.get("inspect_text_en"),
                         is_locked=bool(r.get("is_locked")),
                     )
                 )
             elif r["is_object"]:
-                items.append(Object(object_id=r.get("object_id") or "", name=r["name"]))
+                items.append(Object(object_id=r.get("object_id") or "", name=r["name"], name_en=r.get("name_en")))
             else:
-                items.append(Place(name=r["name"]))
+                items.append(Place(name=r["name"], name_en=r.get("name_en")))
         return items

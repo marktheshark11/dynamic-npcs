@@ -24,8 +24,9 @@ class CreateObjectCommand(Command):
     def execute(self) -> None:
         object_id = self._ui.prompt("object_id")
         name = self._ui.prompt("objektnamn")
+        name_en = self._ui.prompt_optional("object_name_en")
         try:
-            obj = self._repo.create_object(name, object_id=object_id)
+            obj = self._repo.create_object(name, object_id=object_id, name_en=name_en)
         except ValueError as exc:
             self._ui.display.error(str(exc))
             return
@@ -43,7 +44,8 @@ class CreatePlaceCommand(Command):
 
     def execute(self) -> None:
         name = self._ui.prompt("platsnamn")
-        place = self._repo.create_place(name)
+        name_en = self._ui.prompt_optional("place_name_en")
+        place = self._repo.create_place(name, name_en=name_en)
         self._ui.display.success(f"PLACE '{place.name}' skapad")
 
 
@@ -59,10 +61,12 @@ class CreateItemCommand(Command):
     def execute(self) -> None:
         object_id = self._ui.prompt("item_id")
         name = self._ui.prompt("itemnamn")
+        name_en = self._ui.prompt_optional("itemnamn_en")
         inspect_text = self._ui.prompt("inspect_text")
+        inspect_text_en = self._ui.prompt_optional("inspect_text_en")
         pickupable = self._ui.confirm("Ska itemet kunna plockas upp?")
         try:
-            item = self._repo.create_item(name, inspect_text, pickupable, object_id=object_id)
+            item = self._repo.create_item(name, name_en, inspect_text, inspect_text_en, pickupable, object_id=object_id)
         except ValueError as exc:
             self._ui.display.error(str(exc))
             return
@@ -84,7 +88,9 @@ class CreateDoorCommand(Command):
     def execute(self) -> None:
         object_id = self._ui.prompt("door_id")
         name = self._ui.prompt("dörrnamn")
+        name_en = self._ui.prompt_optional("door_name_en")
         inspect_text = self._ui.prompt("inspect_text")
+        inspect_text_en = self._ui.prompt_optional("inspect_text_en")
         lock_option = self._ui.select_option(
             ["olåst", "nyckel", "kod"],
             "Låstyp",
@@ -109,7 +115,9 @@ class CreateDoorCommand(Command):
         try:
             door = self._repo.create_door(
                 name,
+                name_en,
                 inspect_text,
+                inspect_text_en,
                 is_locked,
                 lock_type=lock_type,
                 unlock_code=unlock_code,
@@ -141,7 +149,9 @@ class EditItemCommand(Command):
 
         object_id = self._ui.prompt_optional("object_id")
         name = self._ui.prompt_optional("itemnamn")
+        name_en = self._ui.prompt_optional("itemnamn_en")
         inspect_text = self._ui.prompt_optional("inspect_text")
+        inspect_text_en = self._ui.prompt_optional("inspect_text_en")
         pickup_option = self._ui.select_option(
             ["ingen andring", "pickupbar", "inspect-only"],
             "Pickup-status",
@@ -160,7 +170,9 @@ class EditItemCommand(Command):
                 current_object_id=selected.object_id,
                 object_id=object_id,
                 name=name,
+                name_en=name_en,
                 inspect_text=inspect_text,
+                inspect_text_en=inspect_text_en,
                 pickupable=pickupable,
             )
         except ValueError as exc:
@@ -190,7 +202,9 @@ class EditDoorCommand(Command):
 
         object_id = self._ui.prompt_optional("object_id")
         name = self._ui.prompt_optional("dörrnamn")
+        name_en = self._ui.prompt_optional("door_name_en")
         inspect_text = self._ui.prompt_optional("inspect_text")
+        inspect_text_en = self._ui.prompt_optional("inspect_text_en")
         lock_option = self._ui.select_option(
             ["ingen ändring", "olåst", "nyckel", "kod"],
             "Låsstatus",
@@ -227,7 +241,9 @@ class EditDoorCommand(Command):
                 current_object_id=selected.object_id,
                 object_id=object_id,
                 name=name,
+                name_en=name_en,
                 inspect_text=inspect_text,
+                inspect_text_en=inspect_text_en,
                 is_locked=is_locked,
                 lock_type=lock_type,
                 unlock_code=unlock_code,

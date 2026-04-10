@@ -9,13 +9,16 @@ class NPCRepo(BaseRepository):
         self._run(
             "MERGE (npc:NPC {id: $id}) "
             "SET npc.name = $name, npc.age = $age, npc.personality = $personality, "
-            "npc.status = $status, npc.story_background = $story_background",
+            "npc.personality_en = $personality_en, npc.status = $status, "
+            "npc.story_background = $story_background, npc.story_background_en = $story_background_en",
             id=npc.id,
             name=npc.name,
             age=npc.age,
             personality=npc.personality,
+            personality_en=npc.personality_en,
             status=npc.status,
             story_background=npc.story_background,
+            story_background_en=npc.story_background_en,
         )
 
     def get_by_id(self, id: str) -> NPC | None:
@@ -23,7 +26,8 @@ class NPCRepo(BaseRepository):
             "MATCH (npc:NPC {id: $id}) "
             "RETURN npc.id AS id, npc.name AS name, npc.age AS age, "
             "npc.personality AS personality, npc.status AS status, "
-            "npc.story_background AS story_background",
+            "npc.personality_en AS personality_en, npc.story_background AS story_background, "
+            "npc.story_background_en AS story_background_en",
             id=id,
         )
         if not record:
@@ -33,8 +37,10 @@ class NPCRepo(BaseRepository):
             name=record["name"],
             age=record["age"],
             personality=record["personality"],
+            personality_en=record.get("personality_en"),
             status=record["status"],
             story_background=record.get("story_background"),
+            story_background_en=record.get("story_background_en"),
         )
 
     def list_all(self) -> list[NPC]:
@@ -42,7 +48,8 @@ class NPCRepo(BaseRepository):
             "MATCH (npc:NPC) "
             "RETURN npc.id AS id, npc.name AS name, npc.age AS age, "
             "npc.personality AS personality, npc.status AS status, "
-            "npc.story_background AS story_background "
+            "npc.personality_en AS personality_en, npc.story_background AS story_background, "
+            "npc.story_background_en AS story_background_en "
             "ORDER BY npc.id"
         )
         return [
@@ -51,8 +58,10 @@ class NPCRepo(BaseRepository):
                 name=r["name"],
                 age=r["age"],
                 personality=r["personality"],
+                personality_en=r.get("personality_en"),
                 status=r["status"],
                 story_background=r.get("story_background"),
+                story_background_en=r.get("story_background_en"),
             )
             for r in records
         ]
@@ -72,7 +81,8 @@ class NPCRepo(BaseRepository):
         record = self._run_single(
             "MATCH (n:NPC {id: $npc_id}) "
             "RETURN n.id AS id, n.name AS name, n.age AS age, "
-            "n.personality AS personality, n.backstory AS backstory, n.story_background AS story_background "
+            "n.personality AS personality, n.personality_en AS personality_en, "
+            "n.backstory AS backstory, n.story_background AS story_background, n.story_background_en AS story_background_en "
             "LIMIT 1",
             npc_id=npc_id,
         )
@@ -83,14 +93,17 @@ class NPCRepo(BaseRepository):
             "name": record["name"],
             "age": record.get("age"),
             "personality": record.get("personality"),
+            "personality_en": record.get("personality_en"),
             "backstory": record.get("backstory"),
             "story_background": record.get("story_background"),
+            "story_background_en": record.get("story_background_en"),
         }
 
     def get_profile_by_id(self, npc_id: str) -> dict | None:
         record = self._run_single(
             "MATCH (n:NPC {id: $npc_id}) "
-            "RETURN n.name AS name, n.personality AS personality, n.backstory AS backstory, n.story_background AS story_background "
+            "RETURN n.name AS name, n.personality AS personality, n.personality_en AS personality_en, "
+            "n.backstory AS backstory, n.story_background AS story_background, n.story_background_en AS story_background_en "
             "LIMIT 1",
             npc_id=npc_id,
         )
@@ -99,8 +112,10 @@ class NPCRepo(BaseRepository):
         return {
             "name": record["name"],
             "personality": record.get("personality"),
+            "personality_en": record.get("personality_en"),
             "backstory": record.get("backstory"),
             "story_background": record.get("story_background"),
+            "story_background_en": record.get("story_background_en"),
         }
 
     def update(
@@ -109,8 +124,10 @@ class NPCRepo(BaseRepository):
         name: str | None = None,
         age: int | None = None,
         personality: str | None = None,
+        personality_en: str | None = None,
         status: str | None = None,
         story_background: str | None = None,
+        story_background_en: str | None = None,
     ) -> bool:
         set_clauses = []
         params: dict = {"id": id}
@@ -124,12 +141,18 @@ class NPCRepo(BaseRepository):
         if personality is not None:
             set_clauses.append("npc.personality = $personality")
             params["personality"] = personality
+        if personality_en is not None:
+            set_clauses.append("npc.personality_en = $personality_en")
+            params["personality_en"] = personality_en
         if status is not None:
             set_clauses.append("npc.status = $status")
             params["status"] = status
         if story_background is not None:
             set_clauses.append("npc.story_background = $story_background")
             params["story_background"] = story_background
+        if story_background_en is not None:
+            set_clauses.append("npc.story_background_en = $story_background_en")
+            params["story_background_en"] = story_background_en
 
         if not set_clauses:
             return False

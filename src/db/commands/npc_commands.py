@@ -18,16 +18,20 @@ class CreateNPCCommand(Command):
         name_val = self._ui.prompt("namn")
         age_val = self._ui.prompt_int("ålder")
         personality_val = self._ui.prompt("personlighet")
+        personality_en_val = self._ui.prompt_optional("personality_en")
         status_val = self._ui.prompt("status (levande, död, okänd)")
         story_background_val = self._ui.prompt("story_background (sammanfattning av vad som har hänt)")
+        story_background_en_val = self._ui.prompt_optional("story_background_en")
 
         npc = NPC(
             id=id_val,
             name=name_val,
             age=age_val,
             personality=personality_val,
+            personality_en=personality_en_val,
             status=status_val,
             story_background=story_background_val,
+            story_background_en=story_background_en_val,
         )
         self._repo.create(npc)
         self._ui.display.success(f"NPC '{name_val}' skapad")
@@ -51,16 +55,20 @@ class EditNPCCommand(Command):
         name_val = self._ui.prompt_optional("namn")
         age_val = self._ui.prompt_optional_int("ålder")
         personality_val = self._ui.prompt_optional("personlighet")
+        personality_en_val = self._ui.prompt_optional("personality_en")
         status_val = self._ui.prompt_optional("status (levande, död, okänd)")
         story_background_val = self._ui.prompt_optional("story_background (sammanfattning av vad som har hänt)")
+        story_background_en_val = self._ui.prompt_optional("story_background_en")
 
         if self._repo.update(
             selected.id,
             name_val,
             age_val,
             personality_val,
+            personality_en_val,
             status_val,
             story_background_val,
+            story_background_en_val,
         ):
             self._ui.display.success(f"NPC '{selected.id}' uppdaterad")
         else:

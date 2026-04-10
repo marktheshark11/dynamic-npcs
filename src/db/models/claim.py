@@ -6,8 +6,10 @@ from typing import Optional
 class Claim:
     claim_id: str
     content: str
+    content_en: str | None = None
     type: Optional[str] = None
     embedding: Optional[list[float]] = field(default=None, repr=False)
+    embedding_en: Optional[list[float]] = field(default=None, repr=False)
 
     def display_str(self) -> str:
         type_str = f" [{self.type}]" if self.type else ""

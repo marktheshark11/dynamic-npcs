@@ -29,10 +29,11 @@ class CreateClaimCommand(Command):
 
     def execute(self) -> None:
         content = self._ui.prompt("content")
+        content_en = self._ui.prompt_optional("content_en")
         is_relation = self._ui.confirm("Ar detta en relations-claim?")
         claim_type = "relation" if is_relation else None
 
-        claim = self._claim_repo.create(content, claim_type=claim_type)
+        claim = self._claim_repo.create(content, claim_type=claim_type, content_en=content_en)
         self._ui.display.success(f"CLAIM {claim.claim_id} skapad: '{content}'")
 
         self._link_to_mystery(claim)
@@ -162,9 +163,11 @@ class EditClaimCommand(Command):
             return
 
         self._ui.display.info(f"Nuvarande content: {selected.content}")
+        self._ui.display.info(f"Nuvarande content_en: {selected.content_en or '(ingen)'}")
         self._ui.display.info(f"Nuvarande type: {selected.type or '(ingen)'}")
 
         new_content = self._ui.prompt_optional("nytt content")
+        new_content_en = self._ui.prompt_optional("nytt content_en")
 
         type_choice = self._ui.select_option(
             ["relation", "ta bort type", "behall nuvarande"],
@@ -174,16 +177,18 @@ class EditClaimCommand(Command):
             update_ok = self._repo.update(
                 selected.claim_id,
                 content=new_content,
+                content_en=new_content_en,
                 claim_type="relation",
             )
         elif type_choice == "ta bort type":
             update_ok = self._repo.update(
                 selected.claim_id,
                 content=new_content,
+                content_en=new_content_en,
                 claim_type="",
             )
         else:
-            update_ok = self._repo.update(selected.claim_id, content=new_content)
+            update_ok = self._repo.update(selected.claim_id, content=new_content, content_en=new_content_en)
 
         if update_ok:
             self._ui.display.success(f"CLAIM {selected.claim_id} uppdaterad")
@@ -302,7 +307,7 @@ class RegenerateEmbeddingsCommand(Command):
         for claim in claims:
             # Genom att anropa update med samma content triggar vi en ny embedding-utrakning
             # i ClaimRepo, som nu anvander den korrigerade 'hf_embeddings.py'-logiken.
-            ok = self._repo.update(claim.claim_id, content=claim.content)
+            ok = self._repo.update(claim.claim_id, content=claim.content, content_en=claim.content_en)
             if ok:
                 count += 1
                 if count % 10 == 0:

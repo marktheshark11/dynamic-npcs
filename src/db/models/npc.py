@@ -8,7 +8,9 @@ class NPC:
     age: int
     personality: str
     status: str
+    personality_en: str | None = None
     story_background: str | None = None
+    story_background_en: str | None = None
 
     def display_str(self) -> str:
         return f"ID: {self.id}, Namn: {self.name}, Ålder: {self.age}, Personlighet: {self.personality}, Status: {self.status}"

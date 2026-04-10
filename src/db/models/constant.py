@@ -5,6 +5,7 @@ from dataclasses import dataclass
 class Object:
     object_id: str
     name: str
+    name_en: str | None = None
 
     def display_str(self) -> str:
         return f"[OBJECT] {self.object_id} | {self.name}"
@@ -19,6 +20,8 @@ class Item:
     name: str
     inspect_text: str
     pickupable: bool
+    name_en: str | None = None
+    inspect_text_en: str | None = None
 
     def display_str(self) -> str:
         pickup_state = "pickupbar" if self.pickupable else "inspect-only"
@@ -37,6 +40,8 @@ class Door:
     lock_type: str = "none"
     unlock_code: str | None = None
     required_item_id: str | None = None
+    name_en: str | None = None
+    inspect_text_en: str | None = None
 
     def display_str(self) -> str:
         lock_state = "låst" if self.is_locked else "olåst"
@@ -49,6 +54,7 @@ class Door:
 @dataclass
 class Place:
     name: str
+    name_en: str | None = None
 
     def display_str(self) -> str:
         return f"[PLACE] {self.name}"

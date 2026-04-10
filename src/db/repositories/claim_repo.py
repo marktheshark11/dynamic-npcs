@@ -32,14 +32,22 @@ class ClaimRepo(BaseRepository):
 
         return f"C{max(numbers) + 1}" if numbers else "C1"
 
-    def create(self, content: str, claim_type: str | None = None) -> Claim:
+    def create(
+        self,
+        content: str,
+        claim_type: str | None = None,
+        content_en: str | None = None,
+    ) -> Claim:
         embedding = self._embedding.embed(content)
+        embedding_en = self._embedding.embed(content_en) if content_en else None
         claim_id = self._next_claim_id()
 
         params: dict = {
             "claim_id": claim_id,
             "content": content,
             "embedding": embedding,
+            "content_en": content_en,
+            "embedding_en": embedding_en,
         }
 
         set_parts = []
@@ -49,12 +57,18 @@ class ClaimRepo(BaseRepository):
 
         set_clause = f" SET {', '.join(set_parts)}" if set_parts else ""
         query = (
-            "CREATE (c:CLAIM {claim_id: $claim_id, content: $content, embedding: $embedding})"
+            "CREATE (c:CLAIM {claim_id: $claim_id, content: $content, embedding: $embedding, content_en: $content_en, embedding_en: $embedding_en})"
             f"{set_clause} RETURN c.claim_id AS claim_id"
         )
         self._run(query, **params)
-        return Claim(claim_id=claim_id, content=content, type=claim_type,
-                     embedding=embedding)
+        return Claim(
+            claim_id=claim_id,
+            content=content,
+            content_en=content_en,
+            type=claim_type,
+            embedding=embedding,
+            embedding_en=embedding_en,
+        )
 
     @staticmethod
     def _claim_sort_key(claim_id: str | None) -> tuple[int, int, str]:
@@ -67,13 +81,14 @@ class ClaimRepo(BaseRepository):
     def list_all(self) -> list[Claim]:
         records = self._run(
             "MATCH (c:CLAIM) "
-            "RETURN c.claim_id AS claim_id, c.content AS content, "
+            "RETURN c.claim_id AS claim_id, c.content AS content, c.content_en AS content_en, "
             "c.type AS type"
         )
         claims = [
             Claim(
                 claim_id=r["claim_id"],
                 content=r["content"],
+                content_en=r.get("content_en"),
                 type=r["type"],
             )
             for r in records
@@ -134,7 +149,7 @@ class ClaimRepo(BaseRepository):
     def get_by_id(self, claim_id: str) -> Claim | None:
         record = self._run_single(
             "MATCH (c:CLAIM {claim_id: $claim_id}) "
-            "RETURN c.claim_id AS claim_id, c.content AS content, "
+            "RETURN c.claim_id AS claim_id, c.content AS content, c.content_en AS content_en, "
             "c.type AS type",
             claim_id=claim_id,
         )
@@ -143,11 +158,17 @@ class ClaimRepo(BaseRepository):
         return Claim(
             claim_id=record["claim_id"],
             content=record["content"],
+            content_en=record.get("content_en"),
             type=record["type"],
         )
 
-    def update(self, claim_id: str, content: str | None = None,
-               claim_type: str | None | object = _NO_CHANGE) -> bool:
+    def update(
+        self,
+        claim_id: str,
+        content: str | None = None,
+        content_en: str | None | object = _NO_CHANGE,
+        claim_type: str | None | object = _NO_CHANGE,
+    ) -> bool:
         """Update a claim. Use None for 'no change', empty string to remove a property.
 
         Note: claim_type uses sentinel default (...) to distinguish
@@ -169,6 +190,17 @@ class ClaimRepo(BaseRepository):
             updates.append("c.embedding = $embedding")
             params["content"] = content
             params["embedding"] = embedding
+
+        if content_en is not _NO_CHANGE:
+            if content_en is None or content_en == "":
+                updates.append("c.content_en = null")
+                updates.append("c.embedding_en = null")
+            else:
+                embedding_en = self._embedding.embed(content_en)
+                updates.append("c.content_en = $content_en")
+                updates.append("c.embedding_en = $embedding_en")
+                params["content_en"] = content_en
+                params["embedding_en"] = embedding_en
 
         if claim_type is not _NO_CHANGE:
             if claim_type is None or claim_type == "":
