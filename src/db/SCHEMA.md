@@ -14,6 +14,7 @@ A user account that owns one or more player characters.
 | `user_id` | string | Unique identifier (e.g. "user_1", "user_2") |
 | `username` | string | Unique username for login |
 | `password` | string | User password (should be hashed in production) |
+| `locale` | string | Preferred language for the user. Currently `sv` or `en`; defaults to `sv` |
 
 ### NPC
 A non-player character in the game world.

@@ -175,11 +175,13 @@ class ClueResponse(BaseModel):
 class RegisterRequest(BaseModel):
     username: str
     password: str
+    locale: str = "sv"
 
 
 class RegisterResponse(BaseModel):
     user_id: str
     username: str
+    locale: str
 
 
 class LoginRequest(BaseModel):
@@ -190,7 +192,16 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     user_id: str
     username: str
-    
+    locale: str
+
+
+class UpdateUserLocaleRequest(BaseModel):
+    locale: str
+
+
+class UserLocaleResponse(BaseModel):
+    user_id: str
+    locale: str
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -290,6 +301,7 @@ async def health_check(request: Request):
 async def register(payload: RegisterRequest, config: Config = Depends(get_config)):
     username = payload.username.strip()
     password = payload.password.strip()
+    locale = payload.locale.strip().lower()
     
     if not username:
         raise HTTPException(status_code=400, detail="username cannot be empty")
@@ -299,17 +311,21 @@ async def register(payload: RegisterRequest, config: Config = Depends(get_config
         raise HTTPException(status_code=400, detail="username must be at least 3 characters")
     if len(password) < 3:
         raise HTTPException(status_code=400, detail="password must be at least 3 characters")
+    if locale not in UserRepo.SUPPORTED_LOCALES:
+        raise HTTPException(status_code=400, detail="locale must be 'sv' or 'en'")
     
     try:
         user_repo = UserRepo(config.driver)
-        user = user_repo.register(username=username, password=password)
+        user = user_repo.register(username=username, password=password, locale=locale)
         
         if not user:
             raise HTTPException(status_code=409, detail="Username already exists")
         
-        return RegisterResponse(user_id=user.user_id, username=user.username)
+        return RegisterResponse(user_id=user.user_id, username=user.username, locale=user.locale)
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -331,9 +347,37 @@ async def login(payload: LoginRequest, config: Config = Depends(get_config)):
         if not user:
             raise HTTPException(status_code=401, detail="Invalid username or password")
         
-        return LoginResponse(user_id=user.user_id, username=user.username)
+        return LoginResponse(user_id=user.user_id, username=user.username, locale=user.locale)
     except HTTPException:
         raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.patch("/users/{user_id}/locale", response_model=UserLocaleResponse)
+async def update_user_locale(
+    user_id: str,
+    payload: UpdateUserLocaleRequest,
+    config: Config = Depends(get_config),
+):
+    normalized_user_id = user_id.strip()
+    locale = payload.locale.strip().lower()
+
+    if not normalized_user_id:
+        raise HTTPException(status_code=400, detail="user_id cannot be empty")
+    if locale not in UserRepo.SUPPORTED_LOCALES:
+        raise HTTPException(status_code=400, detail="locale must be 'sv' or 'en'")
+
+    try:
+        user_repo = UserRepo(config.driver)
+        updated = user_repo.set_locale(normalized_user_id, locale)
+        if not updated:
+            raise HTTPException(status_code=404, detail="User not found")
+        return UserLocaleResponse(user_id=normalized_user_id, locale=locale)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
