@@ -114,6 +114,12 @@ The core knowledge relationship. Represents that an NPC or GROUP holds a subject
 |----------|------|-------|---------|
 | `belief_in` | float | -1.0 to 1.0 | How strongly the entity internally believes the claim. +1 = fully believes, -1 = fully disbelieves |
 | `openness` | float | -1.0 to 1.0 | How willing the entity is to express this opinion. +1 = freely shares, -1 = keeps completely secret |
+| `prefix` | string? | - | Swedish prefix text rendered before the claim |
+| `prefix_en` | string? | - | English translation of `prefix` |
+| `suffix` | string? | - | Swedish suffix text rendered after the claim |
+| `suffix_en` | string? | - | English translation of `suffix` |
+| `overwrite_suffix` | string? | - | Swedish suffix used when the player already knows the claim |
+| `overwrite_suffix_en` | string? | - | English translation of `overwrite_suffix` |
 
 ```
 (NPC:Anna) -[:HAS_OPINION {belief_in: 0.8, openness: -0.5}]-> (CLAIM:C3 "Erik stal fran butiken")

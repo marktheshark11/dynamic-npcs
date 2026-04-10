@@ -46,13 +46,16 @@ class CreateOpinionCommand(Command):
 
         prefix = self._ui.prompt_optional("prefix")
         suffix = self._ui.prompt_optional("suffix")
+        prefix_en = self._ui.prompt_optional("prefix_en")
+        suffix_en = self._ui.prompt_optional("suffix_en")
         overwrite_suffix = self._ui.prompt_optional("overwrite_suffix (används när spelaren redan är aware_of, lämna tomt för default)")
+        overwrite_suffix_en = self._ui.prompt_optional("overwrite_suffix_en")
 
         if self._opinion_repo.create(entity_id, entity_type, claim.claim_id,
-                                     prefix, suffix, overwrite_suffix):
+                                     prefix, suffix, prefix_en, suffix_en, overwrite_suffix, overwrite_suffix_en):
             self._ui.display.success(
                 f"HAS_OPINION: {entity_id} -> {claim.claim_id} "
-                f"(prefix: {prefix or '-'}, suffix: {suffix or '-'}, overwrite_suffix: {overwrite_suffix or '-'})"
+                f"(prefix: {prefix or '-'}, suffix: {suffix or '-'}, prefix_en: {prefix_en or '-'}, suffix_en: {suffix_en or '-'}, overwrite_suffix: {overwrite_suffix or '-'}, overwrite_suffix_en: {overwrite_suffix_en or '-'})"
             )
         else:
             self._ui.display.error(
@@ -97,7 +100,7 @@ class EditOpinionCommand(Command):
 
         display_fn = lambda o: (
             f"{o.claim_id}: {o.claim_content[:40]}... "
-            f"(prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'}, overwrite_suffix: {o.overwrite_suffix or '-'})"
+            f"(prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'}, prefix_en: {o.prefix_en or '-'}, suffix_en: {o.suffix_en or '-'}, overwrite_suffix: {o.overwrite_suffix or '-'}, overwrite_suffix_en: {o.overwrite_suffix_en or '-'})"
         )
         opinion = self._ui.select_from_list(opinions, display_fn, "Valj opinion")
         if not opinion:
@@ -105,11 +108,17 @@ class EditOpinionCommand(Command):
 
         self._ui.display.info(f"Nuvarande prefix: {opinion.prefix or '-'}")
         self._ui.display.info(f"Nuvarande suffix: {opinion.suffix or '-'}")
+        self._ui.display.info(f"Nuvarande prefix_en: {opinion.prefix_en or '-'}")
+        self._ui.display.info(f"Nuvarande suffix_en: {opinion.suffix_en or '-'}")
         self._ui.display.info(f"Nuvarande overwrite_suffix: {opinion.overwrite_suffix or '-'}")
+        self._ui.display.info(f"Nuvarande overwrite_suffix_en: {opinion.overwrite_suffix_en or '-'}")
 
         prefix = self._ui.prompt_optional("ny prefix")
         suffix = self._ui.prompt_optional("ny suffix")
+        prefix_en = self._ui.prompt_optional("ny prefix_en")
+        suffix_en = self._ui.prompt_optional("ny suffix_en")
         overwrite_suffix = self._ui.prompt_optional("ny overwrite_suffix (används när spelaren redan är aware_of, lämna tomt för default)")
+        overwrite_suffix_en = self._ui.prompt_optional("ny overwrite_suffix_en")
 
         if self._opinion_repo.update(
             entity_id,
@@ -117,11 +126,14 @@ class EditOpinionCommand(Command):
             opinion.claim_id,
             prefix,
             suffix,
+            prefix_en,
+            suffix_en,
             overwrite_suffix,
+            overwrite_suffix_en,
         ):
             self._ui.display.success(
                 f"Opinion uppdaterad for {opinion.claim_id} "
-                f"(prefix: {prefix or '-'}, suffix: {suffix or '-'}, overwrite_suffix: {overwrite_suffix or '-'})"
+                f"(prefix: {prefix or '-'}, suffix: {suffix or '-'}, prefix_en: {prefix_en or '-'}, suffix_en: {suffix_en or '-'}, overwrite_suffix: {overwrite_suffix or '-'}, overwrite_suffix_en: {overwrite_suffix_en or '-'})"
             )
         else:
             self._ui.display.error("Kunde inte uppdatera opinion")
@@ -164,7 +176,7 @@ class DeleteOpinionCommand(Command):
 
         display_fn = lambda o: (
             f"{o.claim_id}: {o.claim_content[:40]}... "
-            f"(prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'}, overwrite_suffix: {o.overwrite_suffix or '-'})"
+            f"(prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'}, prefix_en: {o.prefix_en or '-'}, suffix_en: {o.suffix_en or '-'}, overwrite_suffix: {o.overwrite_suffix or '-'}, overwrite_suffix_en: {o.overwrite_suffix_en or '-'})"
         )
         opinion = self._ui.select_from_list(opinions, display_fn, "Valj opinion")
         if not opinion:
@@ -216,4 +228,4 @@ class ListOpinionsCommand(Command):
         for o in opinions:
             content_preview = o.claim_content[:50] + "..." if len(o.claim_content) > 50 else o.claim_content
             print(f"  {o.claim_id}: {content_preview}")
-            print(f"    prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'}, overwrite_suffix: {o.overwrite_suffix or '-'}")
+            print(f"    prefix: {o.prefix or '-'}, suffix: {o.suffix or '-'}, prefix_en: {o.prefix_en or '-'}, suffix_en: {o.suffix_en or '-'}, overwrite_suffix: {o.overwrite_suffix or '-'}, overwrite_suffix_en: {o.overwrite_suffix_en or '-'}")

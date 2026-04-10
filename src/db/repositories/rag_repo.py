@@ -12,6 +12,18 @@ class RAGRepo(BaseRepository):
     def _name_expr(locale: str, alias: str = "target") -> str:
         return f"{alias}.name_en" if locale == "en" else f"{alias}.name"
 
+    @staticmethod
+    def _prefix_expr(locale: str, alias: str) -> str:
+        return f"{alias}.prefix_en" if locale == "en" else f"{alias}.prefix"
+
+    @staticmethod
+    def _suffix_expr(locale: str, alias: str) -> str:
+        return f"{alias}.suffix_en" if locale == "en" else f"{alias}.suffix"
+
+    @staticmethod
+    def _overwrite_suffix_expr(locale: str, alias: str) -> str:
+        return f"{alias}.overwrite_suffix_en" if locale == "en" else f"{alias}.overwrite_suffix"
+
     def supports_group_membership(self) -> bool:
         try:
             labels_result = self._run_single(
@@ -159,6 +171,12 @@ class RAGRepo(BaseRepository):
 
     def get_reference_chain(self, claim_id: str, npc_id: str, include_group: bool, locale: str = "sv") -> list[dict]:
         content_expr = self._claim_content_expr(locale, "ref")
+        opinion_prefix_expr = self._prefix_expr(locale, "o")
+        group_prefix_expr = self._prefix_expr(locale, "go")
+        opinion_suffix_expr = self._suffix_expr(locale, "o")
+        group_suffix_expr = self._suffix_expr(locale, "go")
+        opinion_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "o")
+        group_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "go")
         if include_group:
             query = f"""
                 MATCH path = (start:CLAIM)-[:REFERENCE*0..5]->(ref:CLAIM)
@@ -168,9 +186,9 @@ class RAGRepo(BaseRepository):
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
                 WITH ref, depth,
-                     COALESCE(o.prefix, go.prefix) AS prefix,
-                     COALESCE(o.suffix, go.suffix) AS suffix,
-                     COALESCE(o.overwrite_suffix, go.overwrite_suffix) AS overwrite_suffix
+                     COALESCE({opinion_prefix_expr}, {group_prefix_expr}) AS prefix,
+                     COALESCE({opinion_suffix_expr}, {group_suffix_expr}) AS suffix,
+                     COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
@@ -188,9 +206,9 @@ class RAGRepo(BaseRepository):
                 ORDER BY depth ASC
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
                 WITH ref, depth,
-                     o.prefix AS prefix,
-                     o.suffix AS suffix,
-                     o.overwrite_suffix AS overwrite_suffix
+                     {opinion_prefix_expr} AS prefix,
+                     {opinion_suffix_expr} AS suffix,
+                     {opinion_overwrite_suffix_expr} AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
@@ -206,6 +224,12 @@ class RAGRepo(BaseRepository):
 
     def get_upstream_claims(self, claim_id: str, npc_id: str, up_steps: int, include_group: bool, locale: str = "sv") -> list[dict]:
         content_expr = self._claim_content_expr(locale, "ref")
+        opinion_prefix_expr = self._prefix_expr(locale, "o")
+        group_prefix_expr = self._prefix_expr(locale, "go")
+        opinion_suffix_expr = self._suffix_expr(locale, "o")
+        group_suffix_expr = self._suffix_expr(locale, "go")
+        opinion_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "o")
+        group_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "go")
         if include_group:
             query = f"""
                 MATCH path = (ref:CLAIM)-[:REFERENCE*1..{up_steps}]->(start:CLAIM)
@@ -215,9 +239,9 @@ class RAGRepo(BaseRepository):
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[:MEMBER_OF]->(g:GROUP)-[go:HAS_OPINION]->(ref)
                 WITH ref, depth,
-                     COALESCE(o.prefix, go.prefix) AS prefix,
-                     COALESCE(o.suffix, go.suffix) AS suffix,
-                     COALESCE(o.overwrite_suffix, go.overwrite_suffix) AS overwrite_suffix
+                     COALESCE({opinion_prefix_expr}, {group_prefix_expr}) AS prefix,
+                     COALESCE({opinion_suffix_expr}, {group_suffix_expr}) AS suffix,
+                     COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
@@ -235,9 +259,9 @@ class RAGRepo(BaseRepository):
                 ORDER BY depth ASC
                 OPTIONAL MATCH (n:NPC {{id: $npc_id}})-[o:HAS_OPINION]->(ref)
                 WITH ref, depth,
-                     o.prefix AS prefix,
-                     o.suffix AS suffix,
-                     o.overwrite_suffix AS overwrite_suffix
+                     {opinion_prefix_expr} AS prefix,
+                     {opinion_suffix_expr} AS suffix,
+                     {opinion_overwrite_suffix_expr} AS overwrite_suffix
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
