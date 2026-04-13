@@ -100,6 +100,7 @@ class WideSelectRAGPipeline(ChatPipeline):
             chains=chain_metadata,
             selected_claim_ids=selected_claim_ids,
             already_mentioned=already_mentioned,
+            locale=locale,
         )
         final_chain_metadata = filtered_chain_metadata or chain_metadata
         rag_context = build_rag_context(final_chain_metadata, constants)

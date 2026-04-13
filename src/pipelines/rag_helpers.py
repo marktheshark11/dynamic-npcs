@@ -613,6 +613,7 @@ def filter_claim_chains_by_selected_claim_ids(
     chains: list[dict[str, Any]],
     selected_claim_ids: list[str],
     already_mentioned: set[str] | None = None,
+    locale: str = "sv",
 ) -> list[dict[str, Any]]:
     selected_lookup = {claim_id.upper() for claim_id in selected_claim_ids if isinstance(claim_id, str)}
     if not selected_lookup:
@@ -628,7 +629,9 @@ def filter_claim_chains_by_selected_claim_ids(
         ]
         if not filtered_claims:
             continue
-        filtered_chains.append(_build_chain_payload(filtered_claims, already_mentioned))
+        filtered_chains.append(
+            _build_chain_payload(filtered_claims, already_mentioned, locale)
+        )
 
     return filtered_chains
 
