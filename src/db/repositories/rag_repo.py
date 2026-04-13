@@ -135,7 +135,7 @@ class RAGRepo(BaseRepository):
             WITH rc, n, targetIds,
                  [id IN targetIds WHERE id IN $constant_ids] AS overlaps
 
-            WHERE size(overlaps) >= 2
+            WHERE size(overlaps) >= 1
 
             RETURN DISTINCT elementId(rc) AS id,
                             {content_expr} AS content,
