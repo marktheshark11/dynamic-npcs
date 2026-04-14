@@ -302,7 +302,7 @@ class ChatService:
         if effective_player_id:
             player_profile = self.player_repo.get_profile_by_id(effective_player_id)
 
-        recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=5)
+        recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=3)
         conversation_claim_ids = self.conversation_repo.get_mentioned_claim_ids(resolved_conversation_id)
         prior_conversation_summaries = self._get_prior_conversation_summaries(
             npc_id=npc_id,

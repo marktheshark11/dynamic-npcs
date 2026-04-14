@@ -41,18 +41,18 @@ class PromptBuilder:
         system_parts = []
         if identity_text:
             system_parts.append(identity_text)
+        if detective_context_text:
+            system_parts.append(detective_context_text)
         if story_background_text:
             system_parts.append(story_background_text)
         if rules_text:
             system_parts.append(rules_text)
         if output_format_text:
             system_parts.append(output_format_text)
-        if world_context_text:
-            system_parts.append(world_context_text)
-        if detective_context_text:
-            system_parts.append(detective_context_text)
         if conversation_memory_text:
             system_parts.append(conversation_memory_text)
+        if world_context_text:
+            system_parts.append(world_context_text)
         if scene_event_text:
             system_parts.append(scene_event_text)
         system_text = "\n\n".join(system_parts)
