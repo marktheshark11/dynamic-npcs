@@ -17,6 +17,8 @@ class CreateFormCommand(Command):
         form_id = self._ui.prompt("form_id")
         name = self._ui.prompt("namn")
         name_en = self._ui.prompt_optional("namn pa engelska")
+        description = self._ui.prompt_optional("beskrivning")
+        description_en = self._ui.prompt_optional("beskrivning pa engelska")
         if not form_id:
             self._ui.display.error("form_id far inte vara tomt")
             return
@@ -24,7 +26,13 @@ class CreateFormCommand(Command):
             self._ui.display.error("namn far inte vara tomt")
             return
 
-        form = self._repo.create_form(form_id, name, name_en=name_en)
+        form = self._repo.create_form(
+            form_id,
+            name,
+            name_en=name_en,
+            description=description,
+            description_en=description_en,
+        )
         self._ui.display.success(f"FORM '{form.form_id}' skapad")
 
 
@@ -69,6 +77,19 @@ class CreateFormQuestionCommand(Command):
         if not value_type:
             return
         order = self._ui.prompt_int("ordning")
+        scale_min = None
+        scale_max = None
+        min_label = None
+        min_label_en = None
+        max_label = None
+        max_label_en = None
+        if value_type == "int":
+            scale_min = self._ui.prompt_int("skala min")
+            scale_max = self._ui.prompt_int("skala max")
+            min_label = self._ui.prompt_optional("min etikett")
+            min_label_en = self._ui.prompt_optional("min etikett pa engelska")
+            max_label = self._ui.prompt_optional("max etikett")
+            max_label_en = self._ui.prompt_optional("max etikett pa engelska")
 
         if not question_id:
             self._ui.display.error("question_id far inte vara tomt")
@@ -85,6 +106,12 @@ class CreateFormQuestionCommand(Command):
                 question_en,
                 value_type,
                 order,
+                scale_min,
+                scale_max,
+                min_label,
+                min_label_en,
+                max_label,
+                max_label_en,
             )
         except ValueError as exc:
             self._ui.display.error(str(exc))

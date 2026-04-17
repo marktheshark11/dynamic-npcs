@@ -229,12 +229,15 @@ Query parameters:
 
 When `locale=en`, the API returns `name_en` / `question_en` when present, and falls back to Swedish text when English text is missing.
 
+The response also includes optional localized form description text and optional scale metadata for numeric questions.
+
 Example response:
 
 ```json
 {
   "form_id": "player_profile",
   "name": "Player Profile",
+  "description": "Answer the questions based on how you felt at the end of the game.",
   "questions": [
     {
       "question_id": "q_name",
@@ -246,7 +249,11 @@ Example response:
       "question_id": "q_age",
       "question": "How old are you?",
       "value_type": "int",
-      "order": 2
+      "order": 2,
+      "scale_min": 1,
+      "scale_max": 7,
+      "min_label": "Not at all",
+      "max_label": "A lot"
     }
   ]
 }
@@ -260,6 +267,7 @@ English example:
 {
   "form_id": "player_profile",
   "name": "Player Profile",
+  "description": "Answer the questions based on how you felt at the end of the game.",
   "questions": [
     {
       "question_id": "q_name",
@@ -288,6 +296,8 @@ If the form does not exist:
 ## POST /players/{player_id}/forms/{form_id}
 
 Save one current answer per question for a player. The request must contain answers for all questions in the form.
+
+For `int` questions with `scale_min` / `scale_max`, submitted answers must fall within that range.
 
 Request body:
 
@@ -359,6 +369,7 @@ Example response:
 {
   "form_id": "player_profile",
   "name": "Player Profile",
+  "description": "Answer the questions based on how you felt at the end of the game.",
   "questions": [
     {
       "question_id": "q_name",
@@ -372,6 +383,10 @@ Example response:
       "question": "How old are you?",
       "value_type": "int",
       "order": 2,
+      "scale_min": 1,
+      "scale_max": 7,
+      "min_label": "Not at all",
+      "max_label": "A lot",
       "answer": "27"
     }
   ]

@@ -110,6 +110,8 @@ A reusable form definition that can be shown to many players.
 | `form_id` | string | Unique identifier for the form |
 | `name` | string | Display name in Swedish |
 | `name_en` | string? | English translation of `name` |
+| `description` | string? | Intro/instruction text in Swedish |
+| `description_en` | string? | English translation of `description` |
 
 ### FORM_QUESTION
 A question belonging to a specific form.
@@ -121,6 +123,12 @@ A question belonging to a specific form.
 | `question_en` | string? | English translation of `question` |
 | `value_type` | string | Allowed values currently: `string`, `int` |
 | `order` | int | Display order inside the form |
+| `scale_min` | int? | Minimum allowed value for scale/int questions |
+| `scale_max` | int? | Maximum allowed value for scale/int questions |
+| `min_label` | string? | Swedish label shown at the low end of the scale |
+| `min_label_en` | string? | English translation of `min_label` |
+| `max_label` | string? | Swedish label shown at the high end of the scale |
+| `max_label_en` | string? | English translation of `max_label` |
 
 ### FORM_ANSWER
 A player's current saved answer to a specific form question.

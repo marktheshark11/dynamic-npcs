@@ -108,11 +108,16 @@ class FormQuestionResponse(BaseModel):
     question: str
     value_type: str
     order: int
+    scale_min: int | None = None
+    scale_max: int | None = None
+    min_label: str | None = None
+    max_label: str | None = None
 
 
 class FormResponse(BaseModel):
     form_id: str
     name: str
+    description: str | None = None
     questions: list[FormQuestionResponse] = Field(default_factory=list)
 
 
@@ -144,6 +149,7 @@ class PlayerFormQuestionResponse(FormQuestionResponse):
 class PlayerFormResponse(BaseModel):
     form_id: str
     name: str
+    description: str | None = None
     questions: list[PlayerFormQuestionResponse] = Field(default_factory=list)
 
 
@@ -627,6 +633,7 @@ async def get_form(form_id: str, locale: str = "sv", config: Config = Depends(ge
         return FormResponse(
             form_id=form["form_id"],
             name=form["name"],
+            description=form.get("description"),
             questions=[FormQuestionResponse(**question) for question in form.get("questions", [])],
         )
     except HTTPException:
@@ -702,6 +709,7 @@ async def get_player_form(player_id: str, form_id: str, config: Config = Depends
         return PlayerFormResponse(
             form_id=player_form["form_id"],
             name=player_form["name"],
+            description=player_form.get("description"),
             questions=[PlayerFormQuestionResponse(**question) for question in player_form.get("questions", [])],
         )
     except HTTPException:

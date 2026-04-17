@@ -39,27 +39,56 @@ class FormRepo(BaseRepository):
             return english_value
         return swedish_value
 
-    def create_form(self, form_id: str, name: str, name_en: str | None = None) -> Form:
+    def create_form(
+        self,
+        form_id: str,
+        name: str,
+        name_en: str | None = None,
+        description: str | None = None,
+        description_en: str | None = None,
+    ) -> Form:
         self._run(
-            "CREATE (f:FORM {form_id: $form_id, name: $name, name_en: $name_en})",
+            "CREATE (f:FORM {"
+            "form_id: $form_id, name: $name, name_en: $name_en, "
+            "description: $description, description_en: $description_en"
+            "})",
             form_id=form_id,
             name=name,
             name_en=name_en,
+            description=description,
+            description_en=description_en,
         )
-        return Form(form_id=form_id, name=name, name_en=name_en)
+        return Form(
+            form_id=form_id,
+            name=name,
+            name_en=name_en,
+            description=description,
+            description_en=description_en,
+        )
 
     def list_forms(self) -> list[Form]:
         records = self._run(
             "MATCH (f:FORM) "
-            "RETURN f.form_id AS form_id, f.name AS name, f.name_en AS name_en "
+            "RETURN f.form_id AS form_id, f.name AS name, f.name_en AS name_en, "
+            "f.description AS description, f.description_en AS description_en "
             "ORDER BY f.form_id"
         )
-        return [Form(form_id=r["form_id"], name=r["name"], name_en=r.get("name_en")) for r in records]
+        return [
+            Form(
+                form_id=r["form_id"],
+                name=r["name"],
+                name_en=r.get("name_en"),
+                description=r.get("description"),
+                description_en=r.get("description_en"),
+            )
+            for r in records
+        ]
 
     def get_form(self, form_id: str, locale: str = "sv") -> dict | None:
         record = self._run_single(
             "MATCH (f:FORM {form_id: $form_id}) "
-            "RETURN f.form_id AS form_id, f.name AS name, f.name_en AS name_en",
+            "RETURN f.form_id AS form_id, f.name AS name, f.name_en AS name_en, "
+            "f.description AS description, f.description_en AS description_en",
             form_id=form_id,
         )
         if not record:
@@ -68,12 +97,21 @@ class FormRepo(BaseRepository):
         return {
             "form_id": record["form_id"],
             "name": self._localized_value(locale, record.get("name"), record.get("name_en")),
+            "description": self._localized_value(
+                locale,
+                record.get("description"),
+                record.get("description_en"),
+            ),
             "questions": [
                 {
                     "question_id": question.question_id,
                     "question": question.question,
                     "value_type": question.value_type,
                     "order": question.order,
+                    "scale_min": question.scale_min,
+                    "scale_max": question.scale_max,
+                    "min_label": question.min_label,
+                    "max_label": question.max_label,
                 }
                 for question in questions
             ],
@@ -87,12 +125,28 @@ class FormRepo(BaseRepository):
         question_en: str | None,
         value_type: str,
         order: int,
+        scale_min: int | None = None,
+        scale_max: int | None = None,
+        min_label: str | None = None,
+        min_label_en: str | None = None,
+        max_label: str | None = None,
+        max_label_en: str | None = None,
     ) -> FormQuestion:
         normalized_type = self._validate_value_type(value_type)
+        if normalized_type == "int":
+            if scale_min is None or scale_max is None:
+                raise ValueError("scale_min and scale_max are required for int questions")
+            if scale_min > scale_max:
+                raise ValueError("scale_min cannot be greater than scale_max")
+        elif any(value is not None for value in (scale_min, scale_max, min_label, min_label_en, max_label, max_label_en)):
+            raise ValueError("scale fields are only supported for int questions")
+
         record = self._run_single(
             "MATCH (f:FORM {form_id: $form_id}) "
             "CREATE (q:FORM_QUESTION {"
-            "question_id: $question_id, question: $question, question_en: $question_en, value_type: $value_type, `order`: $order"
+            "question_id: $question_id, question: $question, question_en: $question_en, value_type: $value_type, `order`: $order, "
+            "scale_min: $scale_min, scale_max: $scale_max, min_label: $min_label, min_label_en: $min_label_en, "
+            "max_label: $max_label, max_label_en: $max_label_en"
             "}) "
             "CREATE (f)-[:HAS_QUESTION]->(q) "
             "RETURN q.question_id AS question_id",
@@ -102,6 +156,12 @@ class FormRepo(BaseRepository):
             question_en=question_en,
             value_type=normalized_type,
             order=order,
+            scale_min=scale_min,
+            scale_max=scale_max,
+            min_label=min_label,
+            min_label_en=min_label_en,
+            max_label=max_label,
+            max_label_en=max_label_en,
         )
         if not record:
             raise ValueError("Form not found")
@@ -111,13 +171,20 @@ class FormRepo(BaseRepository):
             question_en=question_en,
             value_type=normalized_type,
             order=order,
+            scale_min=scale_min,
+            scale_max=scale_max,
+            min_label=min_label,
+            min_label_en=min_label_en,
+            max_label=max_label,
+            max_label_en=max_label_en,
         )
 
     def list_form_questions(self, form_id: str, locale: str = "sv") -> list[FormQuestion]:
         records = self._run(
             "MATCH (f:FORM {form_id: $form_id})-[:HAS_QUESTION]->(q:FORM_QUESTION) "
             "RETURN q.question_id AS question_id, q.question AS question, q.question_en AS question_en, "
-            "q.value_type AS value_type, q.`order` AS order "
+            "q.value_type AS value_type, q.`order` AS order, q.scale_min AS scale_min, q.scale_max AS scale_max, "
+            "q.min_label AS min_label, q.min_label_en AS min_label_en, q.max_label AS max_label, q.max_label_en AS max_label_en "
             "ORDER BY q.`order`, q.question_id",
             form_id=form_id,
         )
@@ -128,6 +195,12 @@ class FormRepo(BaseRepository):
                 question_en=r.get("question_en"),
                 value_type=r["value_type"],
                 order=int(r["order"]),
+                scale_min=r.get("scale_min"),
+                scale_max=r.get("scale_max"),
+                min_label=self._localized_value(locale, r.get("min_label"), r.get("min_label_en")),
+                min_label_en=r.get("min_label_en"),
+                max_label=self._localized_value(locale, r.get("max_label"), r.get("max_label_en")),
+                max_label_en=r.get("max_label_en"),
             )
             for r in records
         ]
@@ -148,6 +221,7 @@ class FormRepo(BaseRepository):
         return {
             "form_id": form_data["form_id"],
             "name": form_data["name"],
+            "description": form_data.get("description"),
             "questions": [
                 {
                     **question,
@@ -216,6 +290,14 @@ class FormRepo(BaseRepository):
                     raise ValueError(
                         f"answer for question_id '{question_id}' must be an integer"
                     ) from exc
+                if question.scale_min is not None and answer_int < question.scale_min:
+                    raise ValueError(
+                        f"answer for question_id '{question_id}' must be >= {question.scale_min}"
+                    )
+                if question.scale_max is not None and answer_int > question.scale_max:
+                    raise ValueError(
+                        f"answer for question_id '{question_id}' must be <= {question.scale_max}"
+                    )
             else:
                 raise ValueError(f"Unsupported value_type '{question.value_type}'")
 
