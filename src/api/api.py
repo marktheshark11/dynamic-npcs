@@ -110,6 +110,7 @@ class AnalyticsUserResponse(BaseModel):
     user_id: str | None = None
     username: str | None = None
     locale: str | None = None
+    created_at: str | None = None
 
 
 class AnalyticsGameResponse(BaseModel):
@@ -363,6 +364,7 @@ class RegisterResponse(BaseModel):
     user_id: str
     username: str
     locale: str
+    created_at: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -374,6 +376,7 @@ class LoginResponse(BaseModel):
     user_id: str
     username: str
     locale: str
+    created_at: str | None = None
 
 
 class UpdateUserLocaleRequest(BaseModel):
@@ -517,7 +520,12 @@ async def register(payload: RegisterRequest, config: Config = Depends(get_config
         if not user:
             raise HTTPException(status_code=409, detail="Username already exists")
         
-        return RegisterResponse(user_id=user.user_id, username=user.username, locale=user.locale)
+        return RegisterResponse(
+            user_id=user.user_id,
+            username=user.username,
+            locale=user.locale,
+            created_at=user.created_at,
+        )
     except HTTPException:
         raise
     except ValueError as exc:
@@ -543,7 +551,12 @@ async def login(payload: LoginRequest, config: Config = Depends(get_config)):
         if not user:
             raise HTTPException(status_code=401, detail="Invalid username or password")
         
-        return LoginResponse(user_id=user.user_id, username=user.username, locale=user.locale)
+        return LoginResponse(
+            user_id=user.user_id,
+            username=user.username,
+            locale=user.locale,
+            created_at=user.created_at,
+        )
     except HTTPException:
         raise
     except Exception as exc:

@@ -56,19 +56,19 @@ class UserRepo(BaseRepository):
         normalized_locale = self._normalize_locale(locale)
         user_id = self._next_user_id()
         self._run(
-            "CREATE (u:USER {user_id: $user_id, username: $username, password: $password, locale: $locale})",
+            "CREATE (u:USER {user_id: $user_id, username: $username, password: $password, locale: $locale, created_at: datetime()})",
             user_id=user_id,
             username=username,
             password=password,
             locale=normalized_locale,
         )
-        return User(user_id=user_id, username=username, password=password, locale=normalized_locale)
+        return self.get_by_id(user_id)
 
     def login(self, username: str, password: str) -> User | None:
         """Login user. Returns User if credentials match, None otherwise."""
         record = self._run_single(
             "MATCH (u:USER {username: $username, password: $password}) "
-            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale",
+            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale, u.created_at AS created_at",
             username=username,
             password=password,
         )
@@ -79,13 +79,14 @@ class UserRepo(BaseRepository):
             username=record["username"],
             password=record["password"],
             locale=record.get("locale") or "sv",
+            created_at=str(record["created_at"]) if record.get("created_at") else None,
         )
 
     def get_by_id(self, user_id: str) -> User | None:
         """Get user by user_id."""
         record = self._run_single(
             "MATCH (u:USER {user_id: $user_id}) "
-            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale",
+            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale, u.created_at AS created_at",
             user_id=user_id,
         )
         if not record:
@@ -95,13 +96,14 @@ class UserRepo(BaseRepository):
             username=record["username"],
             password=record["password"],
             locale=record.get("locale") or "sv",
+            created_at=str(record["created_at"]) if record.get("created_at") else None,
         )
 
     def get_by_username(self, username: str) -> User | None:
         """Get user by username."""
         record = self._run_single(
             "MATCH (u:USER {username: $username}) "
-            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale",
+            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale, u.created_at AS created_at",
             username=username,
         )
         if not record:
@@ -111,6 +113,7 @@ class UserRepo(BaseRepository):
             username=record["username"],
             password=record["password"],
             locale=record.get("locale") or "sv",
+            created_at=str(record["created_at"]) if record.get("created_at") else None,
         )
 
     def get_locale_by_player_id(self, player_id: str) -> str:
@@ -128,7 +131,7 @@ class UserRepo(BaseRepository):
     def get_public_by_player_id(self, player_id: str) -> dict | None:
         record = self._run_single(
             "MATCH (u:USER)-[:HAS_CHARACTER]->(:PLAYER {player_id: $player_id}) "
-            "RETURN u.user_id AS user_id, u.username AS username, coalesce(u.locale, 'sv') AS locale "
+            "RETURN u.user_id AS user_id, u.username AS username, coalesce(u.locale, 'sv') AS locale, u.created_at AS created_at "
             "LIMIT 1",
             player_id=player_id,
         )
@@ -139,13 +142,14 @@ class UserRepo(BaseRepository):
             "user_id": record.get("user_id"),
             "username": record.get("username"),
             "locale": locale if locale in self.SUPPORTED_LOCALES else "sv",
+            "created_at": str(record["created_at"]) if record.get("created_at") else None,
         }
 
     def list_all(self) -> list[User]:
         """List all users."""
         records = self._run(
             "MATCH (u:USER) "
-            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale "
+            "RETURN u.user_id AS user_id, u.username AS username, u.password AS password, coalesce(u.locale, 'sv') AS locale, u.created_at AS created_at "
             "ORDER BY u.user_id"
         )
         return [
@@ -154,6 +158,7 @@ class UserRepo(BaseRepository):
                 username=r["username"],
                 password=r["password"],
                 locale=r.get("locale") or "sv",
+                created_at=str(r["created_at"]) if r.get("created_at") else None,
             )
             for r in records
         ]

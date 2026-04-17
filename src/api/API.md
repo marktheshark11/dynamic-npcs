@@ -65,7 +65,8 @@ Example response:
 {
   "user_id": "user_2",
   "username": "john_doe",
-  "locale": "en"
+  "locale": "en",
+  "created_at": "2026-04-17T10:15:00Z"
 }
 ```
 
@@ -133,7 +134,8 @@ Example response:
 {
   "user_id": "user_2",
   "username": "john_doe",
-  "locale": "en"
+  "locale": "en",
+  "created_at": "2026-04-17T10:15:00Z"
 }
 ```
 
@@ -727,7 +729,8 @@ Example response:
   "user": {
     "user_id": "user_2",
     "username": "john_doe",
-    "locale": "sv"
+    "locale": "sv",
+    "created_at": "2026-04-17T10:15:00Z"
   },
   "profile": {
     "name": "Kalle",
@@ -910,7 +913,8 @@ Example response shape:
   "user": {
     "user_id": "user_2",
     "username": "john_doe",
-    "locale": "sv"
+    "locale": "sv",
+    "created_at": "2026-04-17T10:15:00Z"
   },
   "player_id": "player_1",
   "summary": {
@@ -956,7 +960,8 @@ Example response shape:
       "user": {
         "user_id": "user_2",
         "username": "john_doe",
-        "locale": "sv"
+        "locale": "sv",
+        "created_at": "2026-04-17T10:15:00Z"
       },
       "player_count": 2,
       "players": [
