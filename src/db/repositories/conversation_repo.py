@@ -276,6 +276,31 @@ class ConversationRepo(BaseRepository):
             for r in records
         ]
 
+    def list_for_player(self, player_id: str) -> list[dict]:
+        records = self._run(
+            "MATCH (player:PLAYER {player_id: $player_id})-[:HAS_CONVERSATION]->(c:CONVERSATION) "
+            "OPTIONAL MATCH (c)-[:FIRST_EXCHANGE]->(first:EXCHANGE) "
+            "OPTIONAL MATCH (first)-[:NEXT*0..]->(e:EXCHANGE) "
+            "RETURN c.conv_id AS conv_id, c.npc_id AS npc_id, c.player_id AS player_id, c.created_at AS created_at, "
+            "c.ended_at AS ended_at, c.summary AS summary, c.summary_updated_at AS summary_updated_at, "
+            "count(DISTINCT e) AS exchange_count "
+            "ORDER BY c.created_at DESC",
+            player_id=player_id,
+        )
+        return [
+            {
+                "conv_id": r["conv_id"],
+                "npc_id": r["npc_id"],
+                "player_id": r.get("player_id"),
+                "created_at": r.get("created_at"),
+                "ended_at": r.get("ended_at"),
+                "summary": r.get("summary"),
+                "summary_updated_at": r.get("summary_updated_at"),
+                "exchange_count": r.get("exchange_count", 0),
+            }
+            for r in records
+        ]
+
     def delete_conversation(self, conversation_id: str) -> bool:
         record = self._run_single(
             "MATCH (c:CONVERSATION {conv_id: $conversation_id}) "

@@ -112,6 +112,14 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
+    def list_all_ids(self) -> list[str]:
+        records = self._run(
+            "MATCH (p:PLAYER) "
+            "RETURN p.player_id AS player_id "
+            "ORDER BY p.player_id"
+        )
+        return [r["player_id"] for r in records if r.get("player_id")]
+
     def set_user(self, player_id: str, user_id: str | None = None) -> bool:
         """Assign a player to a user with HAS_CHARACTER relationship. Uses admin as fallback if user_id is None."""
         actual_user_id = user_id or ADMIN_USER_ID
@@ -485,6 +493,27 @@ class PlayerRepo(BaseRepository):
                 "created_at": str(r["created_at"]) if r.get("created_at") else None,
                 "seen": True,
                 "opened": True,
+            }
+            for r in records
+        ]
+
+    def get_door_entries(self, player_id: str, locale: str = "sv") -> list[dict]:
+        name_expr = self._name_expression(locale, "d")
+        records = self._run(
+            f"""
+            MATCH (:PLAYER {{player_id: $player_id}})-[r:DOOR_ENTERED]->(d:OBJECT:DOOR)
+            RETURN d.object_id AS object_id,
+                   {name_expr} AS name,
+                   r.created_at AS created_at
+            ORDER BY r.created_at, d.object_id
+            """,
+            player_id=player_id,
+        )
+        return [
+            {
+                "object_id": r["object_id"],
+                "name": r["name"],
+                "created_at": str(r["created_at"]) if r.get("created_at") else None,
             }
             for r in records
         ]

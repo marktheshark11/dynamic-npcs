@@ -17,6 +17,7 @@ from pipelines import get_pipeline
 from services.chat_service import ChatService
 from services.door_service import DoorService
 from services.locale_service import LocaleService
+from services.player_analytics_service import PlayerAnalyticsService
 from services.scripted_npc_service import ScriptedNpcService
 
 class ChatResponse(BaseModel):
@@ -96,6 +97,106 @@ class PlayerResponse(BaseModel):
     player_id: str
     name: str
     appearance: str
+
+
+class AnalyticsProfileResponse(BaseModel):
+    name: str | None = None
+    appearance: str | None = None
+    created_at: str | None = None
+    completed_at: str | None = None
+
+
+class AnalyticsGameResponse(BaseModel):
+    has_completed_game: bool
+    accused_correct_npc: bool | None = None
+    accused_npc_id: str | None = None
+
+
+class AnalyticsProgressResponse(BaseModel):
+    claims_known: int
+    items_seen: int
+    items_picked_up: int
+    doors_seen: int
+    doors_opened: int
+    forms_answered: int
+    conversation_count: int
+    exchange_count: int
+    unique_npcs_spoken_to: int
+
+
+class AnalyticsConversationResponse(BaseModel):
+    conversation_id: str | None = None
+    npc_id: str | None = None
+    player_id: str | None = None
+    created_at: str | None = None
+    ended_at: str | None = None
+    summary: str | None = None
+    summary_updated_at: str | None = None
+    exchange_count: int
+
+
+class AnalyticsNpcConversationCountResponse(BaseModel):
+    npc_id: str
+    conversation_count: int
+
+
+class AnalyticsConversationMetricsResponse(BaseModel):
+    by_npc: list[AnalyticsNpcConversationCountResponse] = Field(default_factory=list)
+    conversations: list[AnalyticsConversationResponse] = Field(default_factory=list)
+
+
+class AnalyticsFormAnswerResponse(BaseModel):
+    question_id: str
+    question: str | None = None
+    value_type: str
+    order: int
+    raw_answer: str | None = None
+    answer_text: str | None = None
+    answer_int: int | None = None
+
+
+class AnalyticsFormResponse(BaseModel):
+    form_id: str
+    name: str | None = None
+    description: str | None = None
+    answers: list[AnalyticsFormAnswerResponse] = Field(default_factory=list)
+
+
+class PlayerAnalyticsSummaryResponse(BaseModel):
+    player_id: str
+    locale: str
+    profile: AnalyticsProfileResponse
+    game: AnalyticsGameResponse
+    progress: AnalyticsProgressResponse
+    clues: "ClueResponse"
+    forms: list[AnalyticsFormResponse] = Field(default_factory=list)
+    conversation_metrics: AnalyticsConversationMetricsResponse
+
+
+class AnalyticsTimelineEventResponse(BaseModel):
+    type: str
+    timestamp: str | None = None
+    payload: dict = Field(default_factory=dict)
+
+
+class PlayerAnalyticsTimelineResponse(BaseModel):
+    player_id: str
+    locale: str
+    event_count: int
+    events: list[AnalyticsTimelineEventResponse] = Field(default_factory=list)
+
+
+class PlayerAnalyticsExportResponse(BaseModel):
+    exported_at: str
+    player_id: str
+    summary: PlayerAnalyticsSummaryResponse
+    timeline: PlayerAnalyticsTimelineResponse
+
+
+class PlayerAnalyticsBulkExportResponse(BaseModel):
+    exported_at: str
+    player_count: int
+    players: list[PlayerAnalyticsExportResponse] = Field(default_factory=list)
 
 
 class DeletePlayerResponse(BaseModel):
@@ -614,6 +715,70 @@ async def delete_player(player_id: str, config: Config = Depends(get_config)):
         return DeletePlayerResponse(player_id=player_id, deleted=True)
     except HTTPException:
         raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/players/{player_id}/analytics", response_model=PlayerAnalyticsSummaryResponse)
+async def get_player_analytics_summary(player_id: str, config: Config = Depends(get_config)):
+    player_id = player_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+
+    try:
+        analytics_service = PlayerAnalyticsService(config.driver)
+        summary = analytics_service.get_player_summary(player_id)
+        if not summary:
+            raise HTTPException(status_code=404, detail="Player not found")
+        return PlayerAnalyticsSummaryResponse(**summary)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/players/{player_id}/analytics/timeline", response_model=PlayerAnalyticsTimelineResponse)
+async def get_player_analytics_timeline(player_id: str, config: Config = Depends(get_config)):
+    player_id = player_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+
+    try:
+        analytics_service = PlayerAnalyticsService(config.driver)
+        timeline = analytics_service.get_player_timeline(player_id)
+        if not timeline:
+            raise HTTPException(status_code=404, detail="Player not found")
+        return PlayerAnalyticsTimelineResponse(**timeline)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/players/{player_id}/analytics/export", response_model=PlayerAnalyticsExportResponse)
+async def export_player_analytics(player_id: str, config: Config = Depends(get_config)):
+    player_id = player_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+
+    try:
+        analytics_service = PlayerAnalyticsService(config.driver)
+        export = analytics_service.export_player_analytics(player_id)
+        if not export:
+            raise HTTPException(status_code=404, detail="Player not found")
+        return PlayerAnalyticsExportResponse(**export)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/analytics/export", response_model=PlayerAnalyticsBulkExportResponse)
+async def export_all_player_analytics(config: Config = Depends(get_config)):
+    try:
+        analytics_service = PlayerAnalyticsService(config.driver)
+        export = analytics_service.export_players()
+        return PlayerAnalyticsBulkExportResponse(**export)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

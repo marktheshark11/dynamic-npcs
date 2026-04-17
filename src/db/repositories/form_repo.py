@@ -231,6 +231,48 @@ class FormRepo(BaseRepository):
             ],
         }
 
+    def list_player_forms_with_answers(self, player_id: str, locale: str = "sv") -> list[dict]:
+        records = self._run(
+            "MATCH (p:PLAYER {player_id: $player_id})-[:HAS_FORM_ANSWER]->(a:FORM_ANSWER)<-[:HAS_ANSWER]-(q:FORM_QUESTION)<-[:HAS_QUESTION]-(f:FORM) "
+            "RETURN f.form_id AS form_id, f.name AS form_name, f.name_en AS form_name_en, "
+            "f.description AS form_description, f.description_en AS form_description_en, "
+            "q.question_id AS question_id, q.question AS question, q.question_en AS question_en, "
+            "q.value_type AS value_type, q.`order` AS question_order, "
+            "a.raw_answer AS raw_answer, a.answer_text AS answer_text, a.answer_int AS answer_int "
+            "ORDER BY f.form_id, q.`order`, q.question_id",
+            player_id=player_id,
+        )
+
+        forms_by_id: dict[str, dict] = {}
+        for record in records:
+            form_id = record["form_id"]
+            form_entry = forms_by_id.setdefault(
+                form_id,
+                {
+                    "form_id": form_id,
+                    "name": self._localized_value(locale, record.get("form_name"), record.get("form_name_en")),
+                    "description": self._localized_value(
+                        locale,
+                        record.get("form_description"),
+                        record.get("form_description_en"),
+                    ),
+                    "answers": [],
+                },
+            )
+            form_entry["answers"].append(
+                {
+                    "question_id": record["question_id"],
+                    "question": self._localized_value(locale, record.get("question"), record.get("question_en")),
+                    "value_type": record["value_type"],
+                    "order": int(record.get("question_order") or 0),
+                    "raw_answer": record.get("raw_answer"),
+                    "answer_text": record.get("answer_text"),
+                    "answer_int": record.get("answer_int"),
+                }
+            )
+
+        return list(forms_by_id.values())
+
     def save_player_form_answers(self, player_id: str, form_id: str, answers: list[dict]) -> list[dict]:
         player_record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) RETURN p.player_id AS player_id",

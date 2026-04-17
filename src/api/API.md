@@ -700,6 +700,254 @@ Validation / not found responses:
 }
 ```
 
+## GET /players/{player_id}/analytics
+
+Return a structured analytics summary for one player.
+
+This is the main read model for current player state and aggregates data from:
+
+- player profile and completion state
+- discovered clues
+- saved form answers
+- conversation counts and per-NPC counts
+
+Example request:
+
+```http
+GET /players/player_1/analytics
+```
+
+Example response:
+
+```json
+{
+  "player_id": "player_1",
+  "locale": "sv",
+  "profile": {
+    "name": "Kalle",
+    "appearance": "Lång, brun kappa",
+    "created_at": "2026-04-17T10:15:00Z",
+    "completed_at": null
+  },
+  "game": {
+    "has_completed_game": false,
+    "accused_correct_npc": null,
+    "accused_npc_id": null
+  },
+  "progress": {
+    "claims_known": 3,
+    "items_seen": 2,
+    "items_picked_up": 1,
+    "doors_seen": 1,
+    "doors_opened": 0,
+    "forms_answered": 1,
+    "conversation_count": 2,
+    "exchange_count": 7,
+    "unique_npcs_spoken_to": 2
+  },
+  "clues": {
+    "claims": [],
+    "items": [],
+    "doors": []
+  },
+  "forms": [
+    {
+      "form_id": "player_profile",
+      "name": "Player Profile",
+      "description": "Answer the questions based on how you felt at the end of the game.",
+      "answers": [
+        {
+          "question_id": "q_name",
+          "question": "What is your name?",
+          "value_type": "string",
+          "order": 1,
+          "raw_answer": "Elin",
+          "answer_text": "Elin",
+          "answer_int": null
+        }
+      ]
+    }
+  ],
+  "conversation_metrics": {
+    "by_npc": [
+      {
+        "npc_id": "npc_1",
+        "conversation_count": 2
+      }
+    ],
+    "conversations": [
+      {
+        "conversation_id": "conv_3",
+        "npc_id": "npc_1",
+        "player_id": "player_1",
+        "created_at": "2026-04-17T10:20:00Z",
+        "ended_at": null,
+        "summary": null,
+        "summary_updated_at": null,
+        "exchange_count": 4
+      }
+    ]
+  }
+}
+```
+
+Validation / not found responses:
+
+```json
+{
+  "detail": "player_id cannot be empty"
+}
+```
+
+```json
+{
+  "detail": "Player not found"
+}
+```
+
+## GET /players/{player_id}/analytics/timeline
+
+Return a chronological event stream for one player.
+
+This endpoint is intended for behavior analysis and export. It includes events such as:
+
+- `player_created`
+- `claim_learned`
+- `item_seen`
+- `item_picked_up`
+- `door_seen`
+- `door_opened`
+- `door_entered`
+- `conversation_started`
+- `exchange_recorded`
+- `form_answer_saved`
+- `game_completed`
+
+Example request:
+
+```http
+GET /players/player_1/analytics/timeline
+```
+
+Example response:
+
+```json
+{
+  "player_id": "player_1",
+  "locale": "sv",
+  "event_count": 4,
+  "events": [
+    {
+      "type": "player_created",
+      "timestamp": "2026-04-17T10:15:00Z",
+      "payload": {
+        "player_id": "player_1"
+      }
+    },
+    {
+      "type": "conversation_started",
+      "timestamp": "2026-04-17T10:20:00Z",
+      "payload": {
+        "conversation_id": "conv_3",
+        "npc_id": "npc_1"
+      }
+    },
+    {
+      "type": "exchange_recorded",
+      "timestamp": "2026-04-17T10:20:05Z",
+      "payload": {
+        "conversation_id": "conv_3",
+        "exchange_id": "conv_3_ex_1",
+        "npc_id": "npc_1",
+        "turn_index": 1,
+        "player_text": "Vad vet du om torget?",
+        "npc_text": "..."
+      }
+    },
+    {
+      "type": "form_answer_saved",
+      "timestamp": null,
+      "payload": {
+        "form_id": "player_profile",
+        "form_name": "Player Profile",
+        "question_id": "q_name",
+        "question": "What is your name?",
+        "raw_answer": "Elin",
+        "answer_text": "Elin",
+        "answer_int": null
+      }
+    }
+  ]
+}
+```
+
+Notes:
+
+- Some events may have `timestamp: null` if the source data does not currently store timestamps.
+- `exchange_recorded` currently includes both `player_text` and `npc_text` for each turn.
+
+## GET /players/{player_id}/analytics/export
+
+Return both the summary and timeline in one export-friendly JSON payload for a single player.
+
+Example request:
+
+```http
+GET /players/player_1/analytics/export
+```
+
+Example response shape:
+
+```json
+{
+  "exported_at": "2026-04-17T10:30:00Z",
+  "player_id": "player_1",
+  "summary": {
+    "player_id": "player_1"
+  },
+  "timeline": {
+    "player_id": "player_1",
+    "events": []
+  }
+}
+```
+
+This is the recommended endpoint if you want to download one player's analytics and process it elsewhere.
+
+## GET /analytics/export
+
+Return analytics exports for all players.
+
+Example request:
+
+```http
+GET /analytics/export
+```
+
+Example response shape:
+
+```json
+{
+  "exported_at": "2026-04-17T10:30:00Z",
+  "player_count": 2,
+  "players": [
+    {
+      "exported_at": "2026-04-17T10:30:00Z",
+      "player_id": "player_1",
+      "summary": {
+        "player_id": "player_1"
+      },
+      "timeline": {
+        "player_id": "player_1",
+        "events": []
+      }
+    }
+  ]
+}
+```
+
+This is the recommended endpoint for downloading JSON to analyze with pandas or other external tooling.
+
 ## GET /players/{player_id}/claims
 
 Return all claims the player is aware of (connected via `AWARE_OF`).
