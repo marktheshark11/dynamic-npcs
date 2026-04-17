@@ -1,6 +1,7 @@
 from .npc_repo import NPCRepo, GroupRepo
 from .claim_repo import ClaimRepo
 from .constant_repo import ConstantRepo
+from .form_repo import FormRepo
 from .opinion_repo import OpinionRepo
 from .relation_repo import RelationRepo
 from .mystery_repo import MysteryRepo
@@ -14,6 +15,7 @@ __all__ = [
     "GroupRepo",
     "ClaimRepo",
     "ConstantRepo",
+    "FormRepo",
     "OpinionRepo",
     "RelationRepo",
     "MysteryRepo",

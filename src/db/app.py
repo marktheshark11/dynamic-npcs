@@ -2,7 +2,7 @@ from .config import Config
 from .services import EmbeddingService
 from .repositories import (
     NPCRepo, GroupRepo, ClaimRepo, ConstantRepo, OpinionRepo, RelationRepo,
-    MysteryRepo, ConversationRepo, PlayerRepo,
+    MysteryRepo, ConversationRepo, PlayerRepo, FormRepo,
 )
 from .commands import (
     CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, ListNPCsCommand,
@@ -13,6 +13,7 @@ from .commands import (
     DeleteObjectCommand, DeletePlaceCommand, DeleteItemCommand, DeleteDoorCommand,
     EditItemCommand, EditDoorCommand,
     ListConstantsCommand, ListItemsCommand, ListDoorsCommand,
+    CreateFormCommand, ListFormsCommand, CreateFormQuestionCommand, ListFormQuestionsCommand,
     CreateOpinionCommand, EditOpinionCommand,
     DeleteOpinionCommand, ListOpinionsCommand,
     CreateStructuralRelationCommand,
@@ -43,6 +44,7 @@ class App:
         self._group_repo = GroupRepo(config.driver)
         self._claim_repo = ClaimRepo(config.driver, embedding)
         self._constant_repo = ConstantRepo(config.driver)
+        self._form_repo = FormRepo(config.driver)
         self._opinion_repo = OpinionRepo(config.driver)
         self._relation_repo = RelationRepo(config.driver)
         self._mystery_repo = MysteryRepo(config.driver)
@@ -107,6 +109,12 @@ class App:
                 ListConstantsCommand(self._constant_repo, ui),
                 ListItemsCommand(self._constant_repo, ui),
                 ListDoorsCommand(self._constant_repo, ui),
+            ]),
+            SubMenu("Formulär", [
+                CreateFormCommand(self._form_repo, ui),
+                ListFormsCommand(self._form_repo, ui),
+                CreateFormQuestionCommand(self._form_repo, ui),
+                ListFormQuestionsCommand(self._form_repo, ui),
             ]),
             SubMenu("Opinions (kopplingar)", [
                 CreateOpinionCommand(

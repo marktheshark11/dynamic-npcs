@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from db.config import Config
-from db.repositories import ConstantRepo, PlayerRepo, UserRepo
+from db.repositories import ConstantRepo, FormRepo, PlayerRepo, UserRepo
 from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
 from pipelines import get_pipeline
 from services.chat_service import ChatService
@@ -101,6 +101,57 @@ class PlayerResponse(BaseModel):
 class DeletePlayerResponse(BaseModel):
     player_id: str
     deleted: bool
+
+
+class FormQuestionResponse(BaseModel):
+    question_id: str
+    question: str
+    value_type: str
+    order: int
+
+
+class FormResponse(BaseModel):
+    form_id: str
+    name: str
+    questions: list[FormQuestionResponse] = Field(default_factory=list)
+
+
+class SaveFormAnswerItemRequest(BaseModel):
+    question_id: str
+    answer: str
+
+
+class SaveFormRequest(BaseModel):
+    answers: list[SaveFormAnswerItemRequest] = Field(default_factory=list)
+
+
+class SavedFormAnswerResponse(BaseModel):
+    question_id: str
+    value_type: str
+    raw_answer: str
+
+
+class SaveFormResponse(BaseModel):
+    player_id: str
+    form_id: str
+    saved_answers: list[SavedFormAnswerResponse] = Field(default_factory=list)
+
+
+class PlayerFormQuestionResponse(FormQuestionResponse):
+    answer: str | None = None
+
+
+class PlayerFormResponse(BaseModel):
+    form_id: str
+    name: str
+    questions: list[PlayerFormQuestionResponse] = Field(default_factory=list)
+
+
+def _normalize_locale(locale: str | None) -> str:
+    normalized = (locale or "sv").strip().lower()
+    if normalized not in UserRepo.SUPPORTED_LOCALES:
+        raise HTTPException(status_code=400, detail="locale must be 'sv' or 'en'")
+    return normalized
 
 
 class ItemActionRequest(BaseModel):
@@ -259,6 +310,13 @@ def _get_player_or_404(player_repo: PlayerRepo, player_id: str) -> dict:
     if not player_profile:
         raise HTTPException(status_code=404, detail="Player not found")
     return player_profile
+
+
+def _get_form_or_404(form_repo: FormRepo, form_id: str) -> dict:
+    form = form_repo.get_form(form_id)
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return form
 
 
 def _localized_detail(locale: str, english_text: str, swedish_text: str) -> str:
@@ -548,6 +606,104 @@ async def delete_player(player_id: str, config: Config = Depends(get_config)):
         if not deleted:
             raise HTTPException(status_code=404, detail="Player not found")
         return DeletePlayerResponse(player_id=player_id, deleted=True)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/forms/{form_id}", response_model=FormResponse)
+async def get_form(form_id: str, locale: str = "sv", config: Config = Depends(get_config)):
+    form_id = form_id.strip()
+    if not form_id:
+        raise HTTPException(status_code=400, detail="form_id cannot be empty")
+    normalized_locale = _normalize_locale(locale)
+
+    try:
+        form_repo = FormRepo(config.driver)
+        form = form_repo.get_form(form_id, locale=normalized_locale)
+        if not form:
+            raise HTTPException(status_code=404, detail="Form not found")
+        return FormResponse(
+            form_id=form["form_id"],
+            name=form["name"],
+            questions=[FormQuestionResponse(**question) for question in form.get("questions", [])],
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/players/{player_id}/forms/{form_id}", response_model=SaveFormResponse)
+async def save_player_form(
+    player_id: str,
+    form_id: str,
+    payload: SaveFormRequest,
+    config: Config = Depends(get_config),
+):
+    player_id = player_id.strip()
+    form_id = form_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+    if not form_id:
+        raise HTTPException(status_code=400, detail="form_id cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        form_repo = FormRepo(config.driver)
+        _get_player_or_404(player_repo, player_id)
+        _get_form_or_404(form_repo, form_id)
+
+        answers = [
+            {
+                "question_id": item.question_id.strip(),
+                "answer": item.answer.strip(),
+            }
+            for item in payload.answers
+        ]
+        saved_answers = form_repo.save_player_form_answers(player_id, form_id, answers)
+        return SaveFormResponse(
+            player_id=player_id,
+            form_id=form_id,
+            saved_answers=[SavedFormAnswerResponse(**item) for item in saved_answers],
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        if detail in {"Player not found", "Form not found"}:
+            raise HTTPException(status_code=404, detail=detail) from exc
+        raise HTTPException(status_code=400, detail=detail) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/players/{player_id}/forms/{form_id}", response_model=PlayerFormResponse)
+async def get_player_form(player_id: str, form_id: str, config: Config = Depends(get_config)):
+    player_id = player_id.strip()
+    form_id = form_id.strip()
+    if not player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+    if not form_id:
+        raise HTTPException(status_code=400, detail="form_id cannot be empty")
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        form_repo = FormRepo(config.driver)
+        _get_player_or_404(player_repo, player_id)
+        _get_form_or_404(form_repo, form_id)
+        locale = LocaleService(config.driver).get_player_locale(player_id)
+
+        player_form = form_repo.get_player_form_answers(player_id, form_id, locale=locale)
+        if not player_form:
+            raise HTTPException(status_code=404, detail="Form not found")
+
+        return PlayerFormResponse(
+            form_id=player_form["form_id"],
+            name=player_form["name"],
+            questions=[PlayerFormQuestionResponse(**question) for question in player_form.get("questions", [])],
+        )
     except HTTPException:
         raise
     except Exception as exc:

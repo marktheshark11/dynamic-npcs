@@ -219,6 +219,165 @@ Request body:
 
 Behavior:
 
+## GET /forms/{form_id}
+
+Return a form definition with all questions ordered by `order`.
+
+Query parameters:
+
+- `locale` (string, optional, `sv` or `en`, defaults to `sv`)
+
+When `locale=en`, the API returns `name_en` / `question_en` when present, and falls back to Swedish text when English text is missing.
+
+Example response:
+
+```json
+{
+  "form_id": "player_profile",
+  "name": "Player Profile",
+  "questions": [
+    {
+      "question_id": "q_name",
+      "question": "What is your name?",
+      "value_type": "string",
+      "order": 1
+    },
+    {
+      "question_id": "q_age",
+      "question": "How old are you?",
+      "value_type": "int",
+      "order": 2
+    }
+  ]
+}
+```
+
+English example:
+
+`GET /forms/player_profile?locale=en`
+
+```json
+{
+  "form_id": "player_profile",
+  "name": "Player Profile",
+  "questions": [
+    {
+      "question_id": "q_name",
+      "question": "What is your name?",
+      "value_type": "string",
+      "order": 1
+    },
+    {
+      "question_id": "q_age",
+      "question": "How old are you?",
+      "value_type": "int",
+      "order": 2
+    }
+  ]
+}
+```
+
+If the form does not exist:
+
+```json
+{
+  "detail": "Form not found"
+}
+```
+
+## POST /players/{player_id}/forms/{form_id}
+
+Save one current answer per question for a player. The request must contain answers for all questions in the form.
+
+Request body:
+
+- `answers` (array, required)
+  - `question_id` (string, required)
+  - `answer` (string, required)
+
+Example request:
+
+```json
+{
+  "answers": [
+    {
+      "question_id": "q_name",
+      "answer": "Elin"
+    },
+    {
+      "question_id": "q_age",
+      "answer": "27"
+    }
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "player_id": "player_1",
+  "form_id": "player_profile",
+  "saved_answers": [
+    {
+      "question_id": "q_name",
+      "value_type": "string",
+      "raw_answer": "Elin"
+    },
+    {
+      "question_id": "q_age",
+      "value_type": "int",
+      "raw_answer": "27"
+    }
+  ]
+}
+```
+
+Possible validation errors:
+
+```json
+{
+  "detail": "All form questions must be answered; missing question_ids: q_age"
+}
+```
+
+```json
+{
+  "detail": "answer for question_id 'q_age' must be an integer"
+}
+```
+
+## GET /players/{player_id}/forms/{form_id}
+
+Return a form definition together with the player's currently saved answers.
+
+This endpoint uses the player's locale to choose Swedish or English text, with fallback to Swedish if English text is missing.
+
+Example response:
+
+```json
+{
+  "form_id": "player_profile",
+  "name": "Player Profile",
+  "questions": [
+    {
+      "question_id": "q_name",
+      "question": "What is your name?",
+      "value_type": "string",
+      "order": 1,
+      "answer": "Elin"
+    },
+    {
+      "question_id": "q_age",
+      "question": "How old are you?",
+      "value_type": "int",
+      "order": 2,
+      "answer": "27"
+    }
+  ]
+}
+```
+
 - If `conversation_id` is omitted, a new conversation may be created.
 - If `player_id` is provided when a new conversation is created, that conversation is linked to the player.
 - If `conversation_id` is provided, the API tries to continue that conversation.

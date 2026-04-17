@@ -102,6 +102,38 @@ An organizational grouping for the database builder. Used to categorize claims b
 |----------|------|-------|
 | `name` | string | Unique, capitalized |
 
+### FORM
+A reusable form definition that can be shown to many players.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `form_id` | string | Unique identifier for the form |
+| `name` | string | Display name in Swedish |
+| `name_en` | string? | English translation of `name` |
+
+### FORM_QUESTION
+A question belonging to a specific form.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `question_id` | string | Unique identifier for the question |
+| `question` | string | Question text shown to the player in Swedish |
+| `question_en` | string? | English translation of `question` |
+| `value_type` | string | Allowed values currently: `string`, `int` |
+| `order` | int | Display order inside the form |
+
+### FORM_ANSWER
+A player's current saved answer to a specific form question.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `answer_id` | string | Auto-generated identifier |
+| `raw_answer` | string | Original submitted value from the client |
+| `value_type` | string | Copied from the question when saved |
+| `answer_text` | string? | Filled when `value_type = "string"` |
+| `answer_int` | int? | Filled when `value_type = "int"` |
+| `created_at` | datetime | When the answer node was first created |
+
 ---
 
 ## Relationships (Edges)
@@ -321,6 +353,32 @@ Tracks each successful door passage for a player. Unlike `HAS_OPENED`, this is a
 
 ```
 (PLAYER)-[:DOOR_ENTERED {created_at: datetime()}]->(OBJECT:DOOR)
+```
+
+### HAS_QUESTION (FORM --> FORM_QUESTION)
+
+Links a form definition to its questions. No properties.
+
+```
+(FORM)-[:HAS_QUESTION]->(FORM_QUESTION)
+```
+
+### HAS_ANSWER (FORM_QUESTION --> FORM_ANSWER)
+
+Links a question to a player's current answer for that question. No properties.
+
+```
+(FORM_QUESTION)-[:HAS_ANSWER]->(FORM_ANSWER)
+```
+
+### HAS_FORM_ANSWER (PLAYER --> FORM_ANSWER)
+
+Links a player to a saved form answer. No properties.
+
+At the application layer there is only one current answer per player per question. Saving the same form again overwrites the existing answer node properties instead of creating answer history.
+
+```
+(PLAYER)-[:HAS_FORM_ANSWER]->(FORM_ANSWER)
 ```
 
 ---

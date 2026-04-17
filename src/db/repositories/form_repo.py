@@ -1,0 +1,270 @@
+from .base import BaseRepository
+from ..models import Form, FormQuestion
+
+
+class FormRepo(BaseRepository):
+    """CRUD and answer operations for forms and form questions."""
+
+    VALID_VALUE_TYPES = {"string", "int"}
+
+    def _next_answer_id(self) -> str:
+        records = self._run(
+            "MATCH (a:FORM_ANSWER) "
+            "WHERE a.answer_id IS NOT NULL AND a.answer_id STARTS WITH 'answer_' "
+            "RETURN a.answer_id AS answer_id"
+        )
+        if not records:
+            return "answer_1"
+
+        max_num = 0
+        for record in records:
+            answer_id = record.get("answer_id")
+            if not answer_id:
+                continue
+            suffix = answer_id[7:]
+            if suffix.isdigit():
+                max_num = max(max_num, int(suffix))
+
+        return f"answer_{max_num + 1}"
+
+    def _validate_value_type(self, value_type: str) -> str:
+        normalized = value_type.strip().lower()
+        if normalized not in self.VALID_VALUE_TYPES:
+            raise ValueError("value_type must be one of: string, int")
+        return normalized
+
+    @staticmethod
+    def _localized_value(locale: str, swedish_value: str | None, english_value: str | None) -> str | None:
+        if locale == "en" and english_value:
+            return english_value
+        return swedish_value
+
+    def create_form(self, form_id: str, name: str, name_en: str | None = None) -> Form:
+        self._run(
+            "CREATE (f:FORM {form_id: $form_id, name: $name, name_en: $name_en})",
+            form_id=form_id,
+            name=name,
+            name_en=name_en,
+        )
+        return Form(form_id=form_id, name=name, name_en=name_en)
+
+    def list_forms(self) -> list[Form]:
+        records = self._run(
+            "MATCH (f:FORM) "
+            "RETURN f.form_id AS form_id, f.name AS name, f.name_en AS name_en "
+            "ORDER BY f.form_id"
+        )
+        return [Form(form_id=r["form_id"], name=r["name"], name_en=r.get("name_en")) for r in records]
+
+    def get_form(self, form_id: str, locale: str = "sv") -> dict | None:
+        record = self._run_single(
+            "MATCH (f:FORM {form_id: $form_id}) "
+            "RETURN f.form_id AS form_id, f.name AS name, f.name_en AS name_en",
+            form_id=form_id,
+        )
+        if not record:
+            return None
+        questions = self.list_form_questions(form_id, locale=locale)
+        return {
+            "form_id": record["form_id"],
+            "name": self._localized_value(locale, record.get("name"), record.get("name_en")),
+            "questions": [
+                {
+                    "question_id": question.question_id,
+                    "question": question.question,
+                    "value_type": question.value_type,
+                    "order": question.order,
+                }
+                for question in questions
+            ],
+        }
+
+    def add_question(
+        self,
+        form_id: str,
+        question_id: str,
+        question: str,
+        question_en: str | None,
+        value_type: str,
+        order: int,
+    ) -> FormQuestion:
+        normalized_type = self._validate_value_type(value_type)
+        record = self._run_single(
+            "MATCH (f:FORM {form_id: $form_id}) "
+            "CREATE (q:FORM_QUESTION {"
+            "question_id: $question_id, question: $question, question_en: $question_en, value_type: $value_type, `order`: $order"
+            "}) "
+            "CREATE (f)-[:HAS_QUESTION]->(q) "
+            "RETURN q.question_id AS question_id",
+            form_id=form_id,
+            question_id=question_id,
+            question=question,
+            question_en=question_en,
+            value_type=normalized_type,
+            order=order,
+        )
+        if not record:
+            raise ValueError("Form not found")
+        return FormQuestion(
+            question_id=question_id,
+            question=question,
+            question_en=question_en,
+            value_type=normalized_type,
+            order=order,
+        )
+
+    def list_form_questions(self, form_id: str, locale: str = "sv") -> list[FormQuestion]:
+        records = self._run(
+            "MATCH (f:FORM {form_id: $form_id})-[:HAS_QUESTION]->(q:FORM_QUESTION) "
+            "RETURN q.question_id AS question_id, q.question AS question, q.question_en AS question_en, "
+            "q.value_type AS value_type, q.`order` AS order "
+            "ORDER BY q.`order`, q.question_id",
+            form_id=form_id,
+        )
+        return [
+            FormQuestion(
+                question_id=r["question_id"],
+                question=self._localized_value(locale, r.get("question"), r.get("question_en")) or "",
+                question_en=r.get("question_en"),
+                value_type=r["value_type"],
+                order=int(r["order"]),
+            )
+            for r in records
+        ]
+
+    def get_player_form_answers(self, player_id: str, form_id: str, locale: str = "sv") -> dict | None:
+        form_data = self.get_form(form_id, locale=locale)
+        if not form_data:
+            return None
+
+        records = self._run(
+            "MATCH (p:PLAYER {player_id: $player_id})-[:HAS_FORM_ANSWER]->(a:FORM_ANSWER)<-[:HAS_ANSWER]-(q:FORM_QUESTION)<-[:HAS_QUESTION]-(f:FORM {form_id: $form_id}) "
+            "RETURN q.question_id AS question_id, a.raw_answer AS raw_answer "
+            "ORDER BY q.`order`, q.question_id",
+            player_id=player_id,
+            form_id=form_id,
+        )
+        answer_by_question = {r["question_id"]: r.get("raw_answer") for r in records}
+        return {
+            "form_id": form_data["form_id"],
+            "name": form_data["name"],
+            "questions": [
+                {
+                    **question,
+                    "answer": answer_by_question.get(question["question_id"]),
+                }
+                for question in form_data["questions"]
+            ],
+        }
+
+    def save_player_form_answers(self, player_id: str, form_id: str, answers: list[dict]) -> list[dict]:
+        player_record = self._run_single(
+            "MATCH (p:PLAYER {player_id: $player_id}) RETURN p.player_id AS player_id",
+            player_id=player_id,
+        )
+        if not player_record:
+            raise ValueError("Player not found")
+
+        questions = self.list_form_questions(form_id)
+        if not questions:
+            form_exists = self._run_single(
+                "MATCH (f:FORM {form_id: $form_id}) RETURN f.form_id AS form_id",
+                form_id=form_id,
+            )
+            if not form_exists:
+                raise ValueError("Form not found")
+            raise ValueError("Form has no questions")
+
+        question_by_id = {question.question_id: question for question in questions}
+        submitted_ids = [str(item.get("question_id", "")).strip() for item in answers]
+
+        if len(submitted_ids) != len(set(submitted_ids)):
+            raise ValueError("Duplicate question_id values are not allowed")
+
+        expected_ids = set(question_by_id.keys())
+        actual_ids = set(submitted_ids)
+
+        if actual_ids != expected_ids:
+            missing = sorted(expected_ids - actual_ids)
+            extra = sorted(actual_ids - expected_ids)
+            details = []
+            if missing:
+                details.append(f"missing question_ids: {', '.join(missing)}")
+            if extra:
+                details.append(f"unknown question_ids: {', '.join(extra)}")
+            raise ValueError("All form questions must be answered; " + "; ".join(details))
+
+        saved_answers = []
+        for item in answers:
+            question_id = str(item.get("question_id", "")).strip()
+            raw_answer = str(item.get("answer", "")).strip()
+            if not question_id:
+                raise ValueError("question_id cannot be empty")
+            if raw_answer == "":
+                raise ValueError(f"answer cannot be empty for question_id '{question_id}'")
+
+            question = question_by_id[question_id]
+            answer_text: str | None = None
+            answer_int: int | None = None
+
+            if question.value_type == "string":
+                answer_text = raw_answer
+            elif question.value_type == "int":
+                try:
+                    answer_int = int(raw_answer)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"answer for question_id '{question_id}' must be an integer"
+                    ) from exc
+            else:
+                raise ValueError(f"Unsupported value_type '{question.value_type}'")
+
+            existing = self._run_single(
+                "MATCH (p:PLAYER {player_id: $player_id})-[:HAS_FORM_ANSWER]->(a:FORM_ANSWER)<-[:HAS_ANSWER]-(q:FORM_QUESTION {question_id: $question_id}) "
+                "RETURN a.answer_id AS answer_id",
+                player_id=player_id,
+                question_id=question_id,
+            )
+
+            if existing:
+                answer_id = existing["answer_id"]
+                self._run(
+                    "MATCH (a:FORM_ANSWER {answer_id: $answer_id}) "
+                    "SET a.raw_answer = $raw_answer, a.value_type = $value_type, "
+                    "a.answer_text = $answer_text, a.answer_int = $answer_int",
+                    answer_id=answer_id,
+                    raw_answer=raw_answer,
+                    value_type=question.value_type,
+                    answer_text=answer_text,
+                    answer_int=answer_int,
+                )
+            else:
+                answer_id = self._next_answer_id()
+                self._run(
+                    "MATCH (p:PLAYER {player_id: $player_id}) "
+                    "MATCH (q:FORM_QUESTION {question_id: $question_id}) "
+                    "CREATE (a:FORM_ANSWER {"
+                    "answer_id: $answer_id, raw_answer: $raw_answer, value_type: $value_type, "
+                    "answer_text: $answer_text, answer_int: $answer_int, created_at: datetime()"
+                    "}) "
+                    "CREATE (p)-[:HAS_FORM_ANSWER]->(a) "
+                    "CREATE (q)-[:HAS_ANSWER]->(a)",
+                    player_id=player_id,
+                    question_id=question_id,
+                    answer_id=answer_id,
+                    raw_answer=raw_answer,
+                    value_type=question.value_type,
+                    answer_text=answer_text,
+                    answer_int=answer_int,
+                )
+
+            saved_answers.append(
+                {
+                    "question_id": question_id,
+                    "value_type": question.value_type,
+                    "raw_answer": raw_answer,
+                }
+            )
+
+        saved_answers.sort(key=lambda item: question_by_id[item["question_id"]].order)
+        return saved_answers
