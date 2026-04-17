@@ -106,6 +106,12 @@ class AnalyticsProfileResponse(BaseModel):
     completed_at: str | None = None
 
 
+class AnalyticsUserResponse(BaseModel):
+    user_id: str | None = None
+    username: str | None = None
+    locale: str | None = None
+
+
 class AnalyticsGameResponse(BaseModel):
     has_completed_game: bool
     accused_correct_npc: bool | None = None
@@ -165,6 +171,7 @@ class AnalyticsFormResponse(BaseModel):
 class PlayerAnalyticsSummaryResponse(BaseModel):
     player_id: str
     locale: str
+    user: AnalyticsUserResponse | None = None
     profile: AnalyticsProfileResponse
     game: AnalyticsGameResponse
     progress: AnalyticsProgressResponse
@@ -188,15 +195,28 @@ class PlayerAnalyticsTimelineResponse(BaseModel):
 
 class PlayerAnalyticsExportResponse(BaseModel):
     exported_at: str
+    user: AnalyticsUserResponse | None = None
     player_id: str
     summary: PlayerAnalyticsSummaryResponse
     timeline: PlayerAnalyticsTimelineResponse
 
 
+class PlayerAnalyticsExportItemResponse(BaseModel):
+    player_id: str
+    summary: PlayerAnalyticsSummaryResponse
+    timeline: PlayerAnalyticsTimelineResponse
+
+
+class UserAnalyticsExportGroupResponse(BaseModel):
+    user: AnalyticsUserResponse | None = None
+    player_count: int
+    players: list[PlayerAnalyticsExportItemResponse] = Field(default_factory=list)
+
+
 class PlayerAnalyticsBulkExportResponse(BaseModel):
     exported_at: str
-    player_count: int
-    players: list[PlayerAnalyticsExportResponse] = Field(default_factory=list)
+    user_count: int
+    users: list[UserAnalyticsExportGroupResponse] = Field(default_factory=list)
 
 
 class DeletePlayerResponse(BaseModel):
@@ -774,11 +794,35 @@ async def export_player_analytics(player_id: str, config: Config = Depends(get_c
 
 
 @app.get("/analytics/export", response_model=PlayerAnalyticsBulkExportResponse)
-async def export_all_player_analytics(config: Config = Depends(get_config)):
+async def export_all_player_analytics(user_id: str | None = None, config: Config = Depends(get_config)):
     try:
         analytics_service = PlayerAnalyticsService(config.driver)
-        export = analytics_service.export_players()
+        if user_id is not None:
+            user_id = user_id.strip()
+            if not user_id:
+                raise HTTPException(status_code=400, detail="user_id cannot be empty")
+            export = analytics_service.export_players_for_user(user_id)
+        else:
+            export = analytics_service.export_players()
         return PlayerAnalyticsBulkExportResponse(**export)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/users/{user_id}/analytics/export", response_model=PlayerAnalyticsBulkExportResponse)
+async def export_user_player_analytics(user_id: str, config: Config = Depends(get_config)):
+    normalized_user_id = user_id.strip()
+    if not normalized_user_id:
+        raise HTTPException(status_code=400, detail="user_id cannot be empty")
+
+    try:
+        analytics_service = PlayerAnalyticsService(config.driver)
+        export = analytics_service.export_players_for_user(normalized_user_id)
+        return PlayerAnalyticsBulkExportResponse(**export)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

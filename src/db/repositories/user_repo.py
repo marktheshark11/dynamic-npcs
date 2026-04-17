@@ -125,6 +125,22 @@ class UserRepo(BaseRepository):
         locale = record.get("locale") or "sv"
         return locale if locale in self.SUPPORTED_LOCALES else "sv"
 
+    def get_public_by_player_id(self, player_id: str) -> dict | None:
+        record = self._run_single(
+            "MATCH (u:USER)-[:HAS_CHARACTER]->(:PLAYER {player_id: $player_id}) "
+            "RETURN u.user_id AS user_id, u.username AS username, coalesce(u.locale, 'sv') AS locale "
+            "LIMIT 1",
+            player_id=player_id,
+        )
+        if not record:
+            return None
+        locale = record.get("locale") or "sv"
+        return {
+            "user_id": record.get("user_id"),
+            "username": record.get("username"),
+            "locale": locale if locale in self.SUPPORTED_LOCALES else "sv",
+        }
+
     def list_all(self) -> list[User]:
         """List all users."""
         records = self._run(

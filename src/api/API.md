@@ -706,6 +706,7 @@ Return a structured analytics summary for one player.
 
 This is the main read model for current player state and aggregates data from:
 
+- owning user metadata (without password)
 - player profile and completion state
 - discovered clues
 - saved form answers
@@ -723,6 +724,11 @@ Example response:
 {
   "player_id": "player_1",
   "locale": "sv",
+  "user": {
+    "user_id": "user_2",
+    "username": "john_doe",
+    "locale": "sv"
+  },
   "profile": {
     "name": "Kalle",
     "appearance": "Lång, brun kappa",
@@ -901,6 +907,11 @@ Example response shape:
 ```json
 {
   "exported_at": "2026-04-17T10:30:00Z",
+  "user": {
+    "user_id": "user_2",
+    "username": "john_doe",
+    "locale": "sv"
+  },
   "player_id": "player_1",
   "summary": {
     "player_id": "player_1"
@@ -916,7 +927,11 @@ This is the recommended endpoint if you want to download one player's analytics 
 
 ## GET /analytics/export
 
-Return analytics exports for all players.
+Return analytics exports grouped by owning user.
+
+Query parameters:
+
+- `user_id` (string, optional) - if provided, only exports players owned by that user
 
 Example request:
 
@@ -924,29 +939,68 @@ Example request:
 GET /analytics/export
 ```
 
+Example request for one user's players:
+
+```http
+GET /analytics/export?user_id=user_2
+```
+
 Example response shape:
 
 ```json
 {
   "exported_at": "2026-04-17T10:30:00Z",
-  "player_count": 2,
-  "players": [
+  "user_count": 1,
+  "users": [
     {
-      "exported_at": "2026-04-17T10:30:00Z",
-      "player_id": "player_1",
-      "summary": {
-        "player_id": "player_1"
+      "user": {
+        "user_id": "user_2",
+        "username": "john_doe",
+        "locale": "sv"
       },
-      "timeline": {
-        "player_id": "player_1",
-        "events": []
-      }
+      "player_count": 2,
+      "players": [
+        {
+          "player_id": "player_1",
+          "summary": {
+            "player_id": "player_1"
+          },
+          "timeline": {
+            "player_id": "player_1",
+            "events": []
+          }
+        }
+      ]
     }
   ]
 }
 ```
 
 This is the recommended endpoint for downloading JSON to analyze with pandas or other external tooling.
+
+The `user` block intentionally excludes the user's password.
+
+If `user_id` is provided but no players belong to that user, the endpoint returns an empty `users` list.
+
+## GET /users/{user_id}/analytics/export
+
+Return analytics exports grouped under one specific user.
+
+Example request:
+
+```http
+GET /users/user_2/analytics/export
+```
+
+This returns the same grouped shape as `GET /analytics/export?user_id=user_2`.
+
+Validation response:
+
+```json
+{
+  "detail": "user_id cannot be empty"
+}
+```
 
 ## GET /players/{player_id}/claims
 

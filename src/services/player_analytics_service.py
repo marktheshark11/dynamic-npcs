@@ -1,5 +1,6 @@
 from collections import Counter
 from datetime import datetime, timezone
+from copy import deepcopy
 from typing import Any
 
 from db.repositories import ConversationRepo, FormRepo, PlayerRepo, UserRepo
@@ -50,12 +51,19 @@ class PlayerAnalyticsService:
             "payload": payload or {},
         }
 
+    @staticmethod
+    def _summary_without_user(summary: dict) -> dict:
+        normalized_summary = deepcopy(summary)
+        normalized_summary.pop("user", None)
+        return normalized_summary
+
     def get_player_summary(self, player_id: str) -> dict | None:
         profile = self.player_repo.get_profile_by_id(player_id)
         if not profile:
             return None
 
-        locale = self.user_repo.get_locale_by_player_id(player_id)
+        user = self.user_repo.get_public_by_player_id(player_id)
+        locale = (user or {}).get("locale") or self.user_repo.get_locale_by_player_id(player_id)
         clues = self.player_repo.get_clues(player_id, locale=locale)
         conversations = self.conversation_repo.list_for_player(player_id)
         forms = self.form_repo.list_player_forms_with_answers(player_id, locale=locale)
@@ -83,6 +91,7 @@ class PlayerAnalyticsService:
         return {
             "player_id": player_id,
             "locale": locale,
+            "user": user,
             "profile": {
                 "name": profile.get("name"),
                 "appearance": profile.get("appearance"),
@@ -300,20 +309,55 @@ class PlayerAnalyticsService:
         timeline = self.get_player_timeline(player_id)
         return {
             "exported_at": self._exported_at(),
+            "user": summary.get("user"),
             "player_id": player_id,
-            "summary": summary,
+            "summary": self._summary_without_user(summary),
             "timeline": timeline,
         }
 
     def export_players(self, player_ids: list[str] | None = None) -> dict:
         resolved_player_ids = player_ids or self.player_repo.list_all_ids()
-        players = []
+        users_by_id: dict[str, dict] = {}
         for player_id in resolved_player_ids:
             export = self.export_player_analytics(player_id)
-            if export:
-                players.append(export)
+            if not export:
+                continue
+
+            user = export.get("user") or {"user_id": None, "username": None, "locale": None}
+            user_id = user.get("user_id") or "__unowned__"
+            user_entry = users_by_id.setdefault(
+                user_id,
+                {
+                    "user": user,
+                    "players": [],
+                },
+            )
+            user_entry["players"].append(
+                {
+                    "player_id": export["player_id"],
+                    "summary": export["summary"],
+                    "timeline": export["timeline"],
+                }
+            )
+
+        users = []
+        for user_id in sorted(users_by_id.keys()):
+            user_entry = users_by_id[user_id]
+            players = sorted(user_entry["players"], key=lambda player: player["player_id"])
+            users.append(
+                {
+                    "user": user_entry["user"],
+                    "player_count": len(players),
+                    "players": players,
+                }
+            )
+
         return {
             "exported_at": self._exported_at(),
-            "player_count": len(players),
-            "players": players,
+            "user_count": len(users),
+            "users": users,
         }
+
+    def export_players_for_user(self, user_id: str) -> dict:
+        player_ids = [player.player_id for player in self.player_repo.list_by_user(user_id)]
+        return self.export_players(player_ids=player_ids)
