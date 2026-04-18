@@ -386,6 +386,7 @@ def _build_chain_payload(
             "suffix": chain_claim.get("suffix"),
             "overwrite_suffix": chain_claim.get("overwrite_suffix"),
             "type": chain_claim.get("type"),
+            "important": bool(chain_claim.get("important")),
         }
         for chain_claim in chain_nodes
     ]
@@ -483,14 +484,30 @@ def _build_selector_history_block_for_locale(
     return "(no history)" if is_english else "(ingen historik)"
 
 
-def _build_selector_candidates(chains: list[dict[str, Any]]) -> str:
+def _build_selector_candidates(
+    chains: list[dict[str, Any]],
+    highlight_important: bool = False,
+    locale: str = "sv",
+) -> str:
     candidate_lines: list[str] = []
+    important_label = "IMPORTANT" if _is_english(locale) else "VIKTIG"
     for chain_index, chain in enumerate(chains, start=1):
-        candidate_lines.append(f"KEDJA {chain_index}:")
+        candidate_lines.append(
+            f"{'CHAIN' if _is_english(locale) else 'KEDJA'} {chain_index}:"
+        )
         for claim in chain.get("claims") or []:
             claim_id = claim.get("claim_id") or "(utan claim-id)"
-            candidate_lines.append(f"- {claim_id}: {claim.get('content', '')}")
-    return "\n".join(candidate_lines) if candidate_lines else "(inga kandidater)"
+            important_marker = (
+                f" [{important_label}]"
+                if highlight_important and claim.get("important")
+                else ""
+            )
+            candidate_lines.append(
+                f"- {claim_id}{important_marker}: {claim.get('content', '')}"
+            )
+    if candidate_lines:
+        return "\n".join(candidate_lines)
+    return "(no candidates)" if _is_english(locale) else "(inga kandidater)"
 
 
 def _extract_json_object(raw_response: str) -> dict[str, Any] | None:
@@ -544,6 +561,7 @@ def select_relevant_claim_ids(
     story_background: str | None,
     chains: list[dict[str, Any]],
     locale: str = "sv",
+    prefer_important_claims: bool = False,
 ) -> list[str]:
     from llms.llm_groq import chat as groq_chat
 
@@ -561,27 +579,43 @@ def select_relevant_claim_ids(
         {
             "role": "system",
             "content": (
-                "You choose which facts should be sent to another LLM that answers in character.\n"
-                "The goal is high recall in retrieval but narrow relevance in the final prompt.\n"
-                "Select only the claim IDs that are truly needed to answer the detective's latest question.\n"
-                "Rules:\n"
-                "- Return ONLY valid JSON with exactly the key 'selected_claim_ids'.\n"
-                "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
-                "- Select only claim IDs from the candidate list.\n"
-                "- Include facts that directly answer the question or are needed to understand the answer.\n"
-                "- Exclude side tracks, duplicates, and background that is not needed for this question.\n"
-                "- If none of the candidate material is relevant, return an empty list []."
+                (
+                    "You choose which facts should be sent to another LLM that answers in character.\n"
+                    "The goal is high recall in retrieval but narrow relevance in the final prompt.\n"
+                    "Select only the claim IDs that are truly needed to answer the detective's latest question.\n"
+                    "Rules:\n"
+                    "- Return ONLY valid JSON with exactly the key 'selected_claim_ids'.\n"
+                    "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
+                    "- Select only claim IDs from the candidate list.\n"
+                    "- Include facts that directly answer the question or are needed to understand the answer.\n"
+                    "- Exclude side tracks, duplicates, and background that is not needed for this question.\n"
+                )
+                + (
+                    "- If multiple candidate claims are similarly relevant, prefer claims marked IMPORTANT.\n"
+                    "- Do not include an IMPORTANT claim unless it is relevant to the detective's latest question.\n"
+                    if prefer_important_claims
+                    else ""
+                )
+                + "- If none of the candidate material is relevant, return an empty list []."
             ) if is_english else (
-                "Du väljer vilka fakta som ska skickas vidare till en annan LLM som svarar i karaktär.\n"
-                "Målet är hög recall i retrieval men snäv relevans i slutprompten.\n"
-                "Välj bara claim-IDn som verkligen behövs för att besvara detektivens senaste fråga.\n"
-                "Regler:\n"
-                "- Returnera ENDAST giltig JSON med exakt nyckeln 'selected_claim_ids'.\n"
-                "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
-                "- Välj bara claim-IDn från kandidatlistan.\n"
-                "- Ta med fakta som direkt besvarar frågan eller behövs för att förstå svaret.\n"
-                "- Uteslut sidospår, dubletter och bakgrund som inte behövs för just frågan.\n"
-                "- Om inget av kandidatmaterialet är relevant, returnera en tom lista []."
+                (
+                    "Du väljer vilka fakta som ska skickas vidare till en annan LLM som svarar i karaktär.\n"
+                    "Målet är hög recall i retrieval men snäv relevans i slutprompten.\n"
+                    "Välj bara claim-IDn som verkligen behövs för att besvara detektivens senaste fråga.\n"
+                    "Regler:\n"
+                    "- Returnera ENDAST giltig JSON med exakt nyckeln 'selected_claim_ids'.\n"
+                    "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
+                    "- Välj bara claim-IDn från kandidatlistan.\n"
+                    "- Ta med fakta som direkt besvarar frågan eller behövs för att förstå svaret.\n"
+                    "- Uteslut sidospår, dubletter och bakgrund som inte behövs för just frågan.\n"
+                )
+                + (
+                    "- Om flera kandidatclaims är ungefär lika relevanta, prioritera claims som är markerade som VIKTIG.\n"
+                    "- Ta inte med en VIKTIG claim om den inte faktiskt är relevant för detektivens senaste fråga.\n"
+                    if prefer_important_claims
+                    else ""
+                )
+                + "- Om inget av kandidatmaterialet är relevant, returnera en tom lista []."
             ),
         },
         {
@@ -590,13 +624,13 @@ def select_relevant_claim_ids(
                 f"STORY BACKGROUND:\n{(story_background or '(no background)').strip()}\n\n"
                 f"LATEST CONVERSATION:\n{_build_selector_history_block_for_locale(recent_exchanges, locale)}\n\n"
                 f"DETECTIVE'S LATEST QUESTION:\n{question}\n\n"
-                f"CANDIDATE FACTS:\n{_build_selector_candidates(chains)}\n\n"
+                f"CANDIDATE FACTS:\n{_build_selector_candidates(chains, highlight_important=prefer_important_claims, locale=locale)}\n\n"
                 "Return the JSON now."
             ) if is_english else (
                 f"BERÄTTELSEBAKGRUND:\n{(story_background or '(ingen bakgrund)').strip()}\n\n"
                 f"SENASTE KONVERSATION:\n{_build_selector_history_block_for_locale(recent_exchanges, locale)}\n\n"
                 f"DETEKTIVENS SENASTE FRÅGA:\n{question}\n\n"
-                f"KANDIDATFAKTA:\n{_build_selector_candidates(chains)}\n\n"
+                f"KANDIDATFAKTA:\n{_build_selector_candidates(chains, highlight_important=prefer_important_claims, locale=locale)}\n\n"
                 "Returnera nu JSON."
             ),
         },

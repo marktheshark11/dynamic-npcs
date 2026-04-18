@@ -94,6 +94,7 @@ class WideSelectRAGPipeline(ChatPipeline):
             story_background=npc_data.get("story_background"),
             chains=chain_metadata,
             locale=locale,
+            prefer_important_claims=True,
         )
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(

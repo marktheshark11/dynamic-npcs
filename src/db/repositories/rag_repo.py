@@ -57,6 +57,7 @@ class RAGRepo(BaseRepository):
                    c.claim_id AS claim_id,
                    {content_expr} AS content,
                    c.type AS type,
+                   coalesce(c.important, false) AS important,
                    score
             ORDER BY score DESC
             LIMIT $top_k
@@ -86,7 +87,8 @@ class RAGRepo(BaseRepository):
             RETURN elementId(c) AS id,
                    c.claim_id AS claim_id,
                    {content_expr} AS content,
-                   c.type AS type
+                   c.type AS type,
+                   coalesce(c.important, false) AS important
             """,
             npc_id=npc_id,
             claim_ids=claim_ids,
@@ -105,7 +107,7 @@ class RAGRepo(BaseRepository):
             OPTIONAL MATCH (c)-[:REFERENCE]->(target)
             WHERE target:NPC OR target:PLACE OR target:OBJECT OR target:MYSTERY
             RETURN
-                collect(DISTINCT {{id: elementId(c), claim_id: c.claim_id, type: c.type, content: {content_expr}}}) AS claims,
+                collect(DISTINCT {{id: elementId(c), claim_id: c.claim_id, type: c.type, content: {content_expr}, important: coalesce(c.important, false)}}) AS claims,
                 collect(DISTINCT {{id: elementId(target), name: {name_expr}, type: labels(target)[0]}}) AS constants
             """,
             claim_ids=claim_ids,
@@ -138,8 +140,10 @@ class RAGRepo(BaseRepository):
             WHERE size(overlaps) >= 1
 
             RETURN DISTINCT elementId(rc) AS id,
+                            rc.claim_id AS claim_id,
                             {content_expr} AS content,
-                            rc.type AS type
+                            rc.type AS type,
+                            coalesce(rc.important, false) AS important
             """,
             npc_id=npc_id,
             constant_ids=constant_ids,
@@ -162,7 +166,8 @@ class RAGRepo(BaseRepository):
             RETURN DISTINCT elementId(rc) AS id,
                             rc.claim_id AS claim_id,
                             {content_expr} AS content,
-                            rc.type AS type
+                            rc.type AS type,
+                            coalesce(rc.important, false) AS important
             """,
             mystery_ids=mystery_ids,
             npc_id=npc_id,
@@ -193,6 +198,7 @@ class RAGRepo(BaseRepository):
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
                        ref.type AS type,
+                       coalesce(ref.important, false) AS important,
                        depth,
                        prefix,
                        suffix,
@@ -213,6 +219,7 @@ class RAGRepo(BaseRepository):
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
                        ref.type AS type,
+                       coalesce(ref.important, false) AS important,
                        depth,
                        prefix,
                        suffix,
@@ -246,6 +253,7 @@ class RAGRepo(BaseRepository):
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
                        ref.type AS type,
+                       coalesce(ref.important, false) AS important,
                        depth,
                        prefix,
                        suffix,
@@ -266,6 +274,7 @@ class RAGRepo(BaseRepository):
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
                        ref.type AS type,
+                       coalesce(ref.important, false) AS important,
                        depth,
                        prefix,
                        suffix,
