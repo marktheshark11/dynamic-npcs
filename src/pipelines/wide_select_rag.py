@@ -30,7 +30,7 @@ class WideSelectRAGPipeline(ChatPipeline):
         self._services = RAGPipelineServices(driver, embed_model)
         self._up_steps = 3
         self._wide_top_k = 12
-        self._selector_candidate_limit = 30
+        self._selector_candidate_limit = 40
 
     def run(
         self,

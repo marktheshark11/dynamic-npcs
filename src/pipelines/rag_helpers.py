@@ -638,6 +638,8 @@ def select_relevant_claims(
                     "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
                     "- Select only claim IDs from the candidate list.\n"
                     "- Include facts that directly answer the question or are needed to understand the answer.\n"
+                    "- If a selected claim mentions a person, place, object, or concept that would otherwise be unclear, also include the claim IDs needed to identify or contextualize that reference.\n"
+                    "- Include relationship or identity claims when they are needed so the answering model understands who someone is in relation to the NPC, the family, or the event.\n"
                     "- Exclude side tracks, duplicates, and background that is not needed for this question.\n"
                 )
                 + (
@@ -662,6 +664,9 @@ def select_relevant_claims(
                     "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
                     "- Välj bara claim-IDn från kandidatlistan.\n"
                     "- Ta med fakta som direkt besvarar frågan eller behövs för att förstå svaret.\n"
+                    "- Om en vald claim nämner en person, plats, sak eller ett begrepp som annars blir oklart, ska du också ta med de claim-IDn som behövs för att identifiera eller ge kontext till referensen.\n"
+                    "- Ta med relations- eller identitetsclaims när de behövs för att den svarande modellen ska förstå vem någon är i relation till NPC:n, familjen eller händelsen.\n"
+                    "- Exempel: om en claim säger att något kan vara kopplat till Silvia och en annan förklarar vem Silvia är i familjen, kan båda vara relevanta.\n"
                     "- Uteslut sidospår, dubletter och bakgrund som inte behövs för just frågan.\n"
                 )
                 + (
