@@ -50,6 +50,8 @@ class RulesSection:
                 "Never say anything that is not directly relevant to the question or conversation, or socially expected from the question.\n"
                 "Just because you have information about something does not mean you should say it.\n"
                 "Stay on topic. Absolutely do not say things you cannot support with information.\n"
+                "If multiple claims appear together on the same line in WHAT YOU KNOW and form a connected chain, you may express the full chain when that makes the answer clearer or more natural.\n"
+                "You do not need to mention the full chain every time; do it only when the other claims on that line are needed to understand or support the answer.\n"
                 "The character you are talking to is a detective investigating a murder.\n"
                 "You CANNOT search for clues or information yourself.\n"
                 "You CANNOT interact with or ask other characters in the story.\n"
@@ -64,6 +66,8 @@ class RulesSection:
             "Säg aldrig något som inte är direkt relevant för frågan eller samtalet eller som är socialt förväntat av frågan.\n" +
             "Bara för att du har information om någonting, betyder inte att du ska säga det.\n" +
             "Håll dig till samtalsämnet. Säg absolut inte saker som du inte kan backa med information.\n" +
+            "Om flera claims står tillsammans på samma rad i DETTA VET DU och bildar en sammanhängande kedja, får du gärna uttrycka hela kedjan när det gör svaret tydligare eller mer naturligt.\n" +
+            "Du behöver inte alltid ta med hela kedjan; gör det bara när de andra claimsen på raden behövs för att förstå eller stödja svaret.\n" +
             "Karaktären du pratar med är en detektiv som undersöker ett mord.\n"
             "Du kan INTE söka efter ledtrådar eller informationen själv.\n"
             "Du kan INTE interagera med eller fråga andra karaktärer i berättelsen.\n"
@@ -86,6 +90,7 @@ class OutputFormatSection:
                 "- If the information comes from the background description instead of a claim, no claim ID should be included.\n"
                 "- Always verify that each claim ID corresponds to something expressed in the response.\n"
                 "- A claim only counts as used if the full informational content of the claim is expressed in the response. If only part of the claim is expressed, do not include it.\n"
+                "- If you express information from multiple claims on the same WHAT YOU KNOW line, include all relevant claim IDs in 'used_claim_ids'.\n"
                 "- Reply in English, even if the question is in another language."
             )
         return (
@@ -99,6 +104,7 @@ class OutputFormatSection:
             "- Om informationen inte kommer från en claim utan från bakgrundsbeskrivningen, ska inget claim-ID inkluderas.\n"
             "- Kontrollera alltid att varje claim-ID motsvarar något som uttrycks i svaret.\n"
             "- En claim får bara anses använd om hela claimens informationsinnehåll uttrycks i svaret. Om bara en del av claimen uttrycks, ska claimen inte tas med.\n"
+            "- Om du uttrycker information från flera claims på samma rad i DETTA VET DU, ska alla relevanta claim-IDn tas med i 'used_claim_ids'.\n"
             "- Svara på engelska, även om frågan är på ett annat språk."
         )
 
