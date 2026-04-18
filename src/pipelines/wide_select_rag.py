@@ -30,6 +30,7 @@ class WideSelectRAGPipeline(ChatPipeline):
         self._services = RAGPipelineServices(driver, embed_model)
         self._up_steps = 3
         self._wide_top_k = 12
+        self._selector_candidate_limit = 30
 
     def run(
         self,
@@ -73,7 +74,12 @@ class WideSelectRAGPipeline(ChatPipeline):
             combined_hits=combined_hits,
             locale=locale,
         )
-        available_claims = merge_unique_claims(combined_hits, expanded_claims, extra_claims)
+        uncapped_available_claims = merge_unique_claims(
+            combined_hits,
+            expanded_claims,
+            extra_claims,
+        )
+        available_claims = uncapped_available_claims[:self._selector_candidate_limit]
         print("Available claims:", available_claims)
         already_mentioned = get_already_mentioned_claim_ids(
             self._services,
@@ -97,6 +103,9 @@ class WideSelectRAGPipeline(ChatPipeline):
             prefer_important_claims=True,
             include_debug=True,
         )
+        selector_debug["candidate_limit"] = self._selector_candidate_limit
+        selector_debug["candidate_count_before_cap"] = len(uncapped_available_claims)
+        selector_debug["candidate_count_after_cap"] = len(available_claims)
         selected_claim_ids = selector_debug.get("selected_claim_ids") or []
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(
