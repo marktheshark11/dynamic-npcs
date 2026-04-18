@@ -510,6 +510,29 @@ def _build_selector_candidates(
     return "(no candidates)" if _is_english(locale) else "(inga kandidater)"
 
 
+def _collect_selector_candidate_claims(chains: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    candidate_claims: list[dict[str, Any]] = []
+    seen_claim_ids: set[str] = set()
+    for chain_index, chain in enumerate(chains, start=1):
+        for claim in chain.get("claims") or []:
+            claim_id = claim.get("claim_id")
+            if not isinstance(claim_id, str):
+                continue
+            normalized_claim_id = claim_id.upper()
+            if normalized_claim_id in seen_claim_ids:
+                continue
+            seen_claim_ids.add(normalized_claim_id)
+            candidate_claims.append(
+                {
+                    "claim_id": claim_id,
+                    "content": claim.get("content") or "",
+                    "important": bool(claim.get("important")),
+                    "chain_index": chain_index,
+                }
+            )
+    return candidate_claims
+
+
 def _extract_json_object(raw_response: str) -> dict[str, Any] | None:
     if not raw_response:
         return None
@@ -555,25 +578,52 @@ def _normalize_selected_claim_ids(raw_ids: Any, allowed_ids: set[str]) -> list[s
     return selected
 
 
-def select_relevant_claim_ids(
+def _normalize_selection_notes(raw_notes: Any) -> list[str]:
+    if not isinstance(raw_notes, list):
+        return []
+
+    normalized_notes: list[str] = []
+    for note in raw_notes:
+        if not isinstance(note, str):
+            continue
+        cleaned = note.strip()
+        if cleaned:
+            normalized_notes.append(cleaned)
+        if len(normalized_notes) >= 3:
+            break
+    return normalized_notes
+
+
+def select_relevant_claims(
     question: str,
     recent_exchanges: list[dict[str, Any]] | None,
     story_background: str | None,
     chains: list[dict[str, Any]],
     locale: str = "sv",
     prefer_important_claims: bool = False,
-) -> list[str]:
+    include_debug: bool = False,
+) -> dict[str, Any]:
     from llms.llm_groq import chat as groq_chat
 
     is_english = _is_english(locale)
+    candidate_claims = _collect_selector_candidate_claims(chains)
+    candidates_text = _build_selector_candidates(
+        chains,
+        highlight_important=prefer_important_claims,
+        locale=locale,
+    )
     allowed_ids = {
-        claim_id.upper()
-        for chain in chains
-        for claim_id in (chain.get("claim_ids") or [])
-        if isinstance(claim_id, str)
+        claim["claim_id"].upper()
+        for claim in candidate_claims
+        if isinstance(claim.get("claim_id"), str)
     }
     if not allowed_ids:
-        return []
+        return {
+            "selected_claim_ids": [],
+            "selection_notes": [],
+            "candidate_claims": candidate_claims if include_debug else [],
+            "raw_response": "",
+        }
 
     selector_messages = [
         {
@@ -596,6 +646,11 @@ def select_relevant_claim_ids(
                     if prefer_important_claims
                     else ""
                 )
+                + (
+                    "- You may also include an optional key 'selection_notes' with 1-3 short strings explaining the selection.\n"
+                    if include_debug
+                    else ""
+                )
                 + "- If none of the candidate material is relevant, return an empty list []."
             ) if is_english else (
                 (
@@ -615,6 +670,11 @@ def select_relevant_claim_ids(
                     if prefer_important_claims
                     else ""
                 )
+                + (
+                    "- Du får också lägga till en valfri nyckel 'selection_notes' med 1-3 korta strängar som förklarar urvalet.\n"
+                    if include_debug
+                    else ""
+                )
                 + "- Om inget av kandidatmaterialet är relevant, returnera en tom lista []."
             ),
         },
@@ -624,13 +684,13 @@ def select_relevant_claim_ids(
                 f"STORY BACKGROUND:\n{(story_background or '(no background)').strip()}\n\n"
                 f"LATEST CONVERSATION:\n{_build_selector_history_block_for_locale(recent_exchanges, locale)}\n\n"
                 f"DETECTIVE'S LATEST QUESTION:\n{question}\n\n"
-                f"CANDIDATE FACTS:\n{_build_selector_candidates(chains, highlight_important=prefer_important_claims, locale=locale)}\n\n"
+                f"CANDIDATE FACTS:\n{candidates_text}\n\n"
                 "Return the JSON now."
             ) if is_english else (
                 f"BERÄTTELSEBAKGRUND:\n{(story_background or '(ingen bakgrund)').strip()}\n\n"
                 f"SENASTE KONVERSATION:\n{_build_selector_history_block_for_locale(recent_exchanges, locale)}\n\n"
                 f"DETEKTIVENS SENASTE FRÅGA:\n{question}\n\n"
-                f"KANDIDATFAKTA:\n{_build_selector_candidates(chains, highlight_important=prefer_important_claims, locale=locale)}\n\n"
+                f"KANDIDATFAKTA:\n{candidates_text}\n\n"
                 "Returnera nu JSON."
             ),
         },
@@ -638,9 +698,47 @@ def select_relevant_claim_ids(
 
     raw_response = groq_chat(messages=selector_messages, max_tokens=256)
     parsed = _extract_json_object(raw_response)
-    if not parsed:
-        return []
-    return _normalize_selected_claim_ids(parsed.get("selected_claim_ids"), allowed_ids)
+    selected_claim_ids = [] if not parsed else _normalize_selected_claim_ids(
+        parsed.get("selected_claim_ids"),
+        allowed_ids,
+    )
+    selection_notes = [] if not parsed else _normalize_selection_notes(parsed.get("selection_notes"))
+    claims_by_id = {
+        claim["claim_id"].upper(): claim
+        for claim in candidate_claims
+        if isinstance(claim.get("claim_id"), str)
+    }
+    selected_claims = [
+        claims_by_id[claim_id]
+        for claim_id in selected_claim_ids
+        if claim_id in claims_by_id
+    ]
+    return {
+        "selected_claim_ids": selected_claim_ids,
+        "selection_notes": selection_notes,
+        "selected_claims": selected_claims,
+        "candidate_claims": candidate_claims if include_debug else [],
+        "raw_response": raw_response if include_debug else "",
+    }
+
+
+def select_relevant_claim_ids(
+    question: str,
+    recent_exchanges: list[dict[str, Any]] | None,
+    story_background: str | None,
+    chains: list[dict[str, Any]],
+    locale: str = "sv",
+    prefer_important_claims: bool = False,
+) -> list[str]:
+    return select_relevant_claims(
+        question=question,
+        recent_exchanges=recent_exchanges,
+        story_background=story_background,
+        chains=chains,
+        locale=locale,
+        prefer_important_claims=prefer_important_claims,
+        include_debug=False,
+    ).get("selected_claim_ids", [])
 
 
 def filter_claim_chains_by_selected_claim_ids(

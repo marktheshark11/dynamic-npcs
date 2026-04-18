@@ -26,6 +26,33 @@ def _print_prompt_debug(result: dict) -> None:
     print("=" * 57)
 
 
+def _print_selector_debug(result: dict) -> None:
+    selector_debug = result.get("selector_debug") or {}
+    if not selector_debug:
+        return
+
+    selected_claim_ids = selector_debug.get("selected_claim_ids") or []
+    selection_notes = selector_debug.get("selection_notes") or []
+    selected_claims = selector_debug.get("selected_claims") or []
+    candidate_claims = selector_debug.get("candidate_claims") or []
+
+    print("\n" + "=" * 20 + " SELECTOR " + "=" * 20)
+    print(
+        f"[Kandidater: {', '.join(claim.get('claim_id') for claim in candidate_claims if claim.get('claim_id')) or '(inga)'}]"
+    )
+    print(f"[Valda till prompt: {', '.join(selected_claim_ids) if selected_claim_ids else '(inga)'}]")
+    if selected_claims:
+        print("[Valda claims:]")
+        for claim in selected_claims:
+            important_marker = " [VIKTIG]" if claim.get("important") else ""
+            print(f"  - {claim.get('claim_id')}{important_marker}: {claim.get('content', '')}")
+    if selection_notes:
+        print("[Selector-noteringar:]")
+        for note in selection_notes:
+            print(f"  - {note}")
+    print("=" * 57)
+
+
 def _extract_claim_ids_from_chains(chain_metadata: list[dict]) -> list[str]:
     """Extraherar alla claim-IDs ur chain_metadata content."""
     ids: list[str] = []
@@ -180,6 +207,7 @@ def _start_dynamic_conversation(
     chain_metadata = result.get("chain_metadata", [])
     used_claims = result.get("used_claims") or []
     _print_prompt_debug(result)
+    _print_selector_debug(result)
     print("\n" + "=" * 22 + " RESULTAT " + "=" * 21)
     print("\n[Hittade claims:]")
     if chain_metadata:
@@ -312,6 +340,7 @@ def main():
                 chain_metadata = result.get("chain_metadata", [])
                 used_claims = result.get("used_claims") or []
                 _print_prompt_debug(result)
+                _print_selector_debug(result)
                 print("\n" + "=" * 22 + " RESULTAT " + "=" * 21)
                 print("\n[Hittade claims:]")
                 if chain_metadata:

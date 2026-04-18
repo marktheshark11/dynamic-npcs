@@ -18,7 +18,7 @@ from .rag_helpers import (
     get_remembered_claim_hits,
     get_top_claims,
     merge_unique_claims,
-    select_relevant_claim_ids,
+    select_relevant_claims,
 )
 
 
@@ -88,14 +88,16 @@ class WideSelectRAGPipeline(ChatPipeline):
             up_steps=self._up_steps,
             locale=locale,
         )
-        selected_claim_ids = select_relevant_claim_ids(
+        selector_debug = select_relevant_claims(
             question=question,
             recent_exchanges=recent_exchanges,
             story_background=npc_data.get("story_background"),
             chains=chain_metadata,
             locale=locale,
             prefer_important_claims=True,
+            include_debug=True,
         )
+        selected_claim_ids = selector_debug.get("selected_claim_ids") or []
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(
             chains=chain_metadata,
@@ -122,6 +124,7 @@ class WideSelectRAGPipeline(ChatPipeline):
             prompt_result=prompt_result,
             chain_metadata=final_chain_metadata,
             available_claim_ids=self.extract_available_claim_ids(final_chain_metadata),
+            selector_debug=selector_debug,
         )
 
     def run_start_dialog(
@@ -152,4 +155,5 @@ class WideSelectRAGPipeline(ChatPipeline):
             prompt_result=prompt_result,
             chain_metadata=chain_metadata,
             available_claim_ids=self.extract_available_claim_ids(chain_metadata),
+            selector_debug=None,
         )

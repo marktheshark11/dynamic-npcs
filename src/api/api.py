@@ -49,10 +49,38 @@ def _print_chat_debug(result: dict) -> None:
     flat_prompt = result.get("flat_prompt") or "(ingen prompt tillganglig)"
     response_text = result.get("response") or ""
     used_claims = result.get("used_claims") or []
+    selector_debug = result.get("selector_debug") or {}
+    selected_claim_ids = selector_debug.get("selected_claim_ids") or []
+    selection_notes = selector_debug.get("selection_notes") or []
+    selected_claims = selector_debug.get("selected_claims") or []
+    candidate_claims = selector_debug.get("candidate_claims") or []
 
     print("\n" + "=" * 24 + " PROMPT " + "=" * 24, file=sys.stderr)
     print(flat_prompt, file=sys.stderr)
     print("=" * 57, file=sys.stderr)
+    if selector_debug:
+        print("\n" + "=" * 20 + " SELECTOR " + "=" * 20, file=sys.stderr)
+        print(
+            f"candidate_claims: {', '.join(claim.get('claim_id') for claim in candidate_claims if claim.get('claim_id')) or '(inga)'}",
+            file=sys.stderr,
+        )
+        print(
+            f"selected_for_prompt: {', '.join(selected_claim_ids) if selected_claim_ids else '(inga)'}",
+            file=sys.stderr,
+        )
+        if selected_claims:
+            print("selected_claim_details:", file=sys.stderr)
+            for claim in selected_claims:
+                important_marker = " [VIKTIG]" if claim.get("important") else ""
+                print(
+                    f"  - {claim.get('claim_id')}{important_marker}: {claim.get('content', '')}",
+                    file=sys.stderr,
+                )
+        if selection_notes:
+            print("selection_notes:", file=sys.stderr)
+            for note in selection_notes:
+                print(f"  - {note}", file=sys.stderr)
+        print("=" * 57, file=sys.stderr)
     print("\n" + "=" * 22 + " RESULTAT " + "=" * 21, file=sys.stderr)
     print(f"npc_id: {result.get('npc_id')}", file=sys.stderr)
     print(f"conversation_id: {result.get('conversation_id')}", file=sys.stderr)

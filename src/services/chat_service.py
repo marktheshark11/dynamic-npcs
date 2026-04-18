@@ -368,4 +368,5 @@ class ChatService:
             "messages": prompt_result.messages,
             "flat_prompt": prompt_result.flat_prompt,
             "chain_metadata": chain_metadata,
+            "selector_debug": pipeline_result.selector_debug,
         }

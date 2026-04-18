@@ -9,3 +9,4 @@ class PipelineRunResult:
     prompt_result: PromptBuildResult
     chain_metadata: list[dict[str, Any]] = field(default_factory=list)
     available_claim_ids: list[str] = field(default_factory=list)
+    selector_debug: dict[str, Any] | None = None
