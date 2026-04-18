@@ -256,6 +256,7 @@ class PlayerRepo(BaseRepository):
             f"""
             MATCH (p:PLAYER {{player_id: $player_id}})-[r:AWARE_OF]->(c:CLAIM)
             RETURN c.claim_id AS claim_id, {content_expr} AS content, c.type AS type,
+                   coalesce(c.important, false) AS important,
                    r.created_at AS created_at, r.npc_ids AS npc_ids
             ORDER BY c.claim_id
             """,
@@ -266,6 +267,7 @@ class PlayerRepo(BaseRepository):
                 "claim_id": r["claim_id"],
                 "content": r["content"],
                 "type": r.get("type"),
+                "important": bool(r.get("important")),
                 "created_at": str(r["created_at"]) if r.get("created_at") else None,
                 "npc_ids": list(r.get("npc_ids") or []),
             }

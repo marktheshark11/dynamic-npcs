@@ -321,11 +321,12 @@ class OpenDoorResponse(BaseModel):
 
 
 class AwareClaimResponse(BaseModel):
-     claim_id: str
-     content: str
-     type: str | None = None
-     created_at: str | None = None
-     npc_ids: list[str] = Field(default_factory=list)
+    claim_id: str
+    content: str
+    type: str | None = None
+    important: bool = False
+    created_at: str | None = None
+    npc_ids: list[str] = Field(default_factory=list)
 
 
 class ClueItemResponse(BaseModel):

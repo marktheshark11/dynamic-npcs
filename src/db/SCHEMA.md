@@ -47,6 +47,7 @@ A statement or piece of knowledge that exists in the world. CLAIMs are the centr
 | `content` | string | The statement in natural language in Swedish |
 | `content_en` | string? | English translation of `content` |
 | `type` | string? | Optional. Currently only value is `"relation"` (marks claims about relationships between entities) |
+| `important` | bool | Whether the claim should be treated as an important clue |
 | `embedding` | float[] | Vector embedding of `content`, auto-generated on create/edit using mxbai-embed-large |
 | `embedding_en` | float[]? | Vector embedding of `content_en`, auto-generated when English content exists |
 

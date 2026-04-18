@@ -37,6 +37,7 @@ class ClaimRepo(BaseRepository):
         content: str,
         claim_type: str | None = None,
         content_en: str | None = None,
+        important: bool = False,
     ) -> Claim:
         embedding = self._embedding.embed(content)
         embedding_en = self._embedding.embed(content_en) if content_en else None
@@ -48,6 +49,7 @@ class ClaimRepo(BaseRepository):
             "embedding": embedding,
             "content_en": content_en,
             "embedding_en": embedding_en,
+            "important": important,
         }
 
         set_parts = []
@@ -57,7 +59,7 @@ class ClaimRepo(BaseRepository):
 
         set_clause = f" SET {', '.join(set_parts)}" if set_parts else ""
         query = (
-            "CREATE (c:CLAIM {claim_id: $claim_id, content: $content, embedding: $embedding, content_en: $content_en, embedding_en: $embedding_en})"
+            "CREATE (c:CLAIM {claim_id: $claim_id, content: $content, embedding: $embedding, content_en: $content_en, embedding_en: $embedding_en, important: $important})"
             f"{set_clause} RETURN c.claim_id AS claim_id"
         )
         self._run(query, **params)
@@ -66,6 +68,7 @@ class ClaimRepo(BaseRepository):
             content=content,
             content_en=content_en,
             type=claim_type,
+            important=important,
             embedding=embedding,
             embedding_en=embedding_en,
         )
@@ -88,7 +91,7 @@ class ClaimRepo(BaseRepository):
         records = self._run(
             "MATCH (c:CLAIM) "
             "RETURN c.claim_id AS claim_id, c.content AS content, c.content_en AS content_en, "
-            "c.type AS type"
+            "c.type AS type, coalesce(c.important, false) AS important"
         )
         claims = [
             Claim(
@@ -96,6 +99,7 @@ class ClaimRepo(BaseRepository):
                 content=self._localized_content(r, locale) or "",
                 content_en=r.get("content_en"),
                 type=r["type"],
+                important=bool(r.get("important")),
             )
             for r in records
         ]
@@ -156,7 +160,7 @@ class ClaimRepo(BaseRepository):
         record = self._run_single(
             "MATCH (c:CLAIM {claim_id: $claim_id}) "
             "RETURN c.claim_id AS claim_id, c.content AS content, c.content_en AS content_en, "
-            "c.type AS type",
+            "c.type AS type, coalesce(c.important, false) AS important",
             claim_id=claim_id,
         )
         if not record:
@@ -166,6 +170,7 @@ class ClaimRepo(BaseRepository):
             content=self._localized_content(record, locale) or "",
             content_en=record.get("content_en"),
             type=record["type"],
+            important=bool(record.get("important")),
         )
 
     def update(
@@ -174,6 +179,7 @@ class ClaimRepo(BaseRepository):
         content: str | None = None,
         content_en: str | None | object = _NO_CHANGE,
         claim_type: str | None | object = _NO_CHANGE,
+        important: bool | object = _NO_CHANGE,
     ) -> bool:
         """Update a claim. Use None for 'no change', empty string to remove a property.
 
@@ -214,6 +220,10 @@ class ClaimRepo(BaseRepository):
             else:
                 updates.append("c.type = $type")
                 params["type"] = claim_type
+
+        if important is not _NO_CHANGE:
+            updates.append("c.important = $important")
+            params["important"] = bool(important)
 
         if not updates:
             return False

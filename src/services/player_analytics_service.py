@@ -141,6 +141,7 @@ class PlayerAnalyticsService:
                         "claim_id": claim.get("claim_id"),
                         "content": claim.get("content"),
                         "type": claim.get("type"),
+                        "important": bool(claim.get("important")),
                         "npc_ids": claim.get("npc_ids") or [],
                     },
                     sort_key=f"{claim.get('created_at') or ''}|claim|{claim.get('claim_id') or ''}",

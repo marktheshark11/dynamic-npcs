@@ -1025,6 +1025,7 @@ Response:
     "claim_id": "C3",
     "content": "Erik stal från butiken",
     "type": null,
+    "important": true,
     "created_at": "2026-03-16T14:30:00.000000000Z",
     "npc_ids": ["npc_01", "npc_03"]
   },
@@ -1032,6 +1033,7 @@ Response:
     "claim_id": "C7",
     "content": "Gudarna straffar syndare",
     "type": "relation",
+    "important": false,
     "created_at": "2026-03-16T15:12:00.000000000Z",
     "npc_ids": ["npc_02"]
   }
@@ -1041,6 +1043,7 @@ Response:
 Notes:
 
 - `type` may be `null` if the claim has no explicit type.
+- `important` indicates whether the claim is marked as an important clue.
 - `created_at` is the timestamp when the player first learned about the claim. May be `null` for older data.
 - `npc_ids` lists all NPCs that have mentioned this claim to the player.
 - Returns an empty list if the player has no `AWARE_OF` relationships.
@@ -1086,6 +1089,7 @@ Response:
       "claim_id": "C3",
       "content": "Erik stal från butiken",
       "type": null,
+      "important": true,
       "created_at": "2026-03-16T14:30:00.000000000Z",
       "npc_ids": ["npc_01", "npc_03"]
     }

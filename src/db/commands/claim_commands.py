@@ -31,9 +31,15 @@ class CreateClaimCommand(Command):
         content = self._ui.prompt("content")
         content_en = self._ui.prompt_optional("content_en")
         is_relation = self._ui.confirm("Ar detta en relations-claim?")
+        important = self._ui.confirm("Ar denna claim viktig?")
         claim_type = "relation" if is_relation else None
 
-        claim = self._claim_repo.create(content, claim_type=claim_type, content_en=content_en)
+        claim = self._claim_repo.create(
+            content,
+            claim_type=claim_type,
+            content_en=content_en,
+            important=important,
+        )
         self._ui.display.success(f"CLAIM {claim.claim_id} skapad: '{content}'")
 
         self._link_to_mystery(claim)
@@ -162,9 +168,12 @@ class EditClaimCommand(Command):
         if not selected:
             return
 
+        keep_current = object()
+
         self._ui.display.info(f"Nuvarande content: {selected.content}")
         self._ui.display.info(f"Nuvarande content_en: {selected.content_en or '(ingen)'}")
         self._ui.display.info(f"Nuvarande type: {selected.type or '(ingen)'}")
+        self._ui.display.info(f"Nuvarande important: {'ja' if selected.important else 'nej'}")
 
         new_content = self._ui.prompt_optional("nytt content")
         new_content_en = self._ui.prompt_optional("nytt content_en")
@@ -173,12 +182,25 @@ class EditClaimCommand(Command):
             ["relation", "ta bort type", "behall nuvarande"],
             "Ny type",
         )
+        important_choice = self._ui.select_option(
+            ["ja", "nej", "behall nuvarande"],
+            "Ar claimen viktig?",
+        )
+        important_value: bool | object
+        if important_choice == "ja":
+            important_value = True
+        elif important_choice == "nej":
+            important_value = False
+        else:
+            important_value = keep_current
+
         if type_choice == "relation":
             update_ok = self._repo.update(
                 selected.claim_id,
                 content=new_content,
                 content_en=new_content_en,
                 claim_type="relation",
+                important=important_value,
             )
         elif type_choice == "ta bort type":
             update_ok = self._repo.update(
@@ -186,9 +208,15 @@ class EditClaimCommand(Command):
                 content=new_content,
                 content_en=new_content_en,
                 claim_type="",
+                important=important_value,
             )
         else:
-            update_ok = self._repo.update(selected.claim_id, content=new_content, content_en=new_content_en)
+            update_ok = self._repo.update(
+                selected.claim_id,
+                content=new_content,
+                content_en=new_content_en,
+                important=important_value,
+            )
 
         if update_ok:
             self._ui.display.success(f"CLAIM {selected.claim_id} uppdaterad")
