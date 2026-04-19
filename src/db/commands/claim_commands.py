@@ -90,12 +90,22 @@ class CreateClaimCommand(Command):
 
             prefix = self._ui.prompt_optional("prefix")
             suffix = self._ui.prompt_optional("suffix")
+            prefix_en = self._ui.prompt_optional("prefix_en")
+            suffix_en = self._ui.prompt_optional("suffix_en")
 
-            if self._opinion_repo.create(entity_id, entity_type, claim.claim_id,
-                                         prefix, suffix):
+            if self._opinion_repo.create(
+                entity_id,
+                entity_type,
+                claim.claim_id,
+                prefix,
+                suffix,
+                prefix_en,
+                suffix_en,
+            ):
                 self._ui.display.success(
                     f"HAS_OPINION: {entity_id} -> {claim.claim_id} "
-                    f"(prefix: {prefix or '-'}, suffix: {suffix or '-'})"
+                    f"(prefix: {prefix or '-'}, suffix: {suffix or '-'}, "
+                    f"prefix_en: {prefix_en or '-'}, suffix_en: {suffix_en or '-'})"
                 )
             else:
                 self._ui.display.error(
