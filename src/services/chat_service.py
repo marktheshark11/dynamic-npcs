@@ -1,5 +1,6 @@
 import json
 import re
+from time import perf_counter
 
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo, UserRepo
 from pipelines import ChatPipeline
@@ -22,6 +23,46 @@ class ChatService:
 
     def _get_pipeline(self) -> ChatPipeline:
         return self.pipeline
+
+    @staticmethod
+    def _duration_ms(start_time: float, end_time: float) -> int:
+        return max(0, int((end_time - start_time) * 1000))
+
+    @staticmethod
+    def _build_exchange_trace(
+        *,
+        pipeline_result=None,
+        used_claims=None,
+        retrieval_latency_ms=None,
+        llm_latency_ms=None,
+        total_latency_ms=None,
+        model=None,
+        response_blocked=False,
+    ) -> dict:
+        trace = getattr(pipeline_result, "exchange_trace", None)
+        candidate_claim_ids = list((getattr(trace, "candidate_claim_ids", None) or []))
+        selected_claim_ids = list((getattr(trace, "selected_claim_ids", None) or []))
+        normalized_used_claims = list(used_claims or [])
+
+        return {
+            "pipeline_id": getattr(trace, "pipeline_id", None),
+            "search_query": getattr(trace, "search_query", None),
+            "candidate_claim_count": len(candidate_claim_ids),
+            "selected_claim_count": len(selected_claim_ids),
+            "used_claim_count": len(normalized_used_claims),
+            "candidate_claim_ids": candidate_claim_ids,
+            "selected_claim_ids": selected_claim_ids,
+            "used_claim_ids": normalized_used_claims,
+            "remembered_claim_count": getattr(trace, "remembered_claim_count", 0) or 0,
+            "selector_strategy": getattr(trace, "selector_strategy", None),
+            "retrieval_latency_ms": retrieval_latency_ms,
+            "llm_latency_ms": llm_latency_ms,
+            "total_latency_ms": total_latency_ms,
+            "search_top_k": getattr(trace, "search_top_k", None),
+            "was_start_dialog": bool(getattr(trace, "was_start_dialog", False)),
+            "model": model,
+            "response_blocked": response_blocked,
+        }
 
     def build_prompt(
         self,
@@ -257,6 +298,7 @@ class ChatService:
         from llms.llm_groq import chat as groq_chat
         from llms.prompt_guard import is_malicious
 
+        total_start = perf_counter()
         resolved_conversation_id = self._resolve_conversation_id(
             npc_id=npc_id,
             conversation_id=conversation_id,
@@ -274,6 +316,7 @@ class ChatService:
                 effective_player_id = conversation.get("player_id")
 
         locale = self._resolve_locale(effective_player_id)
+        resolved_model = model or self.default_model
         refusal_message = (
             "I will not answer that kind of question."
             if self._is_english(locale)
@@ -282,10 +325,16 @@ class ChatService:
 
         if normalized_question and is_malicious(normalized_question):
             npc_profile = self.npc_repo.get_profile_by_id(npc_id, locale=locale)
+            blocked_total_latency_ms = self._duration_ms(total_start, perf_counter())
             self.conversation_repo.append_exchange(
                 conversation_id=resolved_conversation_id,
                 player_text=normalized_question,
                 npc_text=refusal_message,
+                trace=self._build_exchange_trace(
+                    used_claims=[],
+                    total_latency_ms=blocked_total_latency_ms,
+                    response_blocked=True,
+                ),
             )
             return {
                 "npc_id": npc_id,
@@ -310,6 +359,7 @@ class ChatService:
             conversation_id=resolved_conversation_id,
         )
 
+        retrieval_start = perf_counter()
         if not normalized_question:
             pipeline_result = self._get_pipeline().run_start_dialog(
                 npc_id,
@@ -329,6 +379,8 @@ class ChatService:
                 conversation_claim_ids=conversation_claim_ids,
                 locale=locale,
             )
+        retrieval_end = perf_counter()
+        retrieval_latency_ms = self._duration_ms(retrieval_start, retrieval_end)
         prompt_result = pipeline_result.prompt_result
         chain_metadata = pipeline_result.chain_metadata
         if not prompt_result:
@@ -337,15 +389,19 @@ class ChatService:
         npc_profile = self.npc_repo.get_profile_by_id(npc_id, locale=locale)
         localized_npc_name = (npc_profile or {}).get("name") or ""
 
+        llm_start = perf_counter()
         raw_response_text = groq_chat(
             messages=prompt_result.messages,
-            model=model or self.default_model,
+            model=resolved_model,
         )
+        llm_end = perf_counter()
+        llm_latency_ms = self._duration_ms(llm_start, llm_end)
         available_claim_ids = {claim_id.upper() for claim_id in pipeline_result.available_claim_ids}
         response_text, used_claims = self._parse_llm_chat_payload(
             raw_response=raw_response_text,
             allowed_ids=available_claim_ids,
         )
+        total_latency_ms = self._duration_ms(total_start, perf_counter())
 
         if used_claims:
             self.conversation_repo.add_mentioned_claim_ids(resolved_conversation_id, used_claims)
@@ -357,6 +413,15 @@ class ChatService:
             conversation_id=resolved_conversation_id,
             player_text=normalized_question,
             npc_text=response_text,
+            trace=self._build_exchange_trace(
+                pipeline_result=pipeline_result,
+                used_claims=used_claims,
+                retrieval_latency_ms=retrieval_latency_ms,
+                llm_latency_ms=llm_latency_ms,
+                total_latency_ms=total_latency_ms,
+                model=resolved_model,
+                response_blocked=False,
+            ),
         )
 
         return {

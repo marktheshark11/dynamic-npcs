@@ -8,6 +8,21 @@ def _now_utc_iso() -> str:
 
 
 class ConversationRepo(BaseRepository):
+    @staticmethod
+    def _sanitize_exchange_trace(trace: dict | None) -> dict:
+        if not trace:
+            return {}
+
+        sanitized: dict = {}
+        for key, value in trace.items():
+            if value is None:
+                continue
+            if isinstance(value, list):
+                sanitized[key] = [item for item in value if item is not None]
+                continue
+            sanitized[key] = value
+        return sanitized
+
     def list_recent_summaries_for_npc_and_player(
         self,
         npc_id: str,
@@ -145,7 +160,13 @@ class ConversationRepo(BaseRepository):
         )
         return record is not None
 
-    def append_exchange(self, conversation_id: str, player_text: str, npc_text: str) -> str | None:
+    def append_exchange(
+        self,
+        conversation_id: str,
+        player_text: str,
+        npc_text: str,
+        trace: dict | None = None,
+    ) -> str | None:
         conversation_exists = self._run_single(
             "MATCH (c:CONVERSATION {conv_id: $conversation_id}) RETURN c.conv_id AS conv_id",
             conversation_id=conversation_id,
@@ -171,21 +192,23 @@ class ConversationRepo(BaseRepository):
 
         exchange_id = f"{conversation_id}_ex_{turn_index}"
         now_iso = _now_utc_iso()
+        exchange_props = {
+            "exch_id": exchange_id,
+            "turn_index": turn_index,
+            "player_text": player_text,
+            "npc_text": npc_text,
+            "created_at": now_iso,
+        }
+        exchange_props.update(self._sanitize_exchange_trace(trace))
 
         if not has_first:
             self._run(
                 "MATCH (c:CONVERSATION {conv_id: $conversation_id}) "
-                "CREATE (e:EXCHANGE {"
-                "exch_id: $exchange_id, turn_index: $turn_index, "
-                "player_text: $player_text, npc_text: $npc_text, created_at: $created_at"
-                "}) "
+                "CREATE (e:EXCHANGE) "
+                "SET e = $exchange_props "
                 "CREATE (c)-[:FIRST_EXCHANGE]->(e)",
                 conversation_id=conversation_id,
-                exchange_id=exchange_id,
-                turn_index=turn_index,
-                player_text=player_text,
-                npc_text=npc_text,
-                created_at=now_iso,
+                exchange_props=exchange_props,
             )
             return exchange_id
 
@@ -194,17 +217,11 @@ class ConversationRepo(BaseRepository):
 
         self._run(
             "MATCH (tail:EXCHANGE {exch_id: $tail_exch_id}) "
-            "CREATE (e:EXCHANGE {"
-            "exch_id: $exchange_id, turn_index: $turn_index, "
-            "player_text: $player_text, npc_text: $npc_text, created_at: $created_at"
-            "}) "
+            "CREATE (e:EXCHANGE) "
+            "SET e = $exchange_props "
             "CREATE (tail)-[:NEXT]->(e)",
             tail_exch_id=tail_exch_id,
-            exchange_id=exchange_id,
-            turn_index=turn_index,
-            player_text=player_text,
-            npc_text=npc_text,
-            created_at=now_iso,
+            exchange_props=exchange_props,
         )
         return exchange_id
 
@@ -213,7 +230,23 @@ class ConversationRepo(BaseRepository):
             "MATCH (c:CONVERSATION {conv_id: $conversation_id})-[:FIRST_EXCHANGE]->(first:EXCHANGE) "
             "MATCH (first)-[:NEXT*0..]->(e:EXCHANGE) "
             "RETURN DISTINCT e.exch_id AS exch_id, e.turn_index AS turn_index, "
-            "e.player_text AS player_text, e.npc_text AS npc_text, e.created_at AS created_at "
+            "e.player_text AS player_text, e.npc_text AS npc_text, e.created_at AS created_at, "
+            "e.pipeline_id AS pipeline_id, e.search_query AS search_query, "
+            "coalesce(e.candidate_claim_count, 0) AS candidate_claim_count, "
+            "coalesce(e.selected_claim_count, 0) AS selected_claim_count, "
+            "coalesce(e.used_claim_count, 0) AS used_claim_count, "
+            "coalesce(e.candidate_claim_ids, []) AS candidate_claim_ids, "
+            "coalesce(e.selected_claim_ids, []) AS selected_claim_ids, "
+            "coalesce(e.used_claim_ids, []) AS used_claim_ids, "
+            "coalesce(e.remembered_claim_count, 0) AS remembered_claim_count, "
+            "e.selector_strategy AS selector_strategy, "
+            "e.retrieval_latency_ms AS retrieval_latency_ms, "
+            "e.llm_latency_ms AS llm_latency_ms, "
+            "e.total_latency_ms AS total_latency_ms, "
+            "e.search_top_k AS search_top_k, "
+            "coalesce(e.was_start_dialog, false) AS was_start_dialog, "
+            "e.model AS model, "
+            "coalesce(e.response_blocked, false) AS response_blocked "
             "ORDER BY e.turn_index",
             conversation_id=conversation_id,
         )
@@ -225,6 +258,23 @@ class ConversationRepo(BaseRepository):
                 "player_text": r.get("player_text"),
                 "npc_text": r.get("npc_text"),
                 "created_at": r.get("created_at"),
+                "pipeline_id": r.get("pipeline_id"),
+                "search_query": r.get("search_query"),
+                "candidate_claim_count": r.get("candidate_claim_count", 0),
+                "selected_claim_count": r.get("selected_claim_count", 0),
+                "used_claim_count": r.get("used_claim_count", 0),
+                "candidate_claim_ids": r.get("candidate_claim_ids") or [],
+                "selected_claim_ids": r.get("selected_claim_ids") or [],
+                "used_claim_ids": r.get("used_claim_ids") or [],
+                "remembered_claim_count": r.get("remembered_claim_count", 0),
+                "selector_strategy": r.get("selector_strategy"),
+                "retrieval_latency_ms": r.get("retrieval_latency_ms"),
+                "llm_latency_ms": r.get("llm_latency_ms"),
+                "total_latency_ms": r.get("total_latency_ms"),
+                "search_top_k": r.get("search_top_k"),
+                "was_start_dialog": bool(r.get("was_start_dialog")),
+                "model": r.get("model"),
+                "response_blocked": bool(r.get("response_blocked")),
             }
             for r in records
         ]

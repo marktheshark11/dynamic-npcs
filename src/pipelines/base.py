@@ -21,6 +21,20 @@ class ChatPipeline(ABC):
 
         return claim_ids
 
+    @staticmethod
+    def extract_claim_ids_from_claims(claims: list[dict[str, Any]]) -> list[str]:
+        claim_ids: list[str] = []
+        seen: set[str] = set()
+
+        for claim in claims or []:
+            claim_id = claim.get("claim_id")
+            if not isinstance(claim_id, str) or not claim_id or claim_id in seen:
+                continue
+            seen.add(claim_id)
+            claim_ids.append(claim_id)
+
+        return claim_ids
+
     @abstractmethod
     def run(
         self,

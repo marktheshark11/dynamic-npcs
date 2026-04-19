@@ -1,7 +1,7 @@
 from typing import Any
 
 from .base import ChatPipeline
-from .models import PipelineRunResult
+from .models import ExchangeTrace, PipelineRunResult
 from .rag_helpers import (
     RAGPipelineServices,
     build_claim_chains,
@@ -102,6 +102,16 @@ class DirectRAGPipeline(ChatPipeline):
             prompt_result=prompt_result,
             chain_metadata=chain_metadata,
             available_claim_ids=self.extract_available_claim_ids(chain_metadata),
+            exchange_trace=ExchangeTrace(
+                pipeline_id=self.pipeline_id,
+                search_query=search_query,
+                candidate_claim_ids=self.extract_claim_ids_from_claims(available_claims),
+                selected_claim_ids=self.extract_available_claim_ids(chain_metadata),
+                remembered_claim_count=len(remembered_claim_hits),
+                selector_strategy="none",
+                search_top_k=top_k,
+                was_start_dialog=False,
+            ),
         )
 
     def run_start_dialog(
@@ -132,4 +142,10 @@ class DirectRAGPipeline(ChatPipeline):
             prompt_result=prompt_result,
             chain_metadata=chain_metadata,
             available_claim_ids=self.extract_available_claim_ids(chain_metadata),
+            exchange_trace=ExchangeTrace(
+                pipeline_id=self.pipeline_id,
+                selector_strategy="none",
+                search_top_k=0,
+                was_start_dialog=True,
+            ),
         )
