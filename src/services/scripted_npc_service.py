@@ -42,12 +42,14 @@ class ScriptedNpcService:
         self._menu_text = (
             "1. Om spelet\n"
             "2. Få ledtråd\n"
-            "3. Jag vet vem mördaren är, jag vill anklaga den och sedan avsluta spelet"
+            "3. Jag vet vem mördaren är, jag vill anklaga den och sedan avsluta spelet\n"
+            "4. Vad är mitt player_id?"
         )
         self._menu_text_en = (
             "1. About the game\n"
             "2. Get a hint\n"
-            "3. I know who the murderer is, I want to accuse them and then end the game"
+            "3. I know who the murderer is, I want to accuse them and then end the game\n"
+            "4. What is my player_id?"
         )
 
     @staticmethod
@@ -160,7 +162,7 @@ class ScriptedNpcService:
             return int(raw_choice)
         except ValueError as exc:
             is_english = ScriptedNpcService._is_english(locale)
-            raise ValueError("Invalid choice. Send a whole number, for example 1, 2 or 3." if is_english else "Ogiltigt val. Skicka ett heltal, till exempel 1, 2 eller 3.") from exc
+            raise ValueError("Invalid choice. Send a whole number, for example 1, 2, 3 or 4." if is_english else "Ogiltigt val. Skicka ett heltal, till exempel 1, 2, 3 eller 4.") from exc
 
     def _handle_choice(
         self,
@@ -184,7 +186,17 @@ class ScriptedNpcService:
                 conversation_id=conversation_id,
                 locale=locale,
             )
-        return ScriptedNpcReply(response="Invalid choice. Send an empty message to see the menu or type 1, 2 or 3." if is_english else "Ogiltigt val. Skicka tomt för att se menyn eller skriv 1, 2 eller 3.")
+        if choice == 4:
+            if not player_id:
+                raise ValueError("player_id is required to show your player_id." if is_english else "player_id krävs för att visa ditt player_id.")
+            return ScriptedNpcReply(
+                response=(
+                    f"Your player_id is: {player_id}"
+                    if is_english
+                    else f"Ditt player_id är: {player_id}"
+                )
+            )
+        return ScriptedNpcReply(response="Invalid choice. Send an empty message to see the menu or type 1, 2, 3 or 4." if is_english else "Ogiltigt val. Skicka tomt för att se menyn eller skriv 1, 2, 3 eller 4.")
 
     def _begin_accusation_flow(
         self,

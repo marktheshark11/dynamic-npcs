@@ -282,7 +282,7 @@ def main():
             print(
                 "\nKommissarien använder scriptad terminal-chat. "
                 "Skicka tomt för att visa menyn. Om du väljer 3 får du sedan en kandidatlista "
-                "och svarar med siffran för den person du vill anklaga."
+                "och svarar med siffran för den person du vill anklaga. Välj 4 för att se ditt player_id."
             )
 
         while True:
