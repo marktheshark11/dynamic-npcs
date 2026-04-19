@@ -231,7 +231,12 @@ Query parameters:
 
 When `locale=en`, the API returns `name_en` / `question_en` when present, and falls back to Swedish text when English text is missing.
 
-The response also includes optional localized form description text and optional scale metadata for numeric questions.
+The response also includes optional localized form description text, a `required` flag for each question, and optional scale metadata for numeric questions.
+
+Supported `value_type` values are `string`, `int`, `bool`, and `info`.
+
+- `info` questions are informational pages and do not accept answers.
+- `bool` questions are intended for checkbox-style input.
 
 Example response:
 
@@ -245,13 +250,15 @@ Example response:
       "question_id": "q_name",
       "question": "What is your name?",
       "value_type": "string",
-      "order": 1
+      "order": 1,
+      "required": true
     },
     {
       "question_id": "q_age",
       "question": "How old are you?",
       "value_type": "int",
       "order": 2,
+      "required": true,
       "scale_min": 1,
       "scale_max": 7,
       "min_label": "Not at all",
@@ -275,13 +282,15 @@ English example:
       "question_id": "q_name",
       "question": "What is your name?",
       "value_type": "string",
-      "order": 1
+      "order": 1,
+      "required": true
     },
     {
       "question_id": "q_age",
       "question": "How old are you?",
       "value_type": "int",
-      "order": 2
+      "order": 2,
+      "required": true
     }
   ]
 }
@@ -297,15 +306,19 @@ If the form does not exist:
 
 ## POST /players/{player_id}/forms/{form_id}
 
-Save one current answer per question for a player. The request must contain answers for all questions in the form.
+Save one current answer per answerable question for a player.
+
+Questions with `value_type = "info"` are returned by the form definition but should not be submitted in the save payload.
 
 For `int` questions with `scale_min` / `scale_max`, submitted answers must fall within that range.
+
+For `bool` questions, the API accepts values such as `"true"`, `"false"`, `true`, `false`, `1`, and `0`.
 
 Request body:
 
 - `answers` (array, required)
   - `question_id` (string, required)
-  - `answer` (string, required)
+  - `answer` (string | boolean | integer, required)
 
 Example request:
 
@@ -334,12 +347,14 @@ Example response:
     {
       "question_id": "q_name",
       "value_type": "string",
-      "raw_answer": "Elin"
+      "raw_answer": "Elin",
+      "answer_bool": null
     },
     {
       "question_id": "q_age",
       "value_type": "int",
-      "raw_answer": "27"
+      "raw_answer": "27",
+      "answer_bool": null
     }
   ]
 }
@@ -349,7 +364,13 @@ Possible validation errors:
 
 ```json
 {
-  "detail": "All form questions must be answered; missing question_ids: q_age"
+  "detail": "All required form questions must be answered; missing question_ids: q_age"
+}
+```
+
+```json
+{
+  "detail": "answer for question_id 'consent_participate' must be a boolean"
 }
 ```
 
@@ -365,6 +386,8 @@ Return a form definition together with the player's currently saved answers.
 
 This endpoint uses the player's locale to choose Swedish or English text, with fallback to Swedish if English text is missing.
 
+For `info` questions, `answer` and `answer_bool` will be `null`.
+
 Example response:
 
 ```json
@@ -378,6 +401,8 @@ Example response:
       "question": "What is your name?",
       "value_type": "string",
       "order": 1,
+      "required": true,
+      "answer_bool": null,
       "answer": "Elin"
     },
     {
@@ -385,10 +410,12 @@ Example response:
       "question": "How old are you?",
       "value_type": "int",
       "order": 2,
+      "required": true,
       "scale_min": 1,
       "scale_max": 7,
       "min_label": "Not at all",
       "max_label": "A lot",
+      "answer_bool": null,
       "answer": "27"
     }
   ]
