@@ -772,7 +772,8 @@ Example response:
           "order": 1,
           "raw_answer": "Elin",
           "answer_text": "Elin",
-          "answer_int": null
+          "answer_int": null,
+          "answer_bool": null
         }
       ]
     }

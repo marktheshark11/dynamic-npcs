@@ -122,8 +122,9 @@ A question belonging to a specific form.
 | `question_id` | string | Unique identifier for the question |
 | `question` | string | Question text shown to the player in Swedish |
 | `question_en` | string? | English translation of `question` |
-| `value_type` | string | Allowed values currently: `string`, `int` |
+| `value_type` | string | Allowed values currently: `string`, `int`, `bool`, `info` |
 | `order` | int | Display order inside the form |
+| `required` | bool | Whether the question must be answered; `info` entries should be `false` |
 | `scale_min` | int? | Minimum allowed value for scale/int questions |
 | `scale_max` | int? | Maximum allowed value for scale/int questions |
 | `min_label` | string? | Swedish label shown at the low end of the scale |
@@ -141,6 +142,7 @@ A player's current saved answer to a specific form question.
 | `value_type` | string | Copied from the question when saved |
 | `answer_text` | string? | Filled when `value_type = "string"` |
 | `answer_int` | int? | Filled when `value_type = "int"` |
+| `answer_bool` | bool? | Filled when `value_type = "bool"` |
 | `created_at` | datetime | When the answer node was first created |
 
 ---

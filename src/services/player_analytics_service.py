@@ -268,6 +268,7 @@ class PlayerAnalyticsService:
                             "raw_answer": answer.get("raw_answer"),
                             "answer_text": answer.get("answer_text"),
                             "answer_int": answer.get("answer_int"),
+                            "answer_bool": answer.get("answer_bool"),
                         },
                         sort_key=f"zzzz|form|{form.get('form_id') or ''}|{answer.get('order') or 0:04d}",
                     )

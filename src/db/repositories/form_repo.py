@@ -5,7 +5,7 @@ from ..models import Form, FormQuestion
 class FormRepo(BaseRepository):
     """CRUD and answer operations for forms and form questions."""
 
-    VALID_VALUE_TYPES = {"string", "int"}
+    VALID_VALUE_TYPES = {"string", "int", "bool", "info"}
 
     def _next_answer_id(self) -> str:
         records = self._run(
@@ -30,8 +30,17 @@ class FormRepo(BaseRepository):
     def _validate_value_type(self, value_type: str) -> str:
         normalized = value_type.strip().lower()
         if normalized not in self.VALID_VALUE_TYPES:
-            raise ValueError("value_type must be one of: string, int")
+            raise ValueError("value_type must be one of: string, int, bool, info")
         return normalized
+
+    @staticmethod
+    def _parse_bool_answer(raw_answer: str, question_id: str) -> tuple[str, bool]:
+        normalized = raw_answer.strip().lower()
+        if normalized in {"true", "1", "yes", "y"}:
+            return "true", True
+        if normalized in {"false", "0", "no", "n"}:
+            return "false", False
+        raise ValueError(f"answer for question_id '{question_id}' must be a boolean")
 
     @staticmethod
     def _localized_value(locale: str, swedish_value: str | None, english_value: str | None) -> str | None:
@@ -108,6 +117,7 @@ class FormRepo(BaseRepository):
                     "question": question.question,
                     "value_type": question.value_type,
                     "order": question.order,
+                    "required": question.required,
                     "scale_min": question.scale_min,
                     "scale_max": question.scale_max,
                     "min_label": question.min_label,
@@ -125,6 +135,7 @@ class FormRepo(BaseRepository):
         question_en: str | None,
         value_type: str,
         order: int,
+        required: bool = True,
         scale_min: int | None = None,
         scale_max: int | None = None,
         min_label: str | None = None,
@@ -141,10 +152,13 @@ class FormRepo(BaseRepository):
         elif any(value is not None for value in (scale_min, scale_max, min_label, min_label_en, max_label, max_label_en)):
             raise ValueError("scale fields are only supported for int questions")
 
+        if normalized_type == "info":
+            required = False
+
         record = self._run_single(
             "MATCH (f:FORM {form_id: $form_id}) "
             "CREATE (q:FORM_QUESTION {"
-            "question_id: $question_id, question: $question, question_en: $question_en, value_type: $value_type, `order`: $order, "
+            "question_id: $question_id, question: $question, question_en: $question_en, value_type: $value_type, `order`: $order, required: $required, "
             "scale_min: $scale_min, scale_max: $scale_max, min_label: $min_label, min_label_en: $min_label_en, "
             "max_label: $max_label, max_label_en: $max_label_en"
             "}) "
@@ -156,6 +170,7 @@ class FormRepo(BaseRepository):
             question_en=question_en,
             value_type=normalized_type,
             order=order,
+            required=required,
             scale_min=scale_min,
             scale_max=scale_max,
             min_label=min_label,
@@ -171,6 +186,7 @@ class FormRepo(BaseRepository):
             question_en=question_en,
             value_type=normalized_type,
             order=order,
+            required=required,
             scale_min=scale_min,
             scale_max=scale_max,
             min_label=min_label,
@@ -183,7 +199,7 @@ class FormRepo(BaseRepository):
         records = self._run(
             "MATCH (f:FORM {form_id: $form_id})-[:HAS_QUESTION]->(q:FORM_QUESTION) "
             "RETURN q.question_id AS question_id, q.question AS question, q.question_en AS question_en, "
-            "q.value_type AS value_type, q.`order` AS order, q.scale_min AS scale_min, q.scale_max AS scale_max, "
+            "q.value_type AS value_type, q.`order` AS order, q.required AS required, q.scale_min AS scale_min, q.scale_max AS scale_max, "
             "q.min_label AS min_label, q.min_label_en AS min_label_en, q.max_label AS max_label, q.max_label_en AS max_label_en "
             "ORDER BY q.`order`, q.question_id",
             form_id=form_id,
@@ -195,6 +211,7 @@ class FormRepo(BaseRepository):
                 question_en=r.get("question_en"),
                 value_type=r["value_type"],
                 order=int(r["order"]),
+                required=bool(r.get("required")) if r.get("required") is not None else True,
                 scale_min=r.get("scale_min"),
                 scale_max=r.get("scale_max"),
                 min_label=self._localized_value(locale, r.get("min_label"), r.get("min_label_en")),
@@ -212,12 +229,18 @@ class FormRepo(BaseRepository):
 
         records = self._run(
             "MATCH (p:PLAYER {player_id: $player_id})-[:HAS_FORM_ANSWER]->(a:FORM_ANSWER)<-[:HAS_ANSWER]-(q:FORM_QUESTION)<-[:HAS_QUESTION]-(f:FORM {form_id: $form_id}) "
-            "RETURN q.question_id AS question_id, a.raw_answer AS raw_answer "
+            "RETURN q.question_id AS question_id, a.raw_answer AS raw_answer, a.answer_bool AS answer_bool "
             "ORDER BY q.`order`, q.question_id",
             player_id=player_id,
             form_id=form_id,
         )
-        answer_by_question = {r["question_id"]: r.get("raw_answer") for r in records}
+        answer_by_question = {
+            r["question_id"]: {
+                "answer": r.get("raw_answer"),
+                "answer_bool": r.get("answer_bool"),
+            }
+            for r in records
+        }
         return {
             "form_id": form_data["form_id"],
             "name": form_data["name"],
@@ -225,7 +248,8 @@ class FormRepo(BaseRepository):
             "questions": [
                 {
                     **question,
-                    "answer": answer_by_question.get(question["question_id"]),
+                    "answer": (answer_by_question.get(question["question_id"]) or {}).get("answer"),
+                    "answer_bool": (answer_by_question.get(question["question_id"]) or {}).get("answer_bool"),
                 }
                 for question in form_data["questions"]
             ],
@@ -238,7 +262,7 @@ class FormRepo(BaseRepository):
             "f.description AS form_description, f.description_en AS form_description_en, "
             "q.question_id AS question_id, q.question AS question, q.question_en AS question_en, "
             "q.value_type AS value_type, q.`order` AS question_order, "
-            "a.raw_answer AS raw_answer, a.answer_text AS answer_text, a.answer_int AS answer_int "
+            "a.raw_answer AS raw_answer, a.answer_text AS answer_text, a.answer_int AS answer_int, a.answer_bool AS answer_bool "
             "ORDER BY f.form_id, q.`order`, q.question_id",
             player_id=player_id,
         )
@@ -268,6 +292,7 @@ class FormRepo(BaseRepository):
                     "raw_answer": record.get("raw_answer"),
                     "answer_text": record.get("answer_text"),
                     "answer_int": record.get("answer_int"),
+                    "answer_bool": record.get("answer_bool"),
                 }
             )
 
@@ -297,18 +322,27 @@ class FormRepo(BaseRepository):
         if len(submitted_ids) != len(set(submitted_ids)):
             raise ValueError("Duplicate question_id values are not allowed")
 
-        expected_ids = set(question_by_id.keys())
+        answerable_ids = {
+            question.question_id
+            for question in questions
+            if question.value_type != "info"
+        }
+        required_ids = {
+            question.question_id
+            for question in questions
+            if question.value_type != "info" and question.required
+        }
         actual_ids = set(submitted_ids)
 
-        if actual_ids != expected_ids:
-            missing = sorted(expected_ids - actual_ids)
-            extra = sorted(actual_ids - expected_ids)
+        if not actual_ids.issubset(answerable_ids) or required_ids - actual_ids:
+            missing = sorted(required_ids - actual_ids)
+            extra = sorted(actual_ids - answerable_ids)
             details = []
             if missing:
                 details.append(f"missing question_ids: {', '.join(missing)}")
             if extra:
-                details.append(f"unknown question_ids: {', '.join(extra)}")
-            raise ValueError("All form questions must be answered; " + "; ".join(details))
+                details.append(f"non-answerable or unknown question_ids: {', '.join(extra)}")
+            raise ValueError("All required form questions must be answered; " + "; ".join(details))
 
         saved_answers = []
         for item in answers:
@@ -322,6 +356,7 @@ class FormRepo(BaseRepository):
             question = question_by_id[question_id]
             answer_text: str | None = None
             answer_int: int | None = None
+            answer_bool: bool | None = None
 
             if question.value_type == "string":
                 answer_text = raw_answer
@@ -340,6 +375,8 @@ class FormRepo(BaseRepository):
                     raise ValueError(
                         f"answer for question_id '{question_id}' must be <= {question.scale_max}"
                     )
+            elif question.value_type == "bool":
+                raw_answer, answer_bool = self._parse_bool_answer(raw_answer, question_id)
             else:
                 raise ValueError(f"Unsupported value_type '{question.value_type}'")
 
@@ -355,12 +392,13 @@ class FormRepo(BaseRepository):
                 self._run(
                     "MATCH (a:FORM_ANSWER {answer_id: $answer_id}) "
                     "SET a.raw_answer = $raw_answer, a.value_type = $value_type, "
-                    "a.answer_text = $answer_text, a.answer_int = $answer_int",
+                    "a.answer_text = $answer_text, a.answer_int = $answer_int, a.answer_bool = $answer_bool",
                     answer_id=answer_id,
                     raw_answer=raw_answer,
                     value_type=question.value_type,
                     answer_text=answer_text,
                     answer_int=answer_int,
+                    answer_bool=answer_bool,
                 )
             else:
                 answer_id = self._next_answer_id()
@@ -369,7 +407,7 @@ class FormRepo(BaseRepository):
                     "MATCH (q:FORM_QUESTION {question_id: $question_id}) "
                     "CREATE (a:FORM_ANSWER {"
                     "answer_id: $answer_id, raw_answer: $raw_answer, value_type: $value_type, "
-                    "answer_text: $answer_text, answer_int: $answer_int, created_at: datetime()"
+                    "answer_text: $answer_text, answer_int: $answer_int, answer_bool: $answer_bool, created_at: datetime()"
                     "}) "
                     "CREATE (p)-[:HAS_FORM_ANSWER]->(a) "
                     "CREATE (q)-[:HAS_ANSWER]->(a)",
@@ -380,6 +418,7 @@ class FormRepo(BaseRepository):
                     value_type=question.value_type,
                     answer_text=answer_text,
                     answer_int=answer_int,
+                    answer_bool=answer_bool,
                 )
 
             saved_answers.append(
@@ -387,6 +426,7 @@ class FormRepo(BaseRepository):
                     "question_id": question_id,
                     "value_type": question.value_type,
                     "raw_answer": raw_answer,
+                    "answer_bool": answer_bool,
                 }
             )
 

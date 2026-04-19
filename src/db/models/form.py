@@ -22,6 +22,7 @@ class FormQuestion:
     question: str
     value_type: str
     order: int
+    required: bool = True
     question_en: str | None = None
     scale_min: int | None = None
     scale_max: int | None = None
@@ -33,7 +34,7 @@ class FormQuestion:
     def display_str(self) -> str:
         return (
             f"ID: {self.question_id}, Ordning: {self.order}, "
-            f"Typ: {self.value_type}, Fraga: {self.question}"
+            f"Typ: {self.value_type}, Kravs: {self.required}, Fraga: {self.question}"
         )
 
     def short_str(self) -> str:

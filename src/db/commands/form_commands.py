@@ -73,10 +73,11 @@ class CreateFormQuestionCommand(Command):
         question_id = self._ui.prompt("question_id")
         question = self._ui.prompt("fraga")
         question_en = self._ui.prompt_optional("fraga pa engelska")
-        value_type = self._ui.select_option(["string", "int"], "Valj value_type")
+        value_type = self._ui.select_option(["string", "int", "bool", "info"], "Valj value_type")
         if not value_type:
             return
         order = self._ui.prompt_int("ordning")
+        required = False if value_type == "info" else self._ui.confirm("Ar fragan obligatorisk?")
         scale_min = None
         scale_max = None
         min_label = None
@@ -106,6 +107,7 @@ class CreateFormQuestionCommand(Command):
                 question_en,
                 value_type,
                 order,
+                required,
                 scale_min,
                 scale_max,
                 min_label,

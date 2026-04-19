@@ -188,6 +188,7 @@ class AnalyticsFormAnswerResponse(BaseModel):
     raw_answer: str | None = None
     answer_text: str | None = None
     answer_int: int | None = None
+    answer_bool: bool | None = None
 
 
 class AnalyticsFormResponse(BaseModel):
@@ -258,6 +259,7 @@ class FormQuestionResponse(BaseModel):
     question: str
     value_type: str
     order: int
+    required: bool = True
     scale_min: int | None = None
     scale_max: int | None = None
     min_label: str | None = None
@@ -273,7 +275,7 @@ class FormResponse(BaseModel):
 
 class SaveFormAnswerItemRequest(BaseModel):
     question_id: str
-    answer: str
+    answer: str | bool | int
 
 
 class SaveFormRequest(BaseModel):
@@ -284,6 +286,7 @@ class SavedFormAnswerResponse(BaseModel):
     question_id: str
     value_type: str
     raw_answer: str
+    answer_bool: bool | None = None
 
 
 class SaveFormResponse(BaseModel):
@@ -294,6 +297,7 @@ class SaveFormResponse(BaseModel):
 
 class PlayerFormQuestionResponse(FormQuestionResponse):
     answer: str | None = None
+    answer_bool: bool | None = None
 
 
 class PlayerFormResponse(BaseModel):
@@ -916,7 +920,7 @@ async def save_player_form(
         answers = [
             {
                 "question_id": item.question_id.strip(),
-                "answer": item.answer.strip(),
+                "answer": str(item.answer).strip().lower() if isinstance(item.answer, bool) else str(item.answer).strip(),
             }
             for item in payload.answers
         ]
