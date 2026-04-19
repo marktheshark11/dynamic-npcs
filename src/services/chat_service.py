@@ -252,6 +252,32 @@ class ChatService:
 
         return normalized
 
+    @staticmethod
+    def _normalize_response_text(raw_text: str) -> str:
+        text = (raw_text or "").strip()
+        if not text:
+            return ""
+
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return text
+
+        if isinstance(parsed, str):
+            return parsed.strip()
+
+        return text
+
+    @classmethod
+    def _fallback_response_text(cls, locale: str | None, is_start_dialog: bool) -> str:
+        if is_start_dialog:
+            return "Good morning, detective." if cls._is_english(locale) else "God morgon, detektiven."
+        return (
+            "I am not sure how to answer that."
+            if cls._is_english(locale)
+            else "Jag är inte säker på hur jag ska svara på det."
+        )
+
     @classmethod
     def _parse_llm_chat_payload(cls, raw_response: str, allowed_ids: set[str]) -> tuple[str, list[str]]:
         if not raw_response:
@@ -278,11 +304,11 @@ class ChatService:
                 break
 
         if not parsed:
-            return raw_response.strip(), []
+            return cls._normalize_response_text(raw_response), []
 
         response_value = parsed.get("response")
         if isinstance(response_value, str):
-            response_text = response_value.strip()
+            response_text = cls._normalize_response_text(response_value)
         else:
             response_text = ""
         raw_claim_ids = parsed.get("used_claim_ids")
@@ -291,7 +317,7 @@ class ChatService:
 
         claim_ids = cls._normalize_claim_ids(raw_claim_ids, allowed_ids)
         if not response_text:
-            return raw_response.strip(), claim_ids
+            return "", claim_ids
         return response_text, claim_ids
 
     def ask_npc(self, npc_id, question, model=None, conversation_id=None, player_id=None):
@@ -401,6 +427,11 @@ class ChatService:
             raw_response=raw_response_text,
             allowed_ids=available_claim_ids,
         )
+        if not response_text:
+            response_text = self._fallback_response_text(
+                locale=locale,
+                is_start_dialog=not normalized_question,
+            )
         total_latency_ms = self._duration_ms(total_start, perf_counter())
 
         if used_claims:
