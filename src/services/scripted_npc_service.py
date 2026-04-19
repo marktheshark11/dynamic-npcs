@@ -29,7 +29,7 @@ class ScriptedNpcService:
         "npc_mariana",
     ]
     _CORRECT_MURDERER_ID = "npc_beatrice"
-    _ABOUT_GAME_TEXT ="Det här är ett mordmysteriumspel där du är detektiven som ska lösa mordet. Behöver du hjälp? Gå in på Clues eller fråga mig om ledtrådar. Lycka till.d "
+    _ABOUT_GAME_TEXT ="Det här är ett mordmysteriumspel där du är detektiven som ska lösa mordet. Behöver du hjälp? Gå in på Clues eller fråga mig om ledtrådar. Lycka till."
     _ABOUT_GAME_TEXT_EN = "This is a murder mystery game where you are the detective solving the murder. Need help? Go to Clues or ask me for hints. Good luck."
 
     def __init__(self, driver):
