@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -116,7 +117,6 @@ class CreatePlayerRequest(BaseModel):
     name: str
     appearance: str | None = None
     user_id: str | None = None
-    temperature: float = Field(default=DEFAULT_CHAT_TEMPERATURE, ge=0.0, le=2.0)
 
 
 class CreatePlayerResponse(BaseModel):
@@ -136,7 +136,6 @@ class PlayerResponse(BaseModel):
 class UpdatePlayerRequest(BaseModel):
     name: str | None = None
     appearance: str | None = None
-    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
 
 
 class AnalyticsProfileResponse(BaseModel):
@@ -499,6 +498,17 @@ def _localized_detail(locale: str, english_text: str, swedish_text: str) -> str:
     return english_text if locale == "en" else swedish_text
 
 
+def _infer_temperature_from_player_name(name: str) -> float:
+    match = re.fullmatch(r"temp(?P<temperature>\d+(?:\.\d+)?)", name.strip().lower())
+    if not match:
+        return DEFAULT_CHAT_TEMPERATURE
+
+    inferred_temperature = float(match.group("temperature"))
+    if 0.0 <= inferred_temperature <= 2.0:
+        return inferred_temperature
+    return DEFAULT_CHAT_TEMPERATURE
+
+
 def _ensure_player_not_completed(player_profile: dict, locale: str = "sv") -> None:
     if player_profile.get("has_completed_game"):
         raise HTTPException(
@@ -728,7 +738,7 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
     name = payload.name.strip()
     appearance = payload.appearance.strip() if payload.appearance is not None else None
     user_id = payload.user_id.strip() if payload.user_id else None
-    temperature = payload.temperature
+    temperature = _infer_temperature_from_player_name(name)
     
     if not name:
         raise HTTPException(status_code=400, detail="name cannot be empty")
@@ -838,7 +848,6 @@ async def update_player(
             normalized_player_id,
             name=name,
             appearance=appearance,
-            temperature=payload.temperature,
         )
         if not updated:
             raise HTTPException(status_code=400, detail="No player fields to update")
