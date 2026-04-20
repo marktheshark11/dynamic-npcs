@@ -122,6 +122,97 @@ class CreateFormQuestionCommand(Command):
         self._ui.display.success(f"Fraga '{form_question.question_id}' tillagd i '{selected_form.form_id}'")
 
 
+class EditFormQuestionCommand(Command):
+    def __init__(self, repo: FormRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Redigera formulärfråga"
+
+    def execute(self) -> None:
+        forms = self._repo.list_forms()
+        selected_form = self._ui.select_from_list(forms, Form.display_str, "Välj formulär")
+        if not selected_form:
+            return
+
+        questions = self._repo.list_form_questions(selected_form.form_id)
+        selected_question = self._ui.select_from_list(
+            questions,
+            FormQuestion.display_str,
+            "Välj fråga",
+        )
+        if not selected_question:
+            return
+
+        question = self._ui.prompt_optional("fråga")
+        question_en = self._ui.prompt_optional("fråga på engelska")
+        value_type_option = self._ui.select_option(
+            ["ingen ändring", "string", "int", "bool", "info"],
+            "Välj value_type",
+        )
+        if value_type_option is None:
+            return
+        value_type = None if value_type_option == "ingen ändring" else value_type_option
+
+        order = self._ui.prompt_optional_int("ordning")
+        required: bool | None = None
+        selected_value_type = value_type or selected_question.value_type
+        if selected_value_type != "info":
+            required_option = self._ui.select_option(
+                ["ingen ändring", "ja", "nej"],
+                "Är frågan obligatorisk?",
+            )
+            if required_option is None:
+                return
+            if required_option == "ja":
+                required = True
+            elif required_option == "nej":
+                required = False
+
+        scale_min = None
+        scale_max = None
+        min_label = None
+        min_label_en = None
+        max_label = None
+        max_label_en = None
+        if selected_value_type == "int":
+            scale_min = self._ui.prompt_optional_int("skala min")
+            scale_max = self._ui.prompt_optional_int("skala max")
+            min_label = self._ui.prompt_optional("min etikett")
+            min_label_en = self._ui.prompt_optional("min etikett på engelska")
+            max_label = self._ui.prompt_optional("max etikett")
+            max_label_en = self._ui.prompt_optional("max etikett på engelska")
+
+        try:
+            updated = self._repo.update_question(
+                form_id=selected_form.form_id,
+                question_id=selected_question.question_id,
+                question=question,
+                question_en=question_en,
+                value_type=value_type,
+                order=order,
+                required=required,
+                scale_min=scale_min,
+                scale_max=scale_max,
+                min_label=min_label,
+                min_label_en=min_label_en,
+                max_label=max_label,
+                max_label_en=max_label_en,
+            )
+        except ValueError as exc:
+            self._ui.display.error(str(exc))
+            return
+
+        if updated:
+            self._ui.display.success(
+                f"Fråga '{selected_question.question_id}' uppdaterad i '{selected_form.form_id}'"
+            )
+        else:
+            self._ui.display.error("Kunde inte uppdatera frågan")
+
+
 class ListFormQuestionsCommand(Command):
     def __init__(self, repo: FormRepo, ui: InputHelpers) -> None:
         self._repo = repo

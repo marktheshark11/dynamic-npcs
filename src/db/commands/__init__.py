@@ -25,6 +25,7 @@ from .form_commands import (
     CreateFormCommand,
     ListFormsCommand,
     CreateFormQuestionCommand,
+    EditFormQuestionCommand,
     ListFormQuestionsCommand,
 )
 from .opinion_commands import (
@@ -68,7 +69,7 @@ __all__ = [
     "DeleteObjectCommand", "DeletePlaceCommand", "DeleteItemCommand", "DeleteDoorCommand",
     "EditItemCommand", "EditDoorCommand",
     "ListConstantsCommand", "ListItemsCommand", "ListDoorsCommand",
-    "CreateFormCommand", "ListFormsCommand", "CreateFormQuestionCommand", "ListFormQuestionsCommand",
+    "CreateFormCommand", "ListFormsCommand", "CreateFormQuestionCommand", "EditFormQuestionCommand", "ListFormQuestionsCommand",
     "CreateOpinionCommand", "EditOpinionCommand",
     "DeleteOpinionCommand", "ListOpinionsCommand",
     "CreateStructuralRelationCommand",

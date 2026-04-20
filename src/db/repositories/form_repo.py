@@ -195,6 +195,84 @@ class FormRepo(BaseRepository):
             max_label_en=max_label_en,
         )
 
+    def update_question(
+        self,
+        form_id: str,
+        question_id: str,
+        question: str | None = None,
+        question_en: str | None = None,
+        value_type: str | None = None,
+        order: int | None = None,
+        required: bool | None = None,
+        scale_min: int | None = None,
+        scale_max: int | None = None,
+        min_label: str | None = None,
+        min_label_en: str | None = None,
+        max_label: str | None = None,
+        max_label_en: str | None = None,
+    ) -> bool:
+        record = self._run_single(
+            "MATCH (:FORM {form_id: $form_id})-[:HAS_QUESTION]->(q:FORM_QUESTION {question_id: $question_id}) "
+            "RETURN q.question AS question, q.question_en AS question_en, q.value_type AS value_type, "
+            "q.`order` AS order, q.required AS required, q.scale_min AS scale_min, q.scale_max AS scale_max, "
+            "q.min_label AS min_label, q.min_label_en AS min_label_en, q.max_label AS max_label, q.max_label_en AS max_label_en",
+            form_id=form_id,
+            question_id=question_id,
+        )
+        if not record:
+            return False
+
+        next_value_type = self._validate_value_type(value_type) if value_type is not None else record["value_type"]
+        next_question = question if question is not None else record.get("question")
+        next_question_en = question_en if question_en is not None else record.get("question_en")
+        next_order = order if order is not None else int(record.get("order") or 0)
+
+        if next_value_type == "int":
+            next_scale_min = scale_min if scale_min is not None else record.get("scale_min")
+            next_scale_max = scale_max if scale_max is not None else record.get("scale_max")
+            next_min_label = min_label if min_label is not None else record.get("min_label")
+            next_min_label_en = min_label_en if min_label_en is not None else record.get("min_label_en")
+            next_max_label = max_label if max_label is not None else record.get("max_label")
+            next_max_label_en = max_label_en if max_label_en is not None else record.get("max_label_en")
+            if next_scale_min is None or next_scale_max is None:
+                raise ValueError("scale_min and scale_max are required for int questions")
+            if next_scale_min > next_scale_max:
+                raise ValueError("scale_min cannot be greater than scale_max")
+        else:
+            next_scale_min = None
+            next_scale_max = None
+            next_min_label = None
+            next_min_label_en = None
+            next_max_label = None
+            next_max_label_en = None
+
+        next_required = required if required is not None else record.get("required")
+        if next_value_type == "info":
+            next_required = False
+        elif next_required is None:
+            next_required = True
+
+        self._run(
+            "MATCH (:FORM {form_id: $form_id})-[:HAS_QUESTION]->(q:FORM_QUESTION {question_id: $question_id}) "
+            "SET q.question = $question, q.question_en = $question_en, q.value_type = $value_type, q.`order` = $order, q.required = $required, "
+            "q.scale_min = $scale_min, q.scale_max = $scale_max, q.min_label = $min_label, q.min_label_en = $min_label_en, "
+            "q.max_label = $max_label, q.max_label_en = $max_label_en",
+            form_id=form_id,
+            question_id=question_id,
+            question=next_question,
+            question_en=next_question_en,
+            value_type=next_value_type,
+            order=next_order,
+            required=next_required,
+            scale_min=next_scale_min,
+            scale_max=next_scale_max,
+            min_label=next_min_label,
+            min_label_en=next_min_label_en,
+            max_label=next_max_label,
+            max_label_en=next_max_label_en,
+        )
+        return True
+
     def list_form_questions(self, form_id: str, locale: str = "sv") -> list[FormQuestion]:
         records = self._run(
             "MATCH (f:FORM {form_id: $form_id})-[:HAS_QUESTION]->(q:FORM_QUESTION) "
