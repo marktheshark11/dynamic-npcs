@@ -45,7 +45,7 @@ class Config:
         driver = GraphDatabase.driver(db_uri, auth=(db_user, db_password))
         embedding_model = os.getenv("EMBED_MODEL", "mixedbread-ai/mxbai-embed-large-v1")
         embed_model = HuggingFaceEmbeddings(model=embedding_model, api_key=hf_token)
-        pipeline_id = os.getenv("CHAT_PIPELINE", "default_rag")
+        pipeline_id = os.getenv("CHAT_PIPELINE", "wide_select_rag")
 
         return cls(
             driver=driver,

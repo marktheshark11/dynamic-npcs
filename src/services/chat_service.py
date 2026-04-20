@@ -179,7 +179,8 @@ class ChatService:
                     "Instructions:\n"
                     "- The only language you understand is English. If you receive input in another language, say you don't understand it.\n"
                     "- Write in first person, from your own perspective.\n"
-                    "- Describe what I learned, what I told them, what I avoided, what I suspect, and how I perceived the detective if relevant.\n"
+                    "- Describe what I learned, what I told them, what I avoided, and how I perceived the detective if relevant.\n"
+                    "- Do not invent suspicions, theories, or new facts. Only summarize what was actually said or clearly established in the conversation.\n"
                     "- Refer to the detective as 'the detective', never as 'I'.\n"
                     "- Never write about me in third person or with my name as if I were someone else.\n"
                     "- Be concise but concrete enough to be useful as a memory note for future conversations. About 1-2 sentences is good.\n"
@@ -193,7 +194,8 @@ class ChatService:
                     "Instruktioner:\n"
                     "- Det enda språket du förstår är svenska. Om du får indata på ett annat språk, säg att du inte förstår det.\n"
                     "- Skriv i första person, ur ditt eget perspektiv.\n"
-                    "- Beskriv vad jag fick veta, vad jag berättade, vad jag undvek, vad jag misstänker, och hur jag uppfattade detektiven om det är relevant.\n"
+                    "- Beskriv vad jag fick veta, vad jag berättade, vad jag undvek, och hur jag uppfattade detektiven om det är relevant.\n"
+                    "- Hitta inte på misstankar, teorier eller nya fakta. Sammanfatta bara sådant som faktiskt sades eller tydligt etablerades i samtalet.\n"
                     "- Nämn detektiven som 'detektiven', aldrig som 'jag'.\n"
                     "- Skriv aldrig om mig själv i tredje person eller med mitt namn som om jag vore någon annan.\n"
                     "- Var kortfattad men tillräckligt konkret för att vara användbar som minnesanteckning inför framtida samtal. Ca 1-2 meningar är bra.\n"
@@ -310,6 +312,31 @@ class ChatService:
 
         return text
 
+    @staticmethod
+    def _extract_json_object(raw_text: str) -> dict | None:
+        text = (raw_text or "").strip()
+        if not text:
+            return None
+
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+            text = re.sub(r"\s*```$", "", text).strip()
+
+        candidates = [text]
+        json_match = re.search(r"\{[\s\S]*\}", text)
+        if json_match:
+            candidates.append(json_match.group(0))
+
+        for candidate in candidates:
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+
+        return None
+
     @classmethod
     def _fallback_response_text(cls, locale: str | None, is_start_dialog: bool) -> str:
         if is_start_dialog:
@@ -325,28 +352,9 @@ class ChatService:
         if not raw_response:
             return "", []
 
-        text = raw_response.strip()
-        if text.startswith("```"):
-            text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
-            text = re.sub(r"\s*```$", "", text).strip()
-
-        parsed: dict | None = None
-        candidates = [text]
-        json_match = re.search(r"\{[\s\S]*\}", text)
-        if json_match:
-            candidates.append(json_match.group(0))
-
-        for candidate in candidates:
-            try:
-                obj = json.loads(candidate)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(obj, dict):
-                parsed = obj
-                break
-
+        parsed = cls._extract_json_object(raw_response)
         if not parsed:
-            return cls._normalize_response_text(raw_response), []
+            return "", []
 
         response_value = parsed.get("response")
         if isinstance(response_value, str):
@@ -361,6 +369,41 @@ class ChatService:
         if not response_text:
             return "", claim_ids
         return response_text, claim_ids
+
+    @classmethod
+    def _repair_llm_chat_payload(
+        cls,
+        *,
+        raw_response: str,
+        model: str,
+        locale: str,
+    ) -> str:
+        from llms.llm_groq import chat as groq_chat
+
+        if cls._is_english(locale):
+            instruction = (
+                "Return ONLY valid JSON with exactly the keys 'response' and 'used_claim_ids'.\n"
+                "Preserve the same meaning as the original answer.\n"
+                "Do not add new facts.\n"
+                "If the original answer is uncertain or cannot be grounded, use an empty list for 'used_claim_ids'."
+            )
+        else:
+            instruction = (
+                "Returnera ENDAST giltig JSON med exakt nycklarna 'response' och 'used_claim_ids'.\n"
+                "Bevara exakt samma innebörd som originalsvarat.\n"
+                "Lägg inte till några nya fakta.\n"
+                "Om originalsvarat är osäkert eller inte kan grundas, använd en tom lista för 'used_claim_ids'."
+            )
+
+        return groq_chat(
+            messages=[
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": raw_response},
+            ],
+            model=model,
+            temperature=0,
+            max_tokens=256,
+        )
 
     def ask_npc(self, npc_id, question, model=None, conversation_id=None, player_id=None):
         from llms.llm_groq import chat as groq_chat
@@ -473,6 +516,16 @@ class ChatService:
             raw_response=raw_response_text,
             allowed_ids=available_claim_ids,
         )
+        if not response_text:
+            repaired_response_text = self._repair_llm_chat_payload(
+                raw_response=raw_response_text,
+                model=resolved_model,
+                locale=locale,
+            )
+            response_text, used_claims = self._parse_llm_chat_payload(
+                raw_response=repaired_response_text,
+                allowed_ids=available_claim_ids,
+            )
         if not response_text:
             response_text = self._fallback_response_text(
                 locale=locale,
