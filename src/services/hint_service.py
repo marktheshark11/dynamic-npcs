@@ -56,12 +56,12 @@ class HintService:
         self.user_repo = UserRepo(driver)
         self._text_rules: list[HintRule] = [
             HintRule(
-                text="Gå och undersök kroppen i huvudsovrummet. Det är det sista rummet till höger på övervåningen.",
+                text="Gå och undersök kroppen i huvudsovrummet. Det är det sista rummet till höger på övervåningen."
                 text_en="Go and examine the body in the master bedroom. It is the last room to the right upstairs.",
                 matcher=lambda state: not state.has_seen_object("object_body"),
             ),
             HintRule(
-                text="Du bör även tala med Wilhelm, den avlidnes son. Han befinner sig i sitt sovrum, den första dörrent till vänster på övervåningen. Han verkar ha hört någonting under kvällen undersök var ljudet kom ifrån.",
+                text="Du bör även tala med Wilhelm, den avlidnes son. Han befinner sig i sitt sovrum, den första dörren till vänster på övervåningen. Han verkar ha hört någonting under kvällen undersök var ljudet kom ifrån.",
                 text_en="You should also talk to Wilhelm, the son of the deceased. He is in his bedroom, the first door to the left upstairs. He seems to have heard something during the evening, investigate where the sound came from.",
                 matcher=lambda state: not state.has_seen_object("object_body")
             ),
