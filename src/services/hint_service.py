@@ -56,30 +56,35 @@ class HintService:
         self.user_repo = UserRepo(driver)
         self._text_rules: list[HintRule] = [
             HintRule(
-                text="Gå och undersök kroppen. Den finns i huvudsovrummet. Det är det sista rummet till höger på övervåning.",
-                text_en="Go and examine the body. It is in the master bedroom. It is the last room on the right upstairs.",
+                text="Gå och undersök kroppen i huvudsovrummet. Det är det sista rummet till höger på övervåningen."
+                text_en="Go and examine the body in the master bedroom. It is the last room to the right upstairs.",
                 matcher=lambda state: not state.has_seen_object("object_body"),
             ),
             HintRule(
-                text="Du borde tala med Wilhelm, sonen till den avlidne. Han är i sitt rum, det första rummet till vänster på övervåningen. Han verkar ha hört någonting, undersök var ljudet kom ifrån.",
-                text_en="You should talk to Wilhelm, the son of the deceased. He is in his room, the first room on the left upstairs. He seems to have heard something; investigate where the sound came from.",
-                matcher=lambda state: state.has_seen_object("object_body") and not state.knows_claim("C79"),
+                text="Du bör även tala med Wilhelm, den avlidnes son. Han befinner sig i sitt sovrum, den första dörren till vänster på övervåningen. Han verkar ha hört någonting under kvällen undersök var ljudet kom ifrån.",
+                text_en="You should also talk to Wilhelm, the son of the deceased. He is in his bedroom, the first door to the left upstairs. He seems to have heard something during the evening, investigate where the sound came from.",
+                matcher=lambda state: not state.has_seen_object("object_body")
             ),
             HintRule(
                 text="Wilhelm sa att han hörde ett ljud från arbetsrummet. Det kan vara värt att undersöka det rummet lite mer noggrant.",
-                text_en="Wilhelm said he heard a sound from the study. It may be worth investigating that room more carefully.",
+                text_en="Wilhelm said that he heard a sound from the study. It may be worth investigating that room more carefully.",
                 matcher=lambda state: state.knows_claim("C79") and not state.has_seen_door("door_study"),
             ),
             HintRule(
                 text="Det verkar som att du behöver en nyckel för att kunna komma in i arbetsrummet. Fråga runt efter den.",
-                text_en="It seems you need a key to get into the study. Ask around about it.",
+                text_en="It seems that you need a key to get into the study. Ask around about it.",
                 matcher=lambda state: state.has_seen_door("door_study") and not state.has_opened_door("door_study"),
             ),
             HintRule(
-                text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet. Se om du kan lista ut vad den kan vara genom att prata med karaktärerna.",
-                text_en="You need a 4-digit code to open the safe. See if you can figure out what it might be by talking to the characters.",
+                text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet i arbetsrummet. Se om du kan lista ut vad den kan vara genom att prata med karaktärerna.",
+                text_en="You need a 4-digit code to open the safe in the study. See if you can figure out what it might be by talking to the characters.",
                 matcher=lambda state: state.has_opened_door("door_study") and not state.has_opened_door("object_safe"),
             ), 
+            HintRule(
+                text="Du hittade ett brev i kassaskåpet som nämner viktig information angående Beatrice. Det kan vara en bra idé att prata med henne om det.",
+                text_en="You found a letter in the safe that mentions important information regarding Beatrice. It might be a good idea to talk to her about it.",
+                matcher=lambda state: state.has_seen_object("object_letter"),
+            )
         ]
 
     @staticmethod
