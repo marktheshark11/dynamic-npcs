@@ -83,7 +83,7 @@ class HintService:
             HintRule(
                 text="Ta reda på vem som träffade Nils senast. Det kan vara viktigt för att förstå vad som hände.",
                 text_en="Find out who met Nils last. It can be important to understand what happened.",
-                matcher=lambda state: state.has_seen_object("object_letter"),
+                matcher=lambda state: state.has_opened_door("object_safe") and state.has_seen_object("object_letter"),
             ),
             HintRule(
                 text="Herr Bergström verkar ha sett Beatrice gå in till Nils på kvällen. Det kan vara värt att prata med Beatrice om det.",
