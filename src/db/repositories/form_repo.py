@@ -428,10 +428,25 @@ class FormRepo(BaseRepository):
             raw_answer = str(item.get("answer", "")).strip()
             if not question_id:
                 raise ValueError("question_id cannot be empty")
-            if raw_answer == "":
-                raise ValueError(f"answer cannot be empty for question_id '{question_id}'")
 
             question = question_by_id[question_id]
+            existing = self._run_single(
+                "MATCH (p:PLAYER {player_id: $player_id})-[:HAS_FORM_ANSWER]->(a:FORM_ANSWER)<-[:HAS_ANSWER]-(q:FORM_QUESTION {question_id: $question_id}) "
+                "RETURN a.answer_id AS answer_id",
+                player_id=player_id,
+                question_id=question_id,
+            )
+
+            if raw_answer == "":
+                if question.required:
+                    raise ValueError(f"answer cannot be empty for question_id '{question_id}'")
+                if existing:
+                    self._run(
+                        "MATCH (a:FORM_ANSWER {answer_id: $answer_id}) DETACH DELETE a",
+                        answer_id=existing["answer_id"],
+                    )
+                continue
+
             answer_text: str | None = None
             answer_int: int | None = None
             answer_bool: bool | None = None
@@ -457,13 +472,6 @@ class FormRepo(BaseRepository):
                 raw_answer, answer_bool = self._parse_bool_answer(raw_answer, question_id)
             else:
                 raise ValueError(f"Unsupported value_type '{question.value_type}'")
-
-            existing = self._run_single(
-                "MATCH (p:PLAYER {player_id: $player_id})-[:HAS_FORM_ANSWER]->(a:FORM_ANSWER)<-[:HAS_ANSWER]-(q:FORM_QUESTION {question_id: $question_id}) "
-                "RETURN a.answer_id AS answer_id",
-                player_id=player_id,
-                question_id=question_id,
-            )
 
             if existing:
                 answer_id = existing["answer_id"]

@@ -314,6 +314,8 @@ For `int` questions with `scale_min` / `scale_max`, submitted answers must fall 
 
 For `bool` questions, the API accepts values such as `"true"`, `"false"`, `true`, `false`, `1`, and `0`.
 
+Submitting an empty string for a non-required question clears any previously saved answer for that question. Required questions still cannot be saved with an empty answer.
+
 Request body:
 
 - `answers` (array, required)
