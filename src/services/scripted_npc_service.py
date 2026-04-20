@@ -25,7 +25,7 @@ class ScriptedNpcService:
         "npc_beatrice",
         "npc_wilhelm",
         "npc_pamela",
-        "npc_bergstrom",
+        "npc_bergström",
         "npc_mariana",
     ]
     _CORRECT_MURDERER_ID = "npc_beatrice"

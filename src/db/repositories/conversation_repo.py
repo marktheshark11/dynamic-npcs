@@ -236,8 +236,11 @@ class ConversationRepo(BaseRepository):
             "coalesce(e.selected_claim_count, 0) AS selected_claim_count, "
             "coalesce(e.used_claim_count, 0) AS used_claim_count, "
             "coalesce(e.candidate_claim_ids, []) AS candidate_claim_ids, "
+            "coalesce(e.candidate_important_claim_ids, []) AS candidate_important_claim_ids, "
             "coalesce(e.selected_claim_ids, []) AS selected_claim_ids, "
+            "coalesce(e.selected_important_claim_ids, []) AS selected_important_claim_ids, "
             "coalesce(e.used_claim_ids, []) AS used_claim_ids, "
+            "coalesce(e.used_important_claim_ids, []) AS used_important_claim_ids, "
             "coalesce(e.remembered_claim_count, 0) AS remembered_claim_count, "
             "e.selector_strategy AS selector_strategy, "
             "e.retrieval_latency_ms AS retrieval_latency_ms, "
@@ -265,8 +268,11 @@ class ConversationRepo(BaseRepository):
                 "selected_claim_count": r.get("selected_claim_count", 0),
                 "used_claim_count": r.get("used_claim_count", 0),
                 "candidate_claim_ids": r.get("candidate_claim_ids") or [],
+                "candidate_important_claim_ids": r.get("candidate_important_claim_ids") or [],
                 "selected_claim_ids": r.get("selected_claim_ids") or [],
+                "selected_important_claim_ids": r.get("selected_important_claim_ids") or [],
                 "used_claim_ids": r.get("used_claim_ids") or [],
+                "used_important_claim_ids": r.get("used_important_claim_ids") or [],
                 "remembered_claim_count": r.get("remembered_claim_count", 0),
                 "selector_strategy": r.get("selector_strategy"),
                 "retrieval_latency_ms": r.get("retrieval_latency_ms"),

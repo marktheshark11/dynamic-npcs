@@ -28,6 +28,7 @@ class ChatResponse(BaseModel):
     conversation_id: str | None = None
     response: str
     used_claims: list[str] = Field(default_factory=list)
+    important_claim_ids: list[str] = Field(default_factory=list)
 
 
 class StaticNpcChatResponse(BaseModel):
@@ -51,6 +52,7 @@ def _print_chat_debug(result: dict) -> None:
     flat_prompt = result.get("flat_prompt") or "(ingen prompt tillganglig)"
     response_text = result.get("response") or ""
     used_claims = result.get("used_claims") or []
+    important_claim_ids = result.get("important_claim_ids") or []
     temperature = result.get("temperature")
     selector_debug = result.get("selector_debug") or {}
     selected_claim_ids = selector_debug.get("selected_claim_ids") or []
@@ -90,6 +92,10 @@ def _print_chat_debug(result: dict) -> None:
     print(f"temperature: {temperature}", file=sys.stderr)
     print(
         f"used_claims: {', '.join(used_claims) if used_claims else '(inga)'}",
+        file=sys.stderr,
+    )
+    print(
+        f"important_claim_ids: {', '.join(important_claim_ids) if important_claim_ids else '(inga)'}",
         file=sys.stderr,
     )
     print(f"response: {response_text}", file=sys.stderr)
@@ -665,6 +671,7 @@ async def chat(payload: ChatRequest, chat_service: ChatService = Depends(get_cha
             conversation_id=result.get("conversation_id"),
             response=result["response"],
             used_claims=result.get("used_claims") or [],
+            important_claim_ids=result.get("important_claim_ids") or [],
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

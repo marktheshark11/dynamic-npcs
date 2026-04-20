@@ -9,7 +9,9 @@ class ExchangeTrace:
     pipeline_id: str | None = None
     search_query: str | None = None
     candidate_claim_ids: list[str] = field(default_factory=list)
+    candidate_important_claim_ids: list[str] = field(default_factory=list)
     selected_claim_ids: list[str] = field(default_factory=list)
+    selected_important_claim_ids: list[str] = field(default_factory=list)
     remembered_claim_count: int = 0
     selector_strategy: str | None = None
     search_top_k: int | None = None

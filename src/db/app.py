@@ -13,7 +13,8 @@ from .commands import (
     DeleteObjectCommand, DeletePlaceCommand, DeleteItemCommand, DeleteDoorCommand,
     EditItemCommand, EditDoorCommand,
     ListConstantsCommand, ListItemsCommand, ListDoorsCommand,
-    CreateFormCommand, ListFormsCommand, CreateFormQuestionCommand, ListFormQuestionsCommand,
+    CreateFormCommand, ListFormsCommand, CreateFormQuestionCommand, EditFormQuestionCommand,
+    ListFormQuestionsCommand,
     CreateOpinionCommand, EditOpinionCommand,
     DeleteOpinionCommand, ListOpinionsCommand,
     CreateStructuralRelationCommand,
@@ -114,6 +115,7 @@ class App:
                 CreateFormCommand(self._form_repo, ui),
                 ListFormsCommand(self._form_repo, ui),
                 CreateFormQuestionCommand(self._form_repo, ui),
+                EditFormQuestionCommand(self._form_repo, ui),
                 ListFormQuestionsCommand(self._form_repo, ui),
             ]),
             SubMenu("Opinions (kopplingar)", [
