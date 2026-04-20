@@ -95,6 +95,7 @@ class PlayerAnalyticsService:
             "profile": {
                 "name": profile.get("name"),
                 "appearance": profile.get("appearance"),
+                "temperature": profile.get("temperature"),
                 "created_at": created_at,
                 "completed_at": completed_at,
             },
@@ -262,6 +263,7 @@ class PlayerAnalyticsService:
                             "search_top_k": exchange.get("search_top_k"),
                             "was_start_dialog": bool(exchange.get("was_start_dialog")),
                             "model": exchange.get("model"),
+                            "temperature": exchange.get("temperature"),
                             "response_blocked": bool(exchange.get("response_blocked")),
                         },
                         sort_key=(

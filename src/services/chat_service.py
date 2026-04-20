@@ -3,6 +3,7 @@ import re
 from time import perf_counter
 
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo, UserRepo
+from llms.config import DEFAULT_CHAT_TEMPERATURE, DEFAULT_SUMMARY_TEMPERATURE
 from pipelines import ChatPipeline
 
 
@@ -37,6 +38,7 @@ class ChatService:
         llm_latency_ms=None,
         total_latency_ms=None,
         model=None,
+        temperature=None,
         response_blocked=False,
     ) -> dict:
         trace = getattr(pipeline_result, "exchange_trace", None)
@@ -61,8 +63,16 @@ class ChatService:
             "search_top_k": getattr(trace, "search_top_k", None),
             "was_start_dialog": bool(getattr(trace, "was_start_dialog", False)),
             "model": model,
+            "temperature": temperature,
             "response_blocked": response_blocked,
         }
+
+    @staticmethod
+    def _resolve_player_temperature(player_profile: dict | None) -> float:
+        raw_temperature = (player_profile or {}).get("temperature")
+        if raw_temperature is None:
+            return DEFAULT_CHAT_TEMPERATURE
+        return float(raw_temperature)
 
     def build_prompt(
         self,
@@ -198,6 +208,7 @@ class ChatService:
         summary = groq_chat(
             messages=messages,
             model=model or self.default_model,
+            temperature=DEFAULT_SUMMARY_TEMPERATURE,
         ).strip()
         if not summary:
             summary = "No summary could be generated." if is_english else "Ingen sammanfattning kunde genereras."
@@ -343,6 +354,10 @@ class ChatService:
 
         locale = self._resolve_locale(effective_player_id)
         resolved_model = model or self.default_model
+        player_profile = None
+        if effective_player_id:
+            player_profile = self.player_repo.get_profile_by_id(effective_player_id)
+        resolved_temperature = self._resolve_player_temperature(player_profile)
         refusal_message = (
             "I will not answer that kind of question."
             if self._is_english(locale)
@@ -359,6 +374,7 @@ class ChatService:
                 trace=self._build_exchange_trace(
                     used_claims=[],
                     total_latency_ms=blocked_total_latency_ms,
+                    temperature=resolved_temperature,
                     response_blocked=True,
                 ),
             )
@@ -367,15 +383,12 @@ class ChatService:
                 "npc_name": (npc_profile or {}).get("name") or "",
                 "conversation_id": resolved_conversation_id,
                 "response": refusal_message,
+                "temperature": resolved_temperature,
                 "used_claims": [],
                 "messages": [],
                 "flat_prompt": "",
                 "chain_metadata": [],
             }
-
-        player_profile = None
-        if effective_player_id:
-            player_profile = self.player_repo.get_profile_by_id(effective_player_id)
 
         recent_exchanges = self.conversation_repo.list_exchanges(resolved_conversation_id, limit=3)
         conversation_claim_ids = self.conversation_repo.get_mentioned_claim_ids(resolved_conversation_id)
@@ -419,6 +432,7 @@ class ChatService:
         raw_response_text = groq_chat(
             messages=prompt_result.messages,
             model=resolved_model,
+            temperature=resolved_temperature,
         )
         llm_end = perf_counter()
         llm_latency_ms = self._duration_ms(llm_start, llm_end)
@@ -451,6 +465,7 @@ class ChatService:
                 llm_latency_ms=llm_latency_ms,
                 total_latency_ms=total_latency_ms,
                 model=resolved_model,
+                temperature=resolved_temperature,
                 response_blocked=False,
             ),
         )
@@ -460,6 +475,7 @@ class ChatService:
             "npc_name": localized_npc_name,
             "conversation_id": resolved_conversation_id,
             "response": response_text,
+            "temperature": resolved_temperature,
             "used_claims": used_claims,
             "messages": prompt_result.messages,
             "flat_prompt": prompt_result.flat_prompt,

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from db.config import Config
 from db.repositories import ConstantRepo, FormRepo, PlayerRepo, UserRepo
+from llms.config import DEFAULT_CHAT_TEMPERATURE
 from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
 from pipelines import get_pipeline
 from services.chat_service import ChatService
@@ -49,6 +50,7 @@ def _print_chat_debug(result: dict) -> None:
     flat_prompt = result.get("flat_prompt") or "(ingen prompt tillganglig)"
     response_text = result.get("response") or ""
     used_claims = result.get("used_claims") or []
+    temperature = result.get("temperature")
     selector_debug = result.get("selector_debug") or {}
     selected_claim_ids = selector_debug.get("selected_claim_ids") or []
     selection_notes = selector_debug.get("selection_notes") or []
@@ -84,6 +86,7 @@ def _print_chat_debug(result: dict) -> None:
     print("\n" + "=" * 22 + " RESULTAT " + "=" * 21, file=sys.stderr)
     print(f"npc_id: {result.get('npc_id')}", file=sys.stderr)
     print(f"conversation_id: {result.get('conversation_id')}", file=sys.stderr)
+    print(f"temperature: {temperature}", file=sys.stderr)
     print(
         f"used_claims: {', '.join(used_claims) if used_claims else '(inga)'}",
         file=sys.stderr,
@@ -113,23 +116,33 @@ class CreatePlayerRequest(BaseModel):
     name: str
     appearance: str | None = None
     user_id: str | None = None
+    temperature: float = Field(default=DEFAULT_CHAT_TEMPERATURE, ge=0.0, le=2.0)
 
 
 class CreatePlayerResponse(BaseModel):
     player_id: str
     name: str
     appearance: str | None = None
+    temperature: float
 
 
 class PlayerResponse(BaseModel):
     player_id: str
     name: str
     appearance: str | None = None
+    temperature: float
+
+
+class UpdatePlayerRequest(BaseModel):
+    name: str | None = None
+    appearance: str | None = None
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
 
 
 class AnalyticsProfileResponse(BaseModel):
     name: str | None = None
     appearance: str | None = None
+    temperature: float | None = None
     created_at: str | None = None
     completed_at: str | None = None
 
@@ -715,6 +728,7 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
     name = payload.name.strip()
     appearance = payload.appearance.strip() if payload.appearance is not None else None
     user_id = payload.user_id.strip() if payload.user_id else None
+    temperature = payload.temperature
     
     if not name:
         raise HTTPException(status_code=400, detail="name cannot be empty")
@@ -728,11 +742,16 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
 
     try:
         player_repo = PlayerRepo(config.driver)
-        player = player_repo.create(name=name, appearance=appearance, user_id=user_id)
+        player = player_repo.create(name=name, appearance=appearance, user_id=user_id, temperature=temperature)
         return CreatePlayerResponse(
             player_id=player.player_id,
             name=player.name,
             appearance=player.appearance,
+            temperature=(
+                player.temperature
+                if player.temperature is not None
+                else DEFAULT_CHAT_TEMPERATURE
+            ),
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -758,6 +777,11 @@ async def list_players(user_id: str | None = None, config: Config = Depends(get_
                 player_id=player.player_id,
                 name=player.name,
                 appearance=player.appearance,
+                temperature=(
+                    player.temperature
+                    if player.temperature is not None
+                    else DEFAULT_CHAT_TEMPERATURE
+                ),
             )
             for player in players
         ]
@@ -781,6 +805,55 @@ async def delete_player(player_id: str, config: Config = Depends(get_config)):
         return DeletePlayerResponse(player_id=player_id, deleted=True)
     except HTTPException:
         raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.patch("/players/{player_id}", response_model=PlayerResponse)
+async def update_player(
+    player_id: str,
+    payload: UpdatePlayerRequest,
+    config: Config = Depends(get_config),
+):
+    normalized_player_id = player_id.strip()
+    if not normalized_player_id:
+        raise HTTPException(status_code=400, detail="player_id cannot be empty")
+
+    name = payload.name.strip() if payload.name is not None else None
+    appearance = payload.appearance.strip() if payload.appearance is not None else None
+
+    if name == "":
+        raise HTTPException(status_code=400, detail="name cannot be empty")
+    if appearance == "":
+        appearance = None
+
+    try:
+        player_repo = PlayerRepo(config.driver)
+        existing_player = _get_player_or_404(player_repo, normalized_player_id)
+        validate_safe_player_profile(
+            name=name or existing_player["name"],
+            appearance=appearance if appearance is not None else existing_player.get("appearance"),
+        )
+        updated = player_repo.update(
+            normalized_player_id,
+            name=name,
+            appearance=appearance,
+            temperature=payload.temperature,
+        )
+        if not updated:
+            raise HTTPException(status_code=400, detail="No player fields to update")
+
+        updated_player = _get_player_or_404(player_repo, normalized_player_id)
+        return PlayerResponse(
+            player_id=normalized_player_id,
+            name=updated_player["name"],
+            appearance=updated_player.get("appearance"),
+            temperature=float(updated_player.get("temperature") or DEFAULT_CHAT_TEMPERATURE),
+        )
+    except HTTPException:
+        raise
+    except PromptGuardValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

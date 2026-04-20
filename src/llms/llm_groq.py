@@ -2,6 +2,8 @@ from dotenv import load_dotenv
 import os
 from groq import Groq
 
+from .config import DEFAULT_CHAT_TEMPERATURE
+
 load_dotenv()
 
 # Initialize Groq client
@@ -13,6 +15,7 @@ def chat(
     model: str = "llama-3.3-70b-versatile",
     messages: list[dict[str, str]] | None = None,
     max_tokens: int = 1024,
+    temperature: float = DEFAULT_CHAT_TEMPERATURE,
 ) -> str:
     """
     Send a message to the AI and get a response.
@@ -34,7 +37,7 @@ def chat(
     completion = client.chat.completions.create(
         model=model,
         messages=messages,  # type: ignore[arg-type]
-        temperature=0.2,
+        temperature=temperature,
         max_tokens=max_tokens,
     )
     return completion.choices[0].message.content or ""

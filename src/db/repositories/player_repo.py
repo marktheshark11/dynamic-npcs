@@ -1,6 +1,7 @@
 from .base import BaseRepository
 from ..models import Item, Player
 from .user_repo import ADMIN_USER_ID
+from llms.config import DEFAULT_CHAT_TEMPERATURE
 
 
 class PlayerRepo(BaseRepository):
@@ -36,14 +37,20 @@ class PlayerRepo(BaseRepository):
         next_id = 1 if not record else record["next_id"]
         return f"player_{next_id}"
 
-    def create(self, name: str, appearance: str | None = None, user_id: str | None = None) -> Player:
+    def create(
+        self,
+        name: str,
+        appearance: str | None = None,
+        user_id: str | None = None,
+        temperature: float = DEFAULT_CHAT_TEMPERATURE,
+    ) -> Player:
         player_id = self._next_player_id()
         # Use admin user as fallback if no user_id provided
         actual_user_id = user_id or ADMIN_USER_ID
         self._run(
             "MATCH (u:USER {user_id: $user_id}) "
             "CREATE (p:PLAYER {"
-            "player_id: $player_id, name: $name, appearance: $appearance, "
+            "player_id: $player_id, name: $name, appearance: $appearance, temperature: $temperature, "
             "created_at: datetime(), has_completed_game: false, "
             "accused_correct_npc: NULL, accused_npc_id: NULL, completed_at: NULL"
             "}) "
@@ -52,13 +59,15 @@ class PlayerRepo(BaseRepository):
             name=name,
             appearance=appearance,
             user_id=actual_user_id,
+            temperature=temperature,
         )
-        return Player(player_id=player_id, name=name, appearance=appearance)
+        return Player(player_id=player_id, name=name, appearance=appearance, temperature=temperature)
 
     def get_profile_by_id(self, player_id: str) -> dict | None:
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
             "RETURN p.name AS name, p.appearance AS appearance, "
+            f"coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature, "
             "coalesce(p.has_completed_game, false) AS has_completed_game, "
             "p.accused_correct_npc AS accused_correct_npc, "
             "p.accused_npc_id AS accused_npc_id, "
@@ -71,6 +80,7 @@ class PlayerRepo(BaseRepository):
         return {
             "name": record["name"],
             "appearance": record.get("appearance"),
+            "temperature": float(record.get("temperature", DEFAULT_CHAT_TEMPERATURE)),
             "has_completed_game": bool(record.get("has_completed_game")),
             "accused_correct_npc": record.get("accused_correct_npc"),
             "accused_npc_id": record.get("accused_npc_id"),
@@ -82,7 +92,7 @@ class PlayerRepo(BaseRepository):
         records = self._run(
             "MATCH (p:PLAYER) "
             "WHERE coalesce(p.has_completed_game, false) = false "
-            "RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance "
+            f"RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance, coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature "
             "ORDER BY p.player_id"
         )
         return [
@@ -90,6 +100,7 @@ class PlayerRepo(BaseRepository):
                 player_id=r["player_id"],
                 name=r["name"],
                 appearance=r["appearance"],
+                temperature=float(r.get("temperature", DEFAULT_CHAT_TEMPERATURE)),
             )
             for r in records
         ]
@@ -99,7 +110,7 @@ class PlayerRepo(BaseRepository):
         records = self._run(
             "MATCH (u:USER {user_id: $user_id})-[:HAS_CHARACTER]->(p:PLAYER) "
             "WHERE coalesce(p.has_completed_game, false) = false "
-            "RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance "
+            f"RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance, coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature "
             "ORDER BY p.player_id",
             user_id=user_id,
         )
@@ -108,6 +119,7 @@ class PlayerRepo(BaseRepository):
                 player_id=r["player_id"],
                 name=r["name"],
                 appearance=r["appearance"],
+                temperature=float(r.get("temperature", DEFAULT_CHAT_TEMPERATURE)),
             )
             for r in records
         ]
@@ -133,9 +145,15 @@ class PlayerRepo(BaseRepository):
         )
         return record is not None
 
-    def update(self, player_id: str, name: str | None = None, appearance: str | None = None) -> bool:
+    def update(
+        self,
+        player_id: str,
+        name: str | None = None,
+        appearance: str | None = None,
+        temperature: float | None = None,
+    ) -> bool:
         set_clauses = []
-        params: dict[str, str] = {"player_id": player_id}
+        params: dict[str, str | float] = {"player_id": player_id}
 
         if name is not None:
             set_clauses.append("p.name = $name")
@@ -144,6 +162,10 @@ class PlayerRepo(BaseRepository):
         if appearance is not None:
             set_clauses.append("p.appearance = $appearance")
             params["appearance"] = appearance
+
+        if temperature is not None:
+            set_clauses.append("p.temperature = $temperature")
+            params["temperature"] = temperature
 
         if not set_clauses:
             return False
