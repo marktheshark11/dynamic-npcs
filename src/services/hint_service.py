@@ -56,7 +56,7 @@ class HintService:
         self.user_repo = UserRepo(driver)
         self._text_rules: list[HintRule] = [
             HintRule(
-                text="Gå och undersök kroppen i huvudsovrummet. Det är det sista rummet till höger på övervåningen."
+                text="Gå och undersök kroppen i huvudsovrummet. Det är det sista rummet till höger på övervåningen",
                 text_en="Go and examine the body in the master bedroom. It is the last room to the right upstairs.",
                 matcher=lambda state: not state.has_seen_object("object_body"),
             ),
@@ -81,9 +81,14 @@ class HintService:
                 matcher=lambda state: state.has_opened_door("door_study") and not state.has_opened_door("object_safe"),
             ), 
             HintRule(
-                text="Du hittade ett brev i kassaskåpet som nämner viktig information angående Beatrice. Det kan vara en bra idé att prata med henne om det.",
-                text_en="You found a letter in the safe that mentions important information regarding Beatrice. It might be a good idea to talk to her about it.",
+                text="Ta reda på vem som träffade Nils senast. Det kan vara viktigt för att förstå vad som hände.",
+                text_en="Find out who met Nils last. It can be important to understand what happened.",
                 matcher=lambda state: state.has_seen_object("object_letter"),
+            )
+            HintRule(
+                text="Herr Bergström verkar ha sett Beatrice gå in till Nils på kvällen. Det kan vara värt att prata med Beatrice om det.",
+                text_en="Mr. Bergström seems to have seen Beatrice go into Nils' room in the evening. It may be worth talking to Beatrice about that.",
+                matcher=lambda state: state.knows_claim("C149") or state.knows_claim("C151") and state.has_seen_object("object_letter"),
             )
         ]
 
@@ -102,11 +107,11 @@ class HintService:
         if not lines:
             if self._is_english(locale):
                 return (
-                    "The commissioner shakes his head. 'You do not have anything concrete enough yet. "
+                    "The commissioner shakes his head. 'You do not have any concrete evidence yet. "
                     "Examine more objects and talk to more people first.'"
                 )
             return (
-                "Kommissarien skakar på huvudet. 'Du har inget tillräckligt konkret ännu. "
+                "Kommissarien skakar på huvudet. 'Du har inte tillräckligt konkerta bevis än. "
                 "Undersök fler föremål och prata med fler personer först.'"
             )
 
