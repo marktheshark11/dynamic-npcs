@@ -88,7 +88,7 @@ class HintService:
             HintRule(
                 text="Herr Bergström verkar ha sett Beatrice gå in till Nils på kvällen. Det kan vara värt att prata med Beatrice om det.",
                 text_en="Mr. Bergström seems to have seen Beatrice go into Nils' room in the evening. It may be worth talking to Beatrice about that.",
-                matcher=lambda state: state.knows_claim("C149") or state.knows_claim("C151") and state.has_seen_object("object_letter"),
+                matcher=lambda state: state.knows_claim("C151") or state.knows_claim("C152") and state.has_seen_object("object_letter"),
             )
         ]
 
