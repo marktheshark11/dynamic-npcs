@@ -191,27 +191,51 @@ class SceneEventSection:
     def render(request: PromptRequest) -> str:
         if request.scene_event != "detective_enters_room":
             return ""
+        has_prior_memory = bool(request.prior_conversation_summaries)
         if _is_english(request.locale):
+            memory_instruction = (
+                " You remember previous conversations with the detective and must let that affect your reaction. "
+                "Act like you have met them before: let your greeting, tone, trust, suspicion, warmth, impatience, and openness reflect that history. "
+                "Do not introduce yourself or behave like this is the first meeting."
+                if has_prior_memory
+                else " If you have no previous conversation memory, behave like this may be the first meeting."
+            )
             return (
                 "SCENE EVENT:\n"
                 "The detective has just entered the room. You have not been asked a question yet. "
                 "React naturally as the character and start the conversation in a socially reasonable way."
+                f"{memory_instruction}"
             )
+        memory_instruction = (
+            " Du minns tidigare samtal med detektiven och måste låta det påverka din reaktion. "
+            "Agera som att ni har träffats förut: låt hälsning, ton, tillit, misstänksamhet, värme, otålighet och öppenhet spegla den historiken. "
+            "Presentera dig inte och bete dig inte som att detta är första mötet."
+            if has_prior_memory
+            else " Om du inte har något minne av tidigare samtal, bete dig som att detta kan vara första mötet."
+        )
         return (
             "SCENHÄNDELSE:\n"
             "Detektiven har just kommit in i rummet. Du har inte fått någon fråga än. "
             "Reagera naturligt som karaktären och inled samtalet på ett socialt rimligt sätt."
+            f"{memory_instruction}"
         )
 
 
 class TaskSection:
     @staticmethod
     def render(request: PromptRequest) -> str:
+        has_prior_memory = bool(request.prior_conversation_summaries)
         if _is_english(request.locale):
             if request.scene_event == "detective_enters_room":
+                opening_instruction = (
+                    "React as someone who remembers the detective from earlier conversations, and let that familiarity or tension show naturally in your opening line.\n"
+                    if has_prior_memory
+                    else "React as someone who has not necessarily met the detective before, unless your background implies otherwise.\n"
+                )
                 return (
                     "TASK:\n"
                     "React to the detective just entering the room and begin the conversation naturally.\n"
+                    f"{opening_instruction}"
                     "RESPONSE:"
                 )
             return (
@@ -220,9 +244,15 @@ class TaskSection:
                 "RESPONSE:"
             )
         if request.scene_event == "detective_enters_room":
+            opening_instruction = (
+                "Reagera som någon som minns detektiven från tidigare samtal, och låt den bekantskapen eller spänningen märkas naturligt i din öppningsreplik.\n"
+                if has_prior_memory
+                else "Reagera som någon som inte nödvändigtvis har träffat detektiven tidigare, om inte din bakgrund antyder något annat.\n"
+            )
             return (
                 "UPPGIFT:\n"
                 "Reagera på att detektiven just kommit in i rummet och inled samtalet naturligt.\n"
+                f"{opening_instruction}"
                 "SVAR:"
             )
         return (
