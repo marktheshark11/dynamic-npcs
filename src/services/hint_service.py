@@ -56,7 +56,7 @@ class HintService:
         self.user_repo = UserRepo(driver)
         self._text_rules: list[HintRule] = [
             HintRule(
-                text="Gå och undersök kroppen i huvudsovrummet. Det är det sista rummet till höger på övervåningen."
+                text="Gå och undersök kroppen i huvudsovrummet. Det är det sista rummet till höger på övervåningen.",
                 text_en="Go and examine the body in the master bedroom. It is the last room to the right upstairs.",
                 matcher=lambda state: not state.has_seen_object("object_body"),
             ),
