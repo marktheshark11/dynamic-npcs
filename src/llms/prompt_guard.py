@@ -66,6 +66,7 @@ def validate_safe_player_text(field_name: str, text: str) -> None:
         )
 
 
-def validate_safe_player_profile(name: str, appearance: str) -> None:
+def validate_safe_player_profile(name: str, appearance: str | None) -> None:
     validate_safe_player_text("name", name)
-    validate_safe_player_text("appearance", appearance)
+    if appearance is not None:
+        validate_safe_player_text("appearance", appearance)

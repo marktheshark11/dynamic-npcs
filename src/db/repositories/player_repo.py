@@ -36,7 +36,7 @@ class PlayerRepo(BaseRepository):
         next_id = 1 if not record else record["next_id"]
         return f"player_{next_id}"
 
-    def create(self, name: str, appearance: str, user_id: str | None = None) -> Player:
+    def create(self, name: str, appearance: str | None = None, user_id: str | None = None) -> Player:
         player_id = self._next_player_id()
         # Use admin user as fallback if no user_id provided
         actual_user_id = user_id or ADMIN_USER_ID

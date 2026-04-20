@@ -111,20 +111,20 @@ class ConversationSummaryResponse(BaseModel):
 
 class CreatePlayerRequest(BaseModel):
     name: str
-    appearance: str
+    appearance: str | None = None
     user_id: str | None = None
 
 
 class CreatePlayerResponse(BaseModel):
     player_id: str
     name: str
-    appearance: str
+    appearance: str | None = None
 
 
 class PlayerResponse(BaseModel):
     player_id: str
     name: str
-    appearance: str
+    appearance: str | None = None
 
 
 class AnalyticsProfileResponse(BaseModel):
@@ -713,13 +713,13 @@ async def chat_static_npc(
 @app.post("/players", response_model=CreatePlayerResponse)
 async def create_player(payload: CreatePlayerRequest, config: Config = Depends(get_config)):
     name = payload.name.strip()
-    appearance = payload.appearance.strip()
+    appearance = payload.appearance.strip() if payload.appearance is not None else None
     user_id = payload.user_id.strip() if payload.user_id else None
     
     if not name:
         raise HTTPException(status_code=400, detail="name cannot be empty")
-    if not appearance:
-        raise HTTPException(status_code=400, detail="appearance cannot be empty")
+    if appearance == "":
+        appearance = None
 
     try:
         validate_safe_player_profile(name=name, appearance=appearance)
