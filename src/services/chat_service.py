@@ -43,8 +43,18 @@ class ChatService:
     ) -> dict:
         trace = getattr(pipeline_result, "exchange_trace", None)
         candidate_claim_ids = list((getattr(trace, "candidate_claim_ids", None) or []))
+        candidate_important_claim_ids = list((getattr(trace, "candidate_important_claim_ids", None) or []))
         selected_claim_ids = list((getattr(trace, "selected_claim_ids", None) or []))
+        selected_important_claim_ids = list((getattr(trace, "selected_important_claim_ids", None) or []))
         normalized_used_claims = list(used_claims or [])
+        important_lookup = {
+            claim_id
+            for claim_id in (selected_important_claim_ids or candidate_important_claim_ids)
+            if isinstance(claim_id, str)
+        }
+        used_important_claim_ids = [
+            claim_id for claim_id in normalized_used_claims if claim_id in important_lookup
+        ]
 
         return {
             "pipeline_id": getattr(trace, "pipeline_id", None),
@@ -53,8 +63,11 @@ class ChatService:
             "selected_claim_count": len(selected_claim_ids),
             "used_claim_count": len(normalized_used_claims),
             "candidate_claim_ids": candidate_claim_ids,
+            "candidate_important_claim_ids": candidate_important_claim_ids,
             "selected_claim_ids": selected_claim_ids,
+            "selected_important_claim_ids": selected_important_claim_ids,
             "used_claim_ids": normalized_used_claims,
+            "used_important_claim_ids": used_important_claim_ids,
             "remembered_claim_count": getattr(trace, "remembered_claim_count", 0) or 0,
             "selector_strategy": getattr(trace, "selector_strategy", None),
             "retrieval_latency_ms": retrieval_latency_ms,
@@ -264,6 +277,24 @@ class ChatService:
         return normalized
 
     @staticmethod
+    def _filter_important_claim_ids(claim_ids: list[str], important_claim_ids: list[str]) -> list[str]:
+        important_lookup = {claim_id.upper() for claim_id in important_claim_ids if isinstance(claim_id, str)}
+        if not important_lookup:
+            return []
+
+        filtered: list[str] = []
+        seen: set[str] = set()
+        for claim_id in claim_ids or []:
+            normalized_claim_id = claim_id.upper() if isinstance(claim_id, str) else ""
+            if not normalized_claim_id or normalized_claim_id in seen:
+                continue
+            if normalized_claim_id not in important_lookup:
+                continue
+            seen.add(normalized_claim_id)
+            filtered.append(normalized_claim_id)
+        return filtered
+
+    @staticmethod
     def _normalize_response_text(raw_text: str) -> str:
         text = (raw_text or "").strip()
         if not text:
@@ -385,6 +416,7 @@ class ChatService:
                 "response": refusal_message,
                 "temperature": resolved_temperature,
                 "used_claims": [],
+                "important_claim_ids": [],
                 "messages": [],
                 "flat_prompt": "",
                 "chain_metadata": [],
@@ -447,6 +479,10 @@ class ChatService:
                 is_start_dialog=not normalized_question,
             )
         total_latency_ms = self._duration_ms(total_start, perf_counter())
+        important_claim_ids = self._filter_important_claim_ids(
+            used_claims,
+            list((getattr(pipeline_result.exchange_trace, "selected_important_claim_ids", None) or [])),
+        )
 
         if used_claims:
             self.conversation_repo.add_mentioned_claim_ids(resolved_conversation_id, used_claims)
@@ -477,6 +513,7 @@ class ChatService:
             "response": response_text,
             "temperature": resolved_temperature,
             "used_claims": used_claims,
+            "important_claim_ids": important_claim_ids,
             "messages": prompt_result.messages,
             "flat_prompt": prompt_result.flat_prompt,
             "chain_metadata": chain_metadata,
