@@ -246,6 +246,7 @@ class ConversationRepo(BaseRepository):
             "e.search_top_k AS search_top_k, "
             "coalesce(e.was_start_dialog, false) AS was_start_dialog, "
             "e.model AS model, "
+            "e.temperature AS temperature, "
             "coalesce(e.response_blocked, false) AS response_blocked "
             "ORDER BY e.turn_index",
             conversation_id=conversation_id,
@@ -274,6 +275,7 @@ class ConversationRepo(BaseRepository):
                 "search_top_k": r.get("search_top_k"),
                 "was_start_dialog": bool(r.get("was_start_dialog")),
                 "model": r.get("model"),
+                "temperature": r.get("temperature"),
                 "response_blocked": bool(r.get("response_blocked")),
             }
             for r in records

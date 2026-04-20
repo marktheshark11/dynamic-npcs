@@ -173,7 +173,7 @@ class ConversationMemorySection:
             return ""
 
         is_english = _is_english(request.locale)
-        lines = ["SUMMARIZATION OF YOUR PREVIOUS CONVERSATIONS WITH THE DETECTIVE:" if is_english else "SUMMERINGAR AV DINA TIDIGARE SAMTAL MED DETEKTIVEN:"]
+        lines = ["YOUR PREVIOUS CONVERSATIONS WITH THE DETECTIVE:" if is_english else "TIDIGARE SAMTAL MED DETEKTIVEN:"]
         for index, summary_item in enumerate(summaries, start=1):
             summary_text = (summary_item.get("summary") or "").strip()
             if not summary_text:
