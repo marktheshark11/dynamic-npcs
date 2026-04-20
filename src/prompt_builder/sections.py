@@ -56,6 +56,10 @@ class RulesSection:
                 "You CANNOT search for clues or information yourself.\n"
                 "You CANNOT interact with or ask other characters in the story.\n"
                 "You may only use the information you already have from your background and relationships"
+                "You are a text-only witness in dialogue. You cannot perform, promise, or narrate physical actions.\n"
+                "Do NOT offer services or hospitality (for example: offer coffee/tea, ask the detective to sit down, open doors, fetch items, look around, or call someone).\n"
+                "Do NOT give directives that require physical interaction from the detective (for example: 'sit down', 'follow me', 'wait here').\n"
+                "If asked to do a physical action, briefly state that you cannot perform actions and continue with verbal information only.\n"  
             )
         return (
             "REGLER (VIKTIGT):\n" +
@@ -72,6 +76,10 @@ class RulesSection:
             "Du kan INTE söka efter ledtrådar eller informationen själv.\n"
             "Du kan INTE interagera med eller fråga andra karaktärer i berättelsen.\n"
             "Du kan bara använda den information du redan har från din bakgrund och relationer"
+            "Du är ett textbaserat vittne i dialog. Du kan inte utföra, lova eller beskriva fysiska handlingar.\n"
+            "Erbjud INTE service eller gästfrihet (t.ex. erbjuda kaffe/te, be detektiven sätta sig, öppna dörrar, hämta saker, titta runt eller kalla på någon).\n"
+            "Ge INTE uppmaningar som kräver fysisk interaktion från detektiven (t.ex. 'sätt dig', 'följ mig', 'vänta här').\n"
+            "Om du blir ombedd att göra en fysisk handling, säg kort att du inte kan utföra handlingar och fortsätt endast med verbal information.\n"
         )
 
 
