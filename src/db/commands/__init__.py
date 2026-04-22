@@ -50,6 +50,7 @@ from .conversation_commands import (
     SummarizeConversationCommand,
 )
 from .player_commands import (
+    ClearPlayerTemperatureBagCommand,
     CreatePlayerCommand,
     DeletePlayerCommand,
     EditPlayerCommand,
@@ -57,6 +58,8 @@ from .player_commands import (
     ListPlayerInventoryCommand,
     PickupItemCommand,
     ClearAwareOfCommand,
+    SetPlayerTemperatureValuesCommand,
+    ShowPlayerTemperatureConfigCommand,
 )
 
 __all__ = [
@@ -82,4 +85,6 @@ __all__ = [
     "CreatePlayerCommand", "EditPlayerCommand", "DeletePlayerCommand",
     "InspectItemCommand", "PickupItemCommand", "ListPlayerInventoryCommand",
     "ClearAwareOfCommand",
+    "ShowPlayerTemperatureConfigCommand", "SetPlayerTemperatureValuesCommand",
+    "ClearPlayerTemperatureBagCommand",
 ]

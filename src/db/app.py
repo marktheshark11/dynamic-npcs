@@ -2,7 +2,7 @@ from .config import Config
 from .services import EmbeddingService
 from .repositories import (
     NPCRepo, GroupRepo, ClaimRepo, ConstantRepo, OpinionRepo, RelationRepo,
-    MysteryRepo, ConversationRepo, PlayerRepo, FormRepo,
+    MysteryRepo, ConversationRepo, PlayerRepo, PlayerTemperatureRepo, FormRepo,
 )
 from .commands import (
     CreateNPCCommand, EditNPCCommand, DeleteNPCCommand, ListNPCsCommand,
@@ -27,6 +27,8 @@ from .commands import (
     CreatePlayerCommand, EditPlayerCommand, DeletePlayerCommand,
     InspectItemCommand, PickupItemCommand, ListPlayerInventoryCommand,
     ClearAwareOfCommand,
+    ShowPlayerTemperatureConfigCommand, SetPlayerTemperatureValuesCommand,
+    ClearPlayerTemperatureBagCommand,
 )
 from .ui import InputHelpers, Menu, SubMenu
 from pipelines import get_pipeline
@@ -51,6 +53,7 @@ class App:
         self._mystery_repo = MysteryRepo(config.driver)
         self._conversation_repo = ConversationRepo(config.driver)
         self._player_repo = PlayerRepo(config.driver)
+        self._player_temperature_repo = PlayerTemperatureRepo(config.driver)
         pipeline = get_pipeline(
             pipeline_id=config.pipeline_id,
             driver=config.driver,
@@ -69,6 +72,9 @@ class App:
         ui = self._ui
 
         main_menu = Menu("Huvudmeny", [
+            ShowPlayerTemperatureConfigCommand(self._player_temperature_repo, ui),
+            SetPlayerTemperatureValuesCommand(self._player_temperature_repo, ui),
+            ClearPlayerTemperatureBagCommand(self._player_temperature_repo, ui),
             SubMenu("NPC", [
                 CreateNPCCommand(self._npc_repo, ui),
                 EditNPCCommand(self._npc_repo, ui),
@@ -172,7 +178,7 @@ class App:
                 DeleteAllConversationsCommand(self._conversation_repo, ui),
             ]),
             SubMenu("Player", [
-                CreatePlayerCommand(self._player_repo, ui),
+                CreatePlayerCommand(self._player_repo, self._player_temperature_repo, ui),
                 EditPlayerCommand(self._player_repo, ui),
                 DeletePlayerCommand(self._player_repo, ui),
                 InspectItemCommand(self._player_repo, self._constant_repo, ui),

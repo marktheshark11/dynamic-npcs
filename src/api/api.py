@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -12,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from db.config import Config
-from db.repositories import ConstantRepo, FormRepo, PlayerRepo, UserRepo
+from db.repositories import ConstantRepo, FormRepo, PlayerRepo, PlayerTemperatureRepo, UserRepo
 from llms.config import DEFAULT_CHAT_TEMPERATURE
 from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
 from pipelines import get_pipeline
@@ -20,6 +19,10 @@ from services.chat_service import ChatService
 from services.door_service import DoorService
 from services.locale_service import LocaleService
 from services.player_analytics_service import PlayerAnalyticsService
+from services.player_temperature_service import (
+    PlayerTemperatureService,
+    infer_temperature_override_from_player_name,
+)
 from services.scripted_npc_service import ScriptedNpcService
 
 class ChatResponse(BaseModel):
@@ -504,15 +507,8 @@ def _localized_detail(locale: str, english_text: str, swedish_text: str) -> str:
     return english_text if locale == "en" else swedish_text
 
 
-def _infer_temperature_from_player_name(name: str) -> float:
-    match = re.fullmatch(r"temp(?P<temperature>\d+(?:\.\d+)?)", name.strip().lower())
-    if not match:
-        return DEFAULT_CHAT_TEMPERATURE
-
-    inferred_temperature = float(match.group("temperature"))
-    if 0.0 <= inferred_temperature <= 2.0:
-        return inferred_temperature
-    return DEFAULT_CHAT_TEMPERATURE
+def _infer_temperature_from_player_name(name: str) -> float | None:
+    return infer_temperature_override_from_player_name(name)
 
 
 def _ensure_player_not_completed(player_profile: dict, locale: str = "sv") -> None:
@@ -745,8 +741,7 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
     name = payload.name.strip()
     appearance = payload.appearance.strip() if payload.appearance is not None else None
     user_id = payload.user_id.strip() if payload.user_id else None
-    temperature = _infer_temperature_from_player_name(name)
-    
+
     if not name:
         raise HTTPException(status_code=400, detail="name cannot be empty")
     if appearance == "":
@@ -759,6 +754,9 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
 
     try:
         player_repo = PlayerRepo(config.driver)
+        temperature_repo = PlayerTemperatureRepo(config.driver)
+        temperature_service = PlayerTemperatureService(temperature_repo)
+        temperature = temperature_service.resolve_for_new_player(name)
         player = player_repo.create(name=name, appearance=appearance, user_id=user_id, temperature=temperature)
         return CreatePlayerResponse(
             player_id=player.player_id,

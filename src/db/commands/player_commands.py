@@ -1,12 +1,14 @@
 from .base import Command
-from ..repositories import ConstantRepo, PlayerRepo
+from ..repositories import ConstantRepo, PlayerRepo, PlayerTemperatureRepo
 from ..models import Item, Player
 from ..ui import InputHelpers
+from services.player_temperature_service import PlayerTemperatureService
 
 
 class CreatePlayerCommand(Command):
-    def __init__(self, repo: PlayerRepo, ui: InputHelpers) -> None:
+    def __init__(self, repo: PlayerRepo, temperature_repo: PlayerTemperatureRepo, ui: InputHelpers) -> None:
         self._repo = repo
+        self._temperature_service = PlayerTemperatureService(temperature_repo)
         self._ui = ui
 
     @property
@@ -16,9 +18,88 @@ class CreatePlayerCommand(Command):
     def execute(self) -> None:
         name_val = self._ui.prompt("namn")
         appearance_val = self._ui.prompt("utseende")
+        try:
+            temperature = self._temperature_service.resolve_for_new_player(name_val)
+            player = self._repo.create(name_val, appearance_val, temperature=temperature)
+        except (RuntimeError, ValueError) as exc:
+            self._ui.display.error(str(exc))
+            return
 
-        player = self._repo.create(name_val, appearance_val)
         self._ui.display.success(f"Player '{player.name}' skapad med ID '{player.player_id}'")
+
+
+class ShowPlayerTemperatureConfigCommand(Command):
+    def __init__(self, repo: PlayerTemperatureRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Visa temperature config värden"
+
+    def execute(self) -> None:
+        config = self._repo.get_config()
+        if not config:
+            self._ui.display.error("Player temperature-config saknas")
+            return
+
+        self._ui.display.header("Player temperature-config")
+        self._ui.display.info(f"values: {config['values']}")
+        self._ui.display.info(f"remaining_values: {config['remaining_values']}")
+
+
+class SetPlayerTemperatureValuesCommand(Command):
+    def __init__(self, repo: PlayerTemperatureRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Sätt och reset temperature config värden"
+
+    @staticmethod
+    def _parse_values(raw_values: str) -> list[float]:
+        values = []
+        for part in raw_values.split(","):
+            normalized = part.strip()
+            if not normalized:
+                continue
+            values.append(float(normalized))
+        if not values:
+            raise ValueError("Ange minst ett temperature-värde")
+        return values
+
+    def execute(self) -> None:
+        raw_values = self._ui.prompt("temperature-värden kommaseparerade, t.ex. 0.2, 1, 1.8")
+        try:
+            values = self._parse_values(raw_values)
+            config = self._repo.upsert_values(values)
+        except ValueError as exc:
+            self._ui.display.error(str(exc))
+            return
+
+        self._ui.display.success(
+            "Player temperature-värden sparade och bag rensad"
+        )
+        self._ui.display.info(f"values: {config['values']}")
+
+
+class ClearPlayerTemperatureBagCommand(Command):
+    def __init__(self, repo: PlayerTemperatureRepo, ui: InputHelpers) -> None:
+        self._repo = repo
+        self._ui = ui
+
+    @property
+    def name(self) -> str:
+        return "Rensa remaining temperature config värden"
+
+    def execute(self) -> None:
+        if not self._ui.confirm("Rensa current remaining_values för player temperature-bagen?"):
+            return
+        if self._repo.clear_remaining_values():
+            self._ui.display.success("Player temperature-bagen rensad")
+        else:
+            self._ui.display.error("Player temperature-config saknas")
 
 
 class EditPlayerCommand(Command):

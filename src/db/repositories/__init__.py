@@ -7,6 +7,7 @@ from .relation_repo import RelationRepo
 from .mystery_repo import MysteryRepo
 from .conversation_repo import ConversationRepo
 from .player_repo import PlayerRepo
+from .player_temperature_repo import PlayerTemperatureRepo
 from .user_repo import UserRepo
 from .rag_repo import RAGRepo
 
@@ -21,6 +22,7 @@ __all__ = [
     "MysteryRepo",
     "ConversationRepo",
     "PlayerRepo",
+    "PlayerTemperatureRepo",
     "UserRepo",
     "RAGRepo",
 ]
