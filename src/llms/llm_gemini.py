@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 from google import genai
 
+from .config import DEFAULT_GEMINI_MODEL
+
 load_dotenv()
 
 
@@ -17,7 +19,7 @@ def _messages_to_text(messages: list[dict[str, str]]) -> str:
 
 def chat(
     message: str | None = None,
-    model: str = "gemini-2.0-flash",
+    model: str = DEFAULT_GEMINI_MODEL,
     messages: list[dict[str, str]] | None = None,
 ) -> str:
     api_key = os.getenv("GEMINI_API_KEY")

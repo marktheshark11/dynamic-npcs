@@ -3,7 +3,7 @@ import re
 from time import perf_counter
 
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo, UserRepo
-from llms.config import DEFAULT_CHAT_TEMPERATURE, DEFAULT_SUMMARY_TEMPERATURE
+from llms.config import DEFAULT_CHAT_MODEL, DEFAULT_CHAT_TEMPERATURE, DEFAULT_SUMMARY_TEMPERATURE
 from pipelines import ChatPipeline
 
 
@@ -13,7 +13,7 @@ class ChatService:
         driver,
         embed_model,
         pipeline: ChatPipeline,
-        default_model="llama-3.3-70b-versatile",
+        default_model: str = DEFAULT_CHAT_MODEL,
     ):
         self.pipeline = pipeline
         self.conversation_repo = ConversationRepo(driver)

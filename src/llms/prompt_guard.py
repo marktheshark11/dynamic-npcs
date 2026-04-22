@@ -2,8 +2,8 @@ import re
 
 from groq import Groq
 
+from .config import PROMPT_GUARD_MODEL
 
-PROMPT_GUARD_MODEL = "meta-llama/llama-prompt-guard-2-86m"
 PROMPT_GUARD_CHUNK_WORDS = 300
 PROMPT_GUARD_THRESHOLD = 0.5
 
