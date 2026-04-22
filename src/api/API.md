@@ -221,6 +221,35 @@ Request body:
 
 Behavior:
 
+Example request:
+
+```json
+{
+  "npc_id": "npc_1",
+  "message": "What happened last night?",
+  "player_id": "player_1",
+  "conversation_id": "conversation_12"
+}
+```
+
+- Creates or continues a conversation with the NPC.
+- Returns the NPC response text.
+- Returns `used_claims`, which lists the claim IDs referenced in the response.
+- Returns `important_claim_ids`, which is the subset of `used_claims` marked as important by the retrieval pipeline.
+
+Example response:
+
+```json
+{
+  "npc_id": "npc_1",
+  "npc_name": "Anna",
+  "conversation_id": "conversation_12",
+  "response": "I saw Erik leave through the kitchen door late that evening.",
+  "used_claims": ["C12", "C18"],
+  "important_claim_ids": ["C18"]
+}
+```
+
 ## GET /forms/{form_id}
 
 Return a form definition with all questions ordered by `order`.
