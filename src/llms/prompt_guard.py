@@ -1,10 +1,11 @@
+import os
 import re
+import sys
 
 from .chat import chat as llm_chat
-from .config import PROMPT_GUARD_MODEL, PROMPT_GUARD_PROVIDER
+from .config import PROMPT_GUARD_MODEL, PROMPT_GUARD_PROVIDER, PROMPT_GUARD_THRESHOLD
 
 PROMPT_GUARD_CHUNK_WORDS = 300
-PROMPT_GUARD_THRESHOLD = 0.5
 
 
 class PromptGuardValidationError(ValueError):
@@ -38,7 +39,11 @@ def _classify_by_response(content: str) -> bool:
     return score >= PROMPT_GUARD_THRESHOLD
 
 
-def _classify_chunk(chunk: str) -> bool:
+def _classify_chunk_with_chat_model(chunk: str) -> bool:
+    print(
+        f"[PromptGuard] provider={PROMPT_GUARD_PROVIDER} model={PROMPT_GUARD_MODEL} mode=chat-score",
+        file=sys.stderr,
+    )
     response_content = llm_chat(
         messages=[{"role": "user", "content": chunk}],
         model=PROMPT_GUARD_MODEL,
@@ -47,6 +52,57 @@ def _classify_chunk(chunk: str) -> bool:
         max_tokens=16,
     )
     return _classify_by_response(response_content)
+
+
+def _get_category_score(category_scores: object, category_name: str) -> float | None:
+    if isinstance(category_scores, dict):
+        score = category_scores.get(category_name)
+        if isinstance(score, (int, float)):
+            return float(score)
+        return None
+
+    score = getattr(category_scores, category_name, None)
+    if isinstance(score, (int, float)):
+        return float(score)
+    return None
+
+
+def _classify_chunk_with_mistral_moderation(chunk: str) -> bool:
+    from mistralai.client import Mistral
+
+    api_key = os.getenv("MISTRAL_API_KEY")
+    if not api_key:
+        raise RuntimeError("Missing MISTRAL_API_KEY in environment")
+
+    print(
+        f"[PromptGuard] provider={PROMPT_GUARD_PROVIDER} model={PROMPT_GUARD_MODEL} mode=mistral-moderation",
+        file=sys.stderr,
+    )
+    client = Mistral(api_key=api_key)
+    response = client.classifiers.moderate(
+        model=PROMPT_GUARD_MODEL,
+        inputs=[chunk],
+    )
+    results = getattr(response, "results", None) or []
+    if not results:
+        raise ValueError("Prompt Guard did not return moderation results")
+
+    first_result = results[0]
+    category_scores = getattr(first_result, "category_scores", None)
+    score = _get_category_score(category_scores, "jailbreaking")
+    if score is None:
+        raise ValueError("Prompt Guard did not return a jailbreaking score")
+    print(
+        f"[PromptGuard] jailbreaking_score={score:.4f} threshold={PROMPT_GUARD_THRESHOLD:.4f}",
+        file=sys.stderr,
+    )
+    return score >= PROMPT_GUARD_THRESHOLD
+
+
+def _classify_chunk(chunk: str) -> bool:
+    if PROMPT_GUARD_PROVIDER == "mistral":
+        return _classify_chunk_with_mistral_moderation(chunk)
+    return _classify_chunk_with_chat_model(chunk)
 
 
 def is_malicious(text: str) -> bool:
