@@ -14,15 +14,15 @@ class PlayerRepo(BaseRepository):
 
     @staticmethod
     def _claim_content_expression(locale: str) -> str:
-        return "c.content_en" if locale == "en" else "c.content"
+        return "coalesce(c.content_en, c.content)" if locale == "en" else "c.content"
 
     @staticmethod
     def _name_expression(locale: str, alias: str) -> str:
-        return f"{alias}.name_en" if locale == "en" else f"{alias}.name"
+        return f"coalesce({alias}.name_en, {alias}.name)" if locale == "en" else f"{alias}.name"
 
     @staticmethod
     def _inspect_text_expression(locale: str, alias: str) -> str:
-        return f"{alias}.inspect_text_en" if locale == "en" else f"{alias}.inspect_text"
+        return f"coalesce({alias}.inspect_text_en, {alias}.inspect_text)" if locale == "en" else f"{alias}.inspect_text"
 
     def _next_player_id(self) -> str:
         record = self._run_single(
