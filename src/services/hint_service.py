@@ -76,6 +76,11 @@ class HintService:
                 matcher=lambda state: state.has_seen_door("door_study") and not state.has_opened_door("door_study"),
             ),
             HintRule(
+                text="Nyckeln till arbetsrummet verkar ligga på Marianas säng i hennes sovrum, klicka på nyckeln för att plocka upp den.",
+                text_en="The key to the study seems to be on Mariana's bed in her bedroom, click on the key to pick it up.",
+                matcher=lambda state: state.knows_claim("C141") and not state.has_item("object_key_study"),
+            ),
+            HintRule(
                 text="Du behöver en 4-siffrig kod för att komma in i kassaskåpet i arbetsrummet. Se om du kan lista ut vad den kan vara genom att prata med karaktärerna.",
                 text_en="You need a 4-digit code to open the safe in the study. See if you can figure out what it might be by talking to the characters.",
                 matcher=lambda state: state.has_opened_door("door_study") and not state.has_opened_door("object_safe"),
@@ -83,7 +88,7 @@ class HintService:
             HintRule(
                 text="Ta reda på vem som träffade Nils senast. Det kan vara viktigt för att förstå vad som hände.",
                 text_en="Find out who met Nils last. It can be important to understand what happened.",
-                matcher=lambda state: state.has_seen_object("object_letter"),
+                matcher=lambda state: state.has_seen_object("object_letter") and not state.knows_claim("C151"),
             ),
             HintRule(
                 text="Herr Bergström verkar ha sett Beatrice gå in till Nils på kvällen. Det kan vara värt att prata med Beatrice om det.",
