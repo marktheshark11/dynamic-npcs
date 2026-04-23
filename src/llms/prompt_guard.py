@@ -1,8 +1,7 @@
 import re
 
-from groq import Groq
-
-from .config import PROMPT_GUARD_MODEL
+from .chat import chat as llm_chat
+from .config import PROMPT_GUARD_MODEL, PROMPT_GUARD_PROVIDER
 
 PROMPT_GUARD_CHUNK_WORDS = 300
 PROMPT_GUARD_THRESHOLD = 0.5
@@ -39,22 +38,21 @@ def _classify_by_response(content: str) -> bool:
     return score >= PROMPT_GUARD_THRESHOLD
 
 
-def _classify_chunk(client: Groq, chunk: str) -> bool:
-    completion = client.chat.completions.create(
+def _classify_chunk(chunk: str) -> bool:
+    response_content = llm_chat(
+        messages=[{"role": "user", "content": chunk}],
         model=PROMPT_GUARD_MODEL,
+        provider=PROMPT_GUARD_PROVIDER,
         temperature=0,
         max_tokens=16,
-        messages=[{"role": "user", "content": chunk}],
     )
-    response_content = completion.choices[0].message.content or ""
     return _classify_by_response(response_content)
 
 
 def is_malicious(text: str) -> bool:
-    client = Groq()
     chunks = _chunk_text(text)
     for chunk in chunks:
-        if _classify_chunk(client, chunk):
+        if _classify_chunk(chunk):
             return True
     return False
 

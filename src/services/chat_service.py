@@ -151,7 +151,7 @@ class ChatService:
         return "\n".join(lines)
 
     def summarize_conversation(self, conversation_id, model=None):
-        from llms.llm_groq import chat as groq_chat
+        from llms.chat import chat as llm_chat
 
         conversation = self.conversation_repo.get_conversation(conversation_id)
         if not conversation:
@@ -218,7 +218,7 @@ class ChatService:
             },
         ]
 
-        summary = groq_chat(
+        summary = llm_chat(
             messages=messages,
             model=model or self.default_model,
             temperature=DEFAULT_SUMMARY_TEMPERATURE,
@@ -376,7 +376,7 @@ class ChatService:
         model: str,
         locale: str,
     ) -> str:
-        from llms.llm_groq import chat as groq_chat
+        from llms.chat import chat as llm_chat
 
         if cls._is_english(locale):
             instruction = (
@@ -393,7 +393,7 @@ class ChatService:
                 "Om originalsvarat är osäkert eller inte kan grundas, använd en tom lista för 'used_claim_ids'."
             )
 
-        return groq_chat(
+        return llm_chat(
             messages=[
                 {"role": "system", "content": instruction},
                 {"role": "user", "content": raw_response},
@@ -404,7 +404,7 @@ class ChatService:
         )
 
     def ask_npc(self, npc_id, question, model=None, conversation_id=None, player_id=None):
-        from llms.llm_groq import chat as groq_chat
+        from llms.chat import chat as llm_chat
         from llms.prompt_guard import is_malicious
 
         total_start = perf_counter()
@@ -502,7 +502,7 @@ class ChatService:
         localized_npc_name = (npc_profile or {}).get("name") or ""
 
         llm_start = perf_counter()
-        raw_response_text = groq_chat(
+        raw_response_text = llm_chat(
             messages=prompt_result.messages,
             model=resolved_model,
             temperature=resolved_temperature,

@@ -102,7 +102,7 @@ def rewrite_query(
     mentioned_claims: list[dict[str, Any]] | None = None,
     locale: str = "sv",
 ) -> str:
-    from llms.llm_groq import chat as groq_chat
+    from llms.chat import chat as llm_chat
 
     is_english = _is_english(locale)
     history_block = _build_history_block_for_locale(recent_exchanges, locale)
@@ -151,7 +151,7 @@ def rewrite_query(
         },
     ]
 
-    rewritten = groq_chat(messages=messages, max_tokens=128).strip()
+    rewritten = llm_chat(messages=messages, max_tokens=128).strip()
     if rewritten and rewritten != question:
         print(f"[Sökfras: {rewritten}]", file=sys.stderr)
     return rewritten or question
@@ -603,7 +603,7 @@ def select_relevant_claims(
     prefer_important_claims: bool = False,
     include_debug: bool = False,
 ) -> dict[str, Any]:
-    from llms.llm_groq import chat as groq_chat
+    from llms.chat import chat as llm_chat
 
     is_english = _is_english(locale)
     candidate_claims = _collect_selector_candidate_claims(chains)
@@ -701,7 +701,7 @@ def select_relevant_claims(
         },
     ]
 
-    raw_response = groq_chat(messages=selector_messages, max_tokens=256)
+    raw_response = llm_chat(messages=selector_messages, max_tokens=256)
     parsed = _extract_json_object(raw_response)
     selected_claim_ids = [] if not parsed else _normalize_selected_claim_ids(
         parsed.get("selected_claim_ids"),

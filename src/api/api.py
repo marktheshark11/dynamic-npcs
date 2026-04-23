@@ -12,7 +12,13 @@ from pydantic import BaseModel, Field
 
 from db.config import Config
 from db.repositories import ConstantRepo, FormRepo, PlayerRepo, PlayerTemperatureRepo, UserRepo
-from llms.config import DEFAULT_CHAT_TEMPERATURE
+from llms.config import (
+    DEFAULT_CHAT_MODEL,
+    DEFAULT_CHAT_TEMPERATURE,
+    PROMPT_GUARD_PROVIDER,
+    get_required_chat_api_key,
+    resolve_chat_provider,
+)
 from llms.prompt_guard import PromptGuardValidationError, validate_safe_player_profile
 from pipelines import get_pipeline
 from services.chat_service import ChatService
@@ -445,14 +451,15 @@ class UserLocaleResponse(BaseModel):
 async def lifespan(app: FastAPI):
     config = Config.from_env()
     api_key = os.getenv("API_KEY")
-    groq_api_key = os.getenv("GROQ_API_KEY")
+    chat_provider = resolve_chat_provider(model=DEFAULT_CHAT_MODEL)
     if not api_key:
         raise RuntimeError("Missing API_KEY in environment")
-    if not groq_api_key:
-        raise RuntimeError("Missing GROQ_API_KEY in environment")
+    get_required_chat_api_key(chat_provider)
+    get_required_chat_api_key(PROMPT_GUARD_PROVIDER)
 
     app.state.config = config
     app.state.api_key = api_key
+    app.state.chat_provider = chat_provider
     app.state.startup_timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     pipeline = get_pipeline(
         pipeline_id=config.pipeline_id,

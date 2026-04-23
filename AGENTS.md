@@ -45,10 +45,10 @@ export PYTHONPATH=src
 - `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`
 - `HF_TOKEN`
 - `API_KEY`
-- `GROQ_API_KEY`
+- provider key(s) required by the configured chat/prompt-guard providers, e.g. `GROQ_API_KEY` and/or `MISTRAL_API_KEY`
 
 ### Optional environment variables
-- `EMBED_MODEL` (defaults to `mixedbread-ai/mxbai-embed-large-v1`), `GEMINI_API_KEY` (Gemini adapter only)
+- `EMBED_MODEL` (defaults to `mixedbread-ai/mxbai-embed-large-v1`), `GEMINI_API_KEY` (Gemini adapter only), `CHAT_PROVIDER`, `PROMPT_GUARD_PROVIDER`
 
 ## Build / lint / test commands
 
