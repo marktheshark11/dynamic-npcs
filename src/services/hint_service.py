@@ -73,7 +73,7 @@ class HintService:
             HintRule(
                 text="Det verkar som att du behöver en nyckel för att kunna komma in i arbetsrummet. Fråga runt efter den.",
                 text_en="It seems that you need a key to get into the study. Ask around about it.",
-                matcher=lambda state: state.has_seen_door("door_study") and not state.has_opened_door("door_study"),
+                matcher=lambda state: state.has_seen_door("door_study") and not state.has_item("object_key_study"),
             ),
             HintRule(
                 text="Nyckeln till arbetsrummet verkar ligga på Marianas säng i hennes sovrum, klicka på nyckeln för att plocka upp den.",
