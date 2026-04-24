@@ -57,6 +57,10 @@ class WideSelectRAGPipeline(ChatPipeline):
             if player_id
             else set()
         )
+        seen_object_ids = self._services.player_repo.get_seen_object_ids(player_id) if player_id else set()
+        inventory_item_ids = self._services.player_repo.get_inventory_item_ids(player_id) if player_id else set()
+        seen_door_ids = self._services.player_repo.get_seen_door_ids(player_id) if player_id else set()
+        opened_door_ids = self._services.player_repo.get_opened_door_ids(player_id) if player_id else set()
         search_query = build_search_query(
             question=question,
             recent_exchanges=recent_exchanges,
@@ -83,6 +87,10 @@ class WideSelectRAGPipeline(ChatPipeline):
         unlocked_claims = self._services.rag_repo.find_unlocked_opinion_claims(
             npc_id=npc_id,
             aware_claim_ids=list(aware_claim_ids),
+            seen_object_ids=list(seen_object_ids),
+            inventory_item_ids=list(inventory_item_ids),
+            seen_door_ids=list(seen_door_ids),
+            opened_door_ids=list(opened_door_ids),
             locale=locale,
         )
         for claim in unlocked_claims:
@@ -111,6 +119,10 @@ class WideSelectRAGPipeline(ChatPipeline):
         initial_gated_chain_metadata = filter_claim_chains_by_required_claim_ids(
             chains=chain_metadata,
             aware_claim_ids=aware_claim_ids,
+            seen_object_ids=seen_object_ids,
+            inventory_item_ids=inventory_item_ids,
+            seen_door_ids=seen_door_ids,
+            opened_door_ids=opened_door_ids,
             already_mentioned=already_mentioned,
             locale=locale,
         )
@@ -132,6 +144,10 @@ class WideSelectRAGPipeline(ChatPipeline):
         gated_chain_metadata = filter_claim_chains_by_required_claim_ids(
             chains=chain_metadata,
             aware_claim_ids=turn_known_claim_ids,
+            seen_object_ids=seen_object_ids,
+            inventory_item_ids=inventory_item_ids,
+            seen_door_ids=seen_door_ids,
+            opened_door_ids=opened_door_ids,
             already_mentioned=already_mentioned,
             locale=locale,
         )
@@ -161,6 +177,10 @@ class WideSelectRAGPipeline(ChatPipeline):
         selector_debug["expanded_claim_ids"] = self.extract_claim_ids_from_claims(expanded_claims)
         selector_debug["extra_claim_ids"] = self.extract_claim_ids_from_claims(extra_claims)
         selector_debug["unlocked_claim_ids"] = self.extract_claim_ids_from_claims(unlocked_claims)
+        selector_debug["player_seen_object_ids"] = list(seen_object_ids)
+        selector_debug["player_inventory_item_ids"] = list(inventory_item_ids)
+        selector_debug["player_seen_door_ids"] = list(seen_door_ids)
+        selector_debug["player_opened_door_ids"] = list(opened_door_ids)
         selector_debug["available_claim_ids_before_cap"] = self.extract_claim_ids_from_claims(uncapped_available_claims)
         selector_debug["available_claim_ids_after_cap"] = self.extract_claim_ids_from_claims(capped_available_claims)
         selector_debug["available_claim_ids_after_unlocked"] = self.extract_claim_ids_from_claims(available_claims)

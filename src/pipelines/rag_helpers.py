@@ -386,6 +386,15 @@ def _build_chain_payload(
             "suffix": chain_claim.get("suffix"),
             "overwrite_suffix": chain_claim.get("overwrite_suffix"),
             "required_claim_ids": list(chain_claim.get("required_claim_ids") or []),
+            "excluded_claim_ids": list(chain_claim.get("excluded_claim_ids") or []),
+            "required_seen_object_ids": list(chain_claim.get("required_seen_object_ids") or []),
+            "excluded_seen_object_ids": list(chain_claim.get("excluded_seen_object_ids") or []),
+            "required_item_ids": list(chain_claim.get("required_item_ids") or []),
+            "excluded_item_ids": list(chain_claim.get("excluded_item_ids") or []),
+            "required_seen_door_ids": list(chain_claim.get("required_seen_door_ids") or []),
+            "excluded_seen_door_ids": list(chain_claim.get("excluded_seen_door_ids") or []),
+            "required_opened_door_ids": list(chain_claim.get("required_opened_door_ids") or []),
+            "excluded_opened_door_ids": list(chain_claim.get("excluded_opened_door_ids") or []),
             "retrieval_source": chain_claim.get("retrieval_source"),
             "type": chain_claim.get("type"),
             "important": bool(chain_claim.get("important")),
@@ -442,27 +451,83 @@ def build_claim_chains(
 def filter_claim_chains_by_required_claim_ids(
     chains: list[dict[str, Any]],
     aware_claim_ids: set[str],
+    seen_object_ids: set[str] | None = None,
+    inventory_item_ids: set[str] | None = None,
+    seen_door_ids: set[str] | None = None,
+    opened_door_ids: set[str] | None = None,
     already_mentioned: set[str] | None = None,
     locale: str = "sv",
 ) -> list[dict[str, Any]]:
     aware_lookup = {claim_id.upper() for claim_id in aware_claim_ids if isinstance(claim_id, str)}
+    seen_object_lookup = {object_id for object_id in seen_object_ids or set() if isinstance(object_id, str)}
+    inventory_item_lookup = {object_id for object_id in inventory_item_ids or set() if isinstance(object_id, str)}
+    seen_door_lookup = {object_id for object_id in seen_door_ids or set() if isinstance(object_id, str)}
+    opened_door_lookup = {object_id for object_id in opened_door_ids or set() if isinstance(object_id, str)}
     filtered_chains: list[dict[str, Any]] = []
 
     for chain in chains:
         filtered_claims: list[dict[str, Any]] = []
         for claim in chain.get("claims") or []:
-            required_claim_ids = [
-                claim_id.upper()
-                for claim_id in claim.get("required_claim_ids") or []
-                if isinstance(claim_id, str)
-            ]
-            if required_claim_ids and not set(required_claim_ids).issubset(aware_lookup):
+            if not _claim_conditions_match(
+                claim=claim,
+                aware_claim_ids=aware_lookup,
+                seen_object_ids=seen_object_lookup,
+                inventory_item_ids=inventory_item_lookup,
+                seen_door_ids=seen_door_lookup,
+                opened_door_ids=opened_door_lookup,
+            ):
                 continue
             filtered_claims.append(claim)
         if filtered_claims:
             filtered_chains.append(_build_chain_payload(filtered_claims, already_mentioned, locale))
 
     return filtered_chains
+
+
+def _normalized_condition_set(claim: dict[str, Any], key: str, uppercase: bool = False) -> set[str]:
+    values = {value for value in claim.get(key) or [] if isinstance(value, str)}
+    return {value.upper() for value in values} if uppercase else values
+
+
+def _condition_set_matches(required: set[str], excluded: set[str], actual: set[str]) -> bool:
+    return required.issubset(actual) and not excluded.intersection(actual)
+
+
+def _claim_conditions_match(
+    claim: dict[str, Any],
+    aware_claim_ids: set[str],
+    seen_object_ids: set[str],
+    inventory_item_ids: set[str],
+    seen_door_ids: set[str],
+    opened_door_ids: set[str],
+) -> bool:
+    return (
+        _condition_set_matches(
+            _normalized_condition_set(claim, "required_claim_ids", uppercase=True),
+            _normalized_condition_set(claim, "excluded_claim_ids", uppercase=True),
+            aware_claim_ids,
+        )
+        and _condition_set_matches(
+            _normalized_condition_set(claim, "required_seen_object_ids"),
+            _normalized_condition_set(claim, "excluded_seen_object_ids"),
+            seen_object_ids,
+        )
+        and _condition_set_matches(
+            _normalized_condition_set(claim, "required_item_ids"),
+            _normalized_condition_set(claim, "excluded_item_ids"),
+            inventory_item_ids,
+        )
+        and _condition_set_matches(
+            _normalized_condition_set(claim, "required_seen_door_ids"),
+            _normalized_condition_set(claim, "excluded_seen_door_ids"),
+            seen_door_ids,
+        )
+        and _condition_set_matches(
+            _normalized_condition_set(claim, "required_opened_door_ids"),
+            _normalized_condition_set(claim, "excluded_opened_door_ids"),
+            opened_door_ids,
+        )
+    )
 
 
 def split_chain_content(
@@ -557,6 +622,16 @@ def _collect_selector_candidate_claims(chains: list[dict[str, Any]]) -> list[dic
                     "content": claim.get("content") or "",
                     "important": bool(claim.get("important")),
                     "retrieval_source": claim.get("retrieval_source"),
+                    "required_claim_ids": list(claim.get("required_claim_ids") or []),
+                    "excluded_claim_ids": list(claim.get("excluded_claim_ids") or []),
+                    "required_seen_object_ids": list(claim.get("required_seen_object_ids") or []),
+                    "excluded_seen_object_ids": list(claim.get("excluded_seen_object_ids") or []),
+                    "required_item_ids": list(claim.get("required_item_ids") or []),
+                    "excluded_item_ids": list(claim.get("excluded_item_ids") or []),
+                    "required_seen_door_ids": list(claim.get("required_seen_door_ids") or []),
+                    "excluded_seen_door_ids": list(claim.get("excluded_seen_door_ids") or []),
+                    "required_opened_door_ids": list(claim.get("required_opened_door_ids") or []),
+                    "excluded_opened_door_ids": list(claim.get("excluded_opened_door_ids") or []),
                     "chain_index": chain_index,
                 }
             )

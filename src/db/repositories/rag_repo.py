@@ -24,6 +24,35 @@ class RAGRepo(BaseRepository):
     def _overwrite_suffix_expr(locale: str, alias: str) -> str:
         return f"{alias}.overwrite_suffix_en" if locale == "en" else f"{alias}.overwrite_suffix"
 
+    @staticmethod
+    def _condition_expr(primary_alias: str, fallback_alias: str | None, field: str) -> str:
+        if fallback_alias is None:
+            return f"coalesce({primary_alias}.{field}, []) AS {field}"
+        return (
+            f"CASE WHEN {primary_alias} IS NOT NULL "
+            f"THEN coalesce({primary_alias}.{field}, []) "
+            f"ELSE coalesce({fallback_alias}.{field}, []) END AS {field}"
+        )
+
+    @classmethod
+    def _condition_return_exprs(cls, primary_alias: str, fallback_alias: str | None = None) -> str:
+        fields = [
+            "required_claim_ids",
+            "excluded_claim_ids",
+            "required_seen_object_ids",
+            "excluded_seen_object_ids",
+            "required_item_ids",
+            "excluded_item_ids",
+            "required_seen_door_ids",
+            "excluded_seen_door_ids",
+            "required_opened_door_ids",
+            "excluded_opened_door_ids",
+        ]
+        return ",\n                     ".join(
+            cls._condition_expr(primary_alias, fallback_alias, field)
+            for field in fields
+        )
+
     def supports_group_membership(self) -> bool:
         try:
             labels_result = self._run_single(
@@ -174,8 +203,17 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
-    def find_unlocked_opinion_claims(self, npc_id: str, aware_claim_ids: list[str], locale: str = "sv") -> list[dict]:
-        if not aware_claim_ids:
+    def find_unlocked_opinion_claims(
+        self,
+        npc_id: str,
+        aware_claim_ids: list[str],
+        seen_object_ids: list[str],
+        inventory_item_ids: list[str],
+        seen_door_ids: list[str],
+        opened_door_ids: list[str],
+        locale: str = "sv",
+    ) -> list[dict]:
+        if not any([aware_claim_ids, seen_object_ids, inventory_item_ids, seen_door_ids, opened_door_ids]):
             return []
 
         content_expr = self._claim_content_expr(locale, "c")
@@ -189,8 +227,28 @@ class RAGRepo(BaseRepository):
             UNWIND opinions AS item
             WITH item.claim AS c, item.opinion AS o
             WHERE c IS NOT NULL
-              AND size(coalesce(o.required_claim_ids, [])) > 0
+              AND (
+                size(coalesce(o.required_claim_ids, [])) > 0 OR
+                size(coalesce(o.excluded_claim_ids, [])) > 0 OR
+                size(coalesce(o.required_seen_object_ids, [])) > 0 OR
+                size(coalesce(o.excluded_seen_object_ids, [])) > 0 OR
+                size(coalesce(o.required_item_ids, [])) > 0 OR
+                size(coalesce(o.excluded_item_ids, [])) > 0 OR
+                size(coalesce(o.required_seen_door_ids, [])) > 0 OR
+                size(coalesce(o.excluded_seen_door_ids, [])) > 0 OR
+                size(coalesce(o.required_opened_door_ids, [])) > 0 OR
+                size(coalesce(o.excluded_opened_door_ids, [])) > 0
+              )
               AND all(required_id IN coalesce(o.required_claim_ids, []) WHERE required_id IN $aware_claim_ids)
+              AND none(excluded_id IN coalesce(o.excluded_claim_ids, []) WHERE excluded_id IN $aware_claim_ids)
+              AND all(required_id IN coalesce(o.required_seen_object_ids, []) WHERE required_id IN $seen_object_ids)
+              AND none(excluded_id IN coalesce(o.excluded_seen_object_ids, []) WHERE excluded_id IN $seen_object_ids)
+              AND all(required_id IN coalesce(o.required_item_ids, []) WHERE required_id IN $inventory_item_ids)
+              AND none(excluded_id IN coalesce(o.excluded_item_ids, []) WHERE excluded_id IN $inventory_item_ids)
+              AND all(required_id IN coalesce(o.required_seen_door_ids, []) WHERE required_id IN $seen_door_ids)
+              AND none(excluded_id IN coalesce(o.excluded_seen_door_ids, []) WHERE excluded_id IN $seen_door_ids)
+              AND all(required_id IN coalesce(o.required_opened_door_ids, []) WHERE required_id IN $opened_door_ids)
+              AND none(excluded_id IN coalesce(o.excluded_opened_door_ids, []) WHERE excluded_id IN $opened_door_ids)
 
             RETURN DISTINCT elementId(c) AS id,
                             c.claim_id AS claim_id,
@@ -200,6 +258,10 @@ class RAGRepo(BaseRepository):
             """,
             npc_id=npc_id,
             aware_claim_ids=aware_claim_ids,
+            seen_object_ids=seen_object_ids,
+            inventory_item_ids=inventory_item_ids,
+            seen_door_ids=seen_door_ids,
+            opened_door_ids=opened_door_ids,
         )
         return [dict(r) for r in records]
 
@@ -211,6 +273,8 @@ class RAGRepo(BaseRepository):
         group_suffix_expr = self._suffix_expr(locale, "go")
         opinion_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "o")
         group_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "go")
+        group_conditions_expr = self._condition_return_exprs("o", "go")
+        npc_conditions_expr = self._condition_return_exprs("o")
         if include_group:
             query = f"""
                 MATCH path = (start:CLAIM)-[:REFERENCE*0..5]->(ref:CLAIM)
@@ -223,7 +287,7 @@ class RAGRepo(BaseRepository):
                      COALESCE({opinion_prefix_expr}, {group_prefix_expr}) AS prefix,
                      COALESCE({opinion_suffix_expr}, {group_suffix_expr}) AS suffix,
                      COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix,
-                     CASE WHEN o IS NOT NULL THEN coalesce(o.required_claim_ids, []) ELSE coalesce(go.required_claim_ids, []) END AS required_claim_ids
+                     {group_conditions_expr}
                 RETURN DISTINCT elementId(ref) AS id,
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
@@ -233,7 +297,16 @@ class RAGRepo(BaseRepository):
                        prefix,
                        suffix,
                        overwrite_suffix,
-                       required_claim_ids
+                       required_claim_ids,
+                       excluded_claim_ids,
+                       required_seen_object_ids,
+                       excluded_seen_object_ids,
+                       required_item_ids,
+                       excluded_item_ids,
+                       required_seen_door_ids,
+                       excluded_seen_door_ids,
+                       required_opened_door_ids,
+                       excluded_opened_door_ids
             """
         else:
             query = f"""
@@ -246,7 +319,7 @@ class RAGRepo(BaseRepository):
                      {opinion_prefix_expr} AS prefix,
                      {opinion_suffix_expr} AS suffix,
                      {opinion_overwrite_suffix_expr} AS overwrite_suffix,
-                     coalesce(o.required_claim_ids, []) AS required_claim_ids
+                     {npc_conditions_expr}
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
@@ -256,7 +329,16 @@ class RAGRepo(BaseRepository):
                        prefix,
                        suffix,
                        overwrite_suffix,
-                       required_claim_ids
+                       required_claim_ids,
+                       excluded_claim_ids,
+                       required_seen_object_ids,
+                       excluded_seen_object_ids,
+                       required_item_ids,
+                       excluded_item_ids,
+                       required_seen_door_ids,
+                       excluded_seen_door_ids,
+                       required_opened_door_ids,
+                       excluded_opened_door_ids
             """
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)
@@ -270,6 +352,8 @@ class RAGRepo(BaseRepository):
         group_suffix_expr = self._suffix_expr(locale, "go")
         opinion_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "o")
         group_overwrite_suffix_expr = self._overwrite_suffix_expr(locale, "go")
+        group_conditions_expr = self._condition_return_exprs("o", "go")
+        npc_conditions_expr = self._condition_return_exprs("o")
         if include_group:
             query = f"""
                 MATCH path = (ref:CLAIM)-[:REFERENCE*1..{up_steps}]->(start:CLAIM)
@@ -282,7 +366,7 @@ class RAGRepo(BaseRepository):
                      COALESCE({opinion_prefix_expr}, {group_prefix_expr}) AS prefix,
                      COALESCE({opinion_suffix_expr}, {group_suffix_expr}) AS suffix,
                      COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix,
-                     CASE WHEN o IS NOT NULL THEN coalesce(o.required_claim_ids, []) ELSE coalesce(go.required_claim_ids, []) END AS required_claim_ids
+                     {group_conditions_expr}
                 RETURN DISTINCT elementId(ref) AS id,
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
@@ -292,7 +376,16 @@ class RAGRepo(BaseRepository):
                        prefix,
                        suffix,
                        overwrite_suffix,
-                       required_claim_ids
+                       required_claim_ids,
+                       excluded_claim_ids,
+                       required_seen_object_ids,
+                       excluded_seen_object_ids,
+                       required_item_ids,
+                       excluded_item_ids,
+                       required_seen_door_ids,
+                       excluded_seen_door_ids,
+                       required_opened_door_ids,
+                       excluded_opened_door_ids
             """
         else:
             query = f"""
@@ -305,7 +398,7 @@ class RAGRepo(BaseRepository):
                      {opinion_prefix_expr} AS prefix,
                      {opinion_suffix_expr} AS suffix,
                      {opinion_overwrite_suffix_expr} AS overwrite_suffix,
-                     coalesce(o.required_claim_ids, []) AS required_claim_ids
+                     {npc_conditions_expr}
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
@@ -315,7 +408,16 @@ class RAGRepo(BaseRepository):
                        prefix,
                        suffix,
                        overwrite_suffix,
-                       required_claim_ids
+                       required_claim_ids,
+                       excluded_claim_ids,
+                       required_seen_object_ids,
+                       excluded_seen_object_ids,
+                       required_item_ids,
+                       excluded_item_ids,
+                       required_seen_door_ids,
+                       excluded_seen_door_ids,
+                       required_opened_door_ids,
+                       excluded_opened_door_ids
             """
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)

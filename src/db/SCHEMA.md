@@ -164,6 +164,15 @@ The core knowledge relationship. Represents that an NPC or GROUP holds a subject
 | `overwrite_suffix` | string? | - | Swedish suffix used when the player already knows the claim |
 | `overwrite_suffix_en` | string? | - | English translation of `overwrite_suffix` |
 | `required_claim_ids` | string[] | - | Claim IDs the player must already know via persisted `AWARE_OF` before this opinion can be sent through wide-select RAG |
+| `excluded_claim_ids` | string[] | - | Claim IDs that block this opinion if the player already knows any of them |
+| `required_seen_object_ids` | string[] | - | Item/object IDs the player must have seen before this opinion can be sent |
+| `excluded_seen_object_ids` | string[] | - | Item/object IDs that block this opinion if the player has seen any of them |
+| `required_item_ids` | string[] | - | Item IDs the player must currently have before this opinion can be sent |
+| `excluded_item_ids` | string[] | - | Item IDs that block this opinion if the player currently has any of them |
+| `required_seen_door_ids` | string[] | - | Door IDs the player must have seen before this opinion can be sent |
+| `excluded_seen_door_ids` | string[] | - | Door IDs that block this opinion if the player has seen any of them |
+| `required_opened_door_ids` | string[] | - | Door IDs the player must have opened before this opinion can be sent |
+| `excluded_opened_door_ids` | string[] | - | Door IDs that block this opinion if the player has opened any of them |
 
 ```
 (NPC:Anna) -[:HAS_OPINION {belief_in: 0.8, openness: -0.5}]-> (CLAIM:C3 "Erik stal fran butiken")

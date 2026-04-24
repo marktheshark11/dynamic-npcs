@@ -127,11 +127,13 @@ class App:
             SubMenu("Opinions (kopplingar)", [
                 CreateOpinionCommand(
                     self._npc_repo, self._group_repo,
-                    self._claim_repo, self._opinion_repo, ui,
+                    self._claim_repo, self._constant_repo,
+                    self._opinion_repo, ui,
                 ),
                 EditOpinionCommand(
                     self._npc_repo, self._group_repo,
-                    self._claim_repo, self._opinion_repo, ui,
+                    self._claim_repo, self._constant_repo,
+                    self._opinion_repo, ui,
                 ),
                 DeleteOpinionCommand(
                     self._npc_repo, self._group_repo,

@@ -1,4 +1,5 @@
 from .base import Command
+from .opinion_commands import _select_opinion_conditions
 from ..repositories import (
     ClaimRepo, NPCRepo, GroupRepo, ConstantRepo, OpinionRepo, RelationRepo,
 )
@@ -113,8 +114,9 @@ class CreateClaimCommand(Command):
             suffix = self._ui.prompt_optional("suffix")
             prefix_en = self._ui.prompt_optional("prefix_en")
             suffix_en = self._ui.prompt_optional("suffix_en")
-            required_claim_ids = _select_required_claim_ids(
+            conditions = _select_opinion_conditions(
                 self._claim_repo,
+                self._constant_repo,
                 self._ui,
                 excluded_claim_id=claim.claim_id,
             )
@@ -127,13 +129,13 @@ class CreateClaimCommand(Command):
                 suffix,
                 prefix_en,
                 suffix_en,
-                required_claim_ids=required_claim_ids,
+                **conditions,
             ):
                 self._ui.display.success(
                     f"HAS_OPINION: {entity_id} -> {claim.claim_id} "
                     f"(prefix: {prefix or '-'}, suffix: {suffix or '-'}, "
                     f"prefix_en: {prefix_en or '-'}, suffix_en: {suffix_en or '-'}, "
-                    f"required_claim_ids: {required_claim_ids or '-'})"
+                    f"conditions: {conditions})"
                 )
             else:
                 self._ui.display.error(
