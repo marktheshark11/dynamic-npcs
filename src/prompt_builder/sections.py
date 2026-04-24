@@ -104,6 +104,8 @@ class OutputFormatSection:
                 "- If the information comes from the background description instead of a claim, no claim ID should be included.\n"
                 "- Always verify that each claim ID corresponds to something expressed in the response.\n"
                 "- A claim only counts as used if the full informational content of the claim is expressed in the response. If only part of the claim is expressed, do not include it.\n"
+                "- Do not include a claim ID just because the answer is related to the claim. The response must explicitly express the same concrete fact(s) as the claim, including important actors, objects, qualifiers, negations, and timing.\n"
+                "- If the response only hints at, generalizes, or partially overlaps with a claim, do not include that claim ID. Or change the response to fully express the claim.\n"
                 "- If you express information from multiple claims on the same WHAT YOU KNOW line, include all relevant claim IDs in 'used_claim_ids'.\n"
                 "- Reply in English, even if the question is in another language."
             )
@@ -118,6 +120,8 @@ class OutputFormatSection:
             "- Om informationen inte kommer från en claim utan från bakgrundsbeskrivningen, ska inget claim-ID inkluderas.\n"
             "- Kontrollera alltid att varje claim-ID motsvarar något som uttrycks i svaret.\n"
             "- En claim får bara anses använd om hela claimens informationsinnehåll uttrycks i svaret. Om bara en del av claimen uttrycks, ska claimen inte tas med.\n"
+            "- Ta inte med ett claim-ID bara för att svaret är relaterat till claimen. Svaret måste uttryckligen säga samma konkreta fakta som claimen, inklusive viktiga personer, objekt, förbehåll, negationer och tidsangivelser.\n"
+            "- Om svaret bara antyder, generaliserar eller delvis överlappar en claim, ska claim-ID:t inte tas med. Eller ändra svaret för att fullt ut uttrycka claimen.\n"
             "- Om du uttrycker information från flera claims på samma rad i DETTA VET DU, ska alla relevanta claim-IDn tas med i 'used_claim_ids'.\n"
             "- Svara på svenska, även om frågan är på ett annat språk."
         )

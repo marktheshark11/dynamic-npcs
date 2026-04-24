@@ -383,6 +383,8 @@ class ChatService:
                 "Return ONLY valid JSON with exactly the keys 'response' and 'used_claim_ids'.\n"
                 "Preserve the same meaning as the original answer.\n"
                 "Do not add new facts.\n"
+                "Only keep claim IDs whose full concrete fact is explicitly expressed in the answer.\n"
+                "If the answer only hints at, generalizes, or partially overlaps with a claim, remove that claim ID.\n"
                 "If the original answer is uncertain or cannot be grounded, use an empty list for 'used_claim_ids'."
             )
         else:
@@ -390,6 +392,8 @@ class ChatService:
                 "Returnera ENDAST giltig JSON med exakt nycklarna 'response' och 'used_claim_ids'.\n"
                 "Bevara exakt samma innebörd som originalsvarat.\n"
                 "Lägg inte till några nya fakta.\n"
+                "Behåll bara claim-IDn vars hela konkreta fakta uttrycks tydligt i svaret.\n"
+                "Om svaret bara antyder, generaliserar eller delvis överlappar en claim, ta bort det claim-ID:t.\n"
                 "Om originalsvarat är osäkert eller inte kan grundas, använd en tom lista för 'used_claim_ids'."
             )
 
