@@ -94,6 +94,11 @@ class HintService:
                 text="Herr Bergström verkar ha sett Beatrice gå in till Nils på kvällen. Det kan vara värt att prata med Beatrice om det.",
                 text_en="Mr. Bergström seems to have seen Beatrice go into Nils' room in the evening. It may be worth talking to Beatrice about that.",
                 matcher=lambda state: state.knows_claim("C151") or state.knows_claim("C152") and state.has_seen_object("object_letter"),
+            ),
+            HintRule(
+                    text="Blodet du hittade i arbetsrummet pekar på att mordet skedde där. Eftersom rummet vara låst kan det vara värt att ta reda på vem som haft möjlighet att låsa det.",
+                    text_en="The blood you found in the study indicates that the murder took place there. Since the room was locked, it may be worth finding out who had the opportunity to lock it.",
+                matcher=lambda state: state.has_seen_object("object_blood") and not state.knows_claim("C159"),
             )
         ]
 
