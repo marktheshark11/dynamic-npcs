@@ -386,6 +386,7 @@ def _build_chain_payload(
             "suffix": chain_claim.get("suffix"),
             "overwrite_suffix": chain_claim.get("overwrite_suffix"),
             "required_claim_ids": list(chain_claim.get("required_claim_ids") or []),
+            "retrieval_source": chain_claim.get("retrieval_source"),
             "type": chain_claim.get("type"),
             "important": bool(chain_claim.get("important")),
         }
@@ -524,13 +525,14 @@ def _build_selector_candidates(
         )
         for claim in chain.get("claims") or []:
             claim_id = claim.get("claim_id") or "(utan claim-id)"
+            source_marker = " [UNLOCKED]" if claim.get("retrieval_source") == "unlocked" else ""
             important_marker = (
                 f" [{important_label}]"
                 if highlight_important and claim.get("important")
                 else ""
             )
             candidate_lines.append(
-                f"- {claim_id}{important_marker}: {claim.get('content', '')}"
+                f"- {claim_id}{source_marker}{important_marker}: {claim.get('content', '')}"
             )
     if candidate_lines:
         return "\n".join(candidate_lines)
@@ -554,6 +556,7 @@ def _collect_selector_candidate_claims(chains: list[dict[str, Any]]) -> list[dic
                     "claim_id": claim_id,
                     "content": claim.get("content") or "",
                     "important": bool(claim.get("important")),
+                    "retrieval_source": claim.get("retrieval_source"),
                     "chain_index": chain_index,
                 }
             )
@@ -665,6 +668,7 @@ def select_relevant_claims(
                     "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
                     "- Select only claim IDs from the candidate list.\n"
                     "- Include facts that directly answer the question or are needed to understand the answer.\n"
+                    "- Claims marked [UNLOCKED] were unlocked because the detective already knows their prerequisites; if they are relevant to the latest question, prioritize selecting them over indirect motive/context claims.\n"
                     "- If a selected claim mentions a person, place, object, or concept that would otherwise be unclear, also include the claim IDs needed to identify or contextualize that reference.\n"
                     "- Include relationship or identity claims when they are needed so the answering model understands who someone is in relation to the NPC, the family, or the event.\n"
                     "- Exclude side tracks, duplicates, and background that is not needed for this question.\n"
@@ -691,6 +695,7 @@ def select_relevant_claims(
                     "- Format: {\"selected_claim_ids\": [\"C7\", \"C52\"]}\n"
                     "- Välj bara claim-IDn från kandidatlistan.\n"
                     "- Ta med fakta som direkt besvarar frågan eller behövs för att förstå svaret.\n"
+                    "- Claims markerade [UNLOCKED] har låsts upp eftersom detektiven redan känner till deras förutsättningar; om de är relevanta för senaste frågan ska du prioritera dem framför indirekta motiv- eller kontextclaims.\n"
                     "- Om en vald claim nämner en person, plats, sak eller ett begrepp som annars blir oklart, ska du också ta med de claim-IDn som behövs för att identifiera eller ge kontext till referensen.\n"
                     "- Ta med relations- eller identitetsclaims när de behövs för att den svarande modellen ska förstå vem någon är i relation till NPC:n, familjen eller händelsen.\n"
                     "- Exempel: om en claim säger att något kan vara kopplat till Silvia och en annan förklarar vem Silvia är i familjen, kan båda vara relevanta.\n"

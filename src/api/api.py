@@ -78,6 +78,24 @@ def _print_chat_debug(result: dict) -> None:
             f"candidate_claims: {', '.join(claim.get('claim_id') for claim in candidate_claims if claim.get('claim_id')) or '(inga)'}",
             file=sys.stderr,
         )
+        debug_keys = [
+            "top_claim_ids",
+            "remembered_claim_ids",
+            "expanded_claim_ids",
+            "extra_claim_ids",
+            "unlocked_claim_ids",
+            "available_claim_ids_before_cap",
+            "available_claim_ids_after_cap",
+            "available_claim_ids_after_unlocked",
+            "initial_gated_claim_ids",
+            "expanded_gated_claim_ids",
+        ]
+        for key in debug_keys:
+            values = selector_debug.get(key) or []
+            print(
+                f"{key}: {', '.join(values) if values else '(inga)'}",
+                file=sys.stderr,
+            )
         print(
             f"selected_for_prompt: {', '.join(selected_claim_ids) if selected_claim_ids else '(inga)'}",
             file=sys.stderr,

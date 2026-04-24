@@ -85,6 +85,8 @@ class WideSelectRAGPipeline(ChatPipeline):
             aware_claim_ids=list(aware_claim_ids),
             locale=locale,
         )
+        for claim in unlocked_claims:
+            claim["retrieval_source"] = "unlocked"
         uncapped_available_claims = merge_unique_claims(
             combined_hits,
             expanded_claims,
