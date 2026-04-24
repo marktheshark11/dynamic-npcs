@@ -78,6 +78,15 @@ def _print_chat_debug(result: dict) -> None:
             f"candidate_claims: {', '.join(claim.get('claim_id') for claim in candidate_claims if claim.get('claim_id')) or '(inga)'}",
             file=sys.stderr,
         )
+        if candidate_claims:
+            print("candidate_claim_details:", file=sys.stderr)
+            for claim in candidate_claims:
+                source_marker = " [UNLOCKED]" if claim.get("retrieval_source") == "unlocked" else ""
+                important_marker = " [VIKTIG]" if claim.get("important") else ""
+                print(
+                    f"  - {claim.get('claim_id')}{source_marker}{important_marker}: {claim.get('content', '')}",
+                    file=sys.stderr,
+                )
         debug_keys = [
             "top_claim_ids",
             "remembered_claim_ids",
@@ -112,6 +121,8 @@ def _print_chat_debug(result: dict) -> None:
             print("selection_notes:", file=sys.stderr)
             for note in selection_notes:
                 print(f"  - {note}", file=sys.stderr)
+        if selector_debug.get("raw_response"):
+            print(f"selector_raw_response: {selector_debug.get('raw_response')}", file=sys.stderr)
         print("=" * 57, file=sys.stderr)
     print("\n" + "=" * 22 + " RESULTAT " + "=" * 21, file=sys.stderr)
     print(f"npc_id: {result.get('npc_id')}", file=sys.stderr)

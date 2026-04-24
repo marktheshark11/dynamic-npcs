@@ -40,6 +40,12 @@ def _print_selector_debug(result: dict) -> None:
     print(
         f"[Kandidater: {', '.join(claim.get('claim_id') for claim in candidate_claims if claim.get('claim_id')) or '(inga)'}]"
     )
+    if candidate_claims:
+        print("[Kandidatdetaljer:]")
+        for claim in candidate_claims:
+            source_marker = " [UNLOCKED]" if claim.get("retrieval_source") == "unlocked" else ""
+            important_marker = " [VIKTIG]" if claim.get("important") else ""
+            print(f"  - {claim.get('claim_id')}{source_marker}{important_marker}: {claim.get('content', '')}")
     debug_keys = [
         "top_claim_ids",
         "remembered_claim_ids",
@@ -65,6 +71,8 @@ def _print_selector_debug(result: dict) -> None:
         print("[Selector-noteringar:]")
         for note in selection_notes:
             print(f"  - {note}")
+    if selector_debug.get("raw_response"):
+        print(f"[selector_raw_response: {selector_debug.get('raw_response')}]")
     print("=" * 57)
 
 

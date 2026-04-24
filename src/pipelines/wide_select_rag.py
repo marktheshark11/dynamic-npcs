@@ -151,6 +151,7 @@ class WideSelectRAGPipeline(ChatPipeline):
         else:
             selector_debug = first_selector_debug
 
+        selected_claim_ids = selector_debug.get("selected_claim_ids") or []
         selector_debug["candidate_limit"] = self._selector_candidate_limit
         selector_debug["candidate_count_before_cap"] = len(uncapped_available_claims)
         selector_debug["candidate_count_after_cap"] = len(capped_available_claims)
@@ -168,7 +169,6 @@ class WideSelectRAGPipeline(ChatPipeline):
         selector_debug["first_pass_selected_claim_ids"] = first_selected_claim_ids
         selector_debug["initial_gated_claim_ids"] = self.extract_available_claim_ids(initial_gated_chain_metadata)
         selector_debug["expanded_gated_claim_ids"] = self.extract_available_claim_ids(gated_chain_metadata)
-        selected_claim_ids = selector_debug.get("selected_claim_ids") or []
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(
             chains=gated_chain_metadata,
