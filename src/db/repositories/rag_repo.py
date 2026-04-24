@@ -174,6 +174,35 @@ class RAGRepo(BaseRepository):
         )
         return [dict(r) for r in records]
 
+    def find_unlocked_opinion_claims(self, npc_id: str, aware_claim_ids: list[str], locale: str = "sv") -> list[dict]:
+        if not aware_claim_ids:
+            return []
+
+        content_expr = self._claim_content_expr(locale, "c")
+        records = self._run(
+            f"""
+            MATCH (n:NPC {{id: $npc_id}})
+            OPTIONAL MATCH (n)-[o1:HAS_OPINION]->(c1:CLAIM)
+            OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[o2:HAS_OPINION]->(c2:CLAIM)
+
+            WITH collect({{claim: c1, opinion: o1}}) + collect({{claim: c2, opinion: o2}}) AS opinions
+            UNWIND opinions AS item
+            WITH item.claim AS c, item.opinion AS o
+            WHERE c IS NOT NULL
+              AND size(coalesce(o.required_claim_ids, [])) > 0
+              AND all(required_id IN coalesce(o.required_claim_ids, []) WHERE required_id IN $aware_claim_ids)
+
+            RETURN DISTINCT elementId(c) AS id,
+                            c.claim_id AS claim_id,
+                            {content_expr} AS content,
+                            c.type AS type,
+                            coalesce(c.important, false) AS important
+            """,
+            npc_id=npc_id,
+            aware_claim_ids=aware_claim_ids,
+        )
+        return [dict(r) for r in records]
+
     def get_reference_chain(self, claim_id: str, npc_id: str, include_group: bool, locale: str = "sv") -> list[dict]:
         content_expr = self._claim_content_expr(locale, "ref")
         opinion_prefix_expr = self._prefix_expr(locale, "o")

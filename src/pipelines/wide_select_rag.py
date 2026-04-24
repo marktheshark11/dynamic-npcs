@@ -52,6 +52,11 @@ class WideSelectRAGPipeline(ChatPipeline):
             conversation_claim_ids=conversation_claim_ids,
             locale=locale,
         )
+        aware_claim_ids = (
+            self._services.player_repo.get_aware_claim_ids(player_id)
+            if player_id
+            else set()
+        )
         search_query = build_search_query(
             question=question,
             recent_exchanges=recent_exchanges,
@@ -75,12 +80,18 @@ class WideSelectRAGPipeline(ChatPipeline):
             combined_hits=combined_hits,
             locale=locale,
         )
+        unlocked_claims = self._services.rag_repo.find_unlocked_opinion_claims(
+            npc_id=npc_id,
+            aware_claim_ids=list(aware_claim_ids),
+            locale=locale,
+        )
         uncapped_available_claims = merge_unique_claims(
             combined_hits,
             expanded_claims,
             extra_claims,
         )
-        available_claims = uncapped_available_claims[:self._selector_candidate_limit]
+        capped_available_claims = uncapped_available_claims[:self._selector_candidate_limit]
+        available_claims = merge_unique_claims(capped_available_claims, unlocked_claims)
         print("Available claims:", available_claims)
         already_mentioned = get_already_mentioned_claim_ids(
             self._services,
@@ -94,11 +105,6 @@ class WideSelectRAGPipeline(ChatPipeline):
             already_mentioned=already_mentioned,
             up_steps=self._up_steps,
             locale=locale,
-        )
-        aware_claim_ids = (
-            self._services.player_repo.get_aware_claim_ids(player_id)
-            if player_id
-            else set()
         )
         initial_gated_chain_metadata = filter_claim_chains_by_required_claim_ids(
             chains=chain_metadata,
@@ -145,10 +151,21 @@ class WideSelectRAGPipeline(ChatPipeline):
 
         selector_debug["candidate_limit"] = self._selector_candidate_limit
         selector_debug["candidate_count_before_cap"] = len(uncapped_available_claims)
-        selector_debug["candidate_count_after_cap"] = len(available_claims)
+        selector_debug["candidate_count_after_cap"] = len(capped_available_claims)
+        selector_debug["candidate_count_after_unlocked"] = len(available_claims)
+        selector_debug["top_claim_ids"] = self.extract_claim_ids_from_claims(top_claims)
+        selector_debug["remembered_claim_ids"] = self.extract_claim_ids_from_claims(remembered_claim_hits)
+        selector_debug["expanded_claim_ids"] = self.extract_claim_ids_from_claims(expanded_claims)
+        selector_debug["extra_claim_ids"] = self.extract_claim_ids_from_claims(extra_claims)
+        selector_debug["unlocked_claim_ids"] = self.extract_claim_ids_from_claims(unlocked_claims)
+        selector_debug["available_claim_ids_before_cap"] = self.extract_claim_ids_from_claims(uncapped_available_claims)
+        selector_debug["available_claim_ids_after_cap"] = self.extract_claim_ids_from_claims(capped_available_claims)
+        selector_debug["available_claim_ids_after_unlocked"] = self.extract_claim_ids_from_claims(available_claims)
         selector_debug["initial_gated_chain_count"] = len(initial_gated_chain_metadata)
         selector_debug["expanded_gated_chain_count"] = len(gated_chain_metadata)
         selector_debug["first_pass_selected_claim_ids"] = first_selected_claim_ids
+        selector_debug["initial_gated_claim_ids"] = self.extract_available_claim_ids(initial_gated_chain_metadata)
+        selector_debug["expanded_gated_claim_ids"] = self.extract_available_claim_ids(gated_chain_metadata)
         selected_claim_ids = selector_debug.get("selected_claim_ids") or []
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(
