@@ -100,25 +100,55 @@ class WideSelectRAGPipeline(ChatPipeline):
             if player_id
             else set()
         )
-        gated_chain_metadata = filter_claim_chains_by_required_claim_ids(
+        initial_gated_chain_metadata = filter_claim_chains_by_required_claim_ids(
             chains=chain_metadata,
             aware_claim_ids=aware_claim_ids,
             already_mentioned=already_mentioned,
             locale=locale,
         )
-        selector_debug = select_relevant_claims(
+        first_selector_debug = select_relevant_claims(
             question=question,
             recent_exchanges=recent_exchanges,
             story_background=npc_data.get("story_background"),
-            chains=gated_chain_metadata,
+            chains=initial_gated_chain_metadata,
             locale=locale,
             prefer_important_claims=True,
             include_debug=True,
         )
+        first_selected_claim_ids = first_selector_debug.get("selected_claim_ids") or []
+        turn_known_claim_ids = set(aware_claim_ids) | {
+            claim_id
+            for claim_id in first_selected_claim_ids
+            if isinstance(claim_id, str)
+        }
+        gated_chain_metadata = filter_claim_chains_by_required_claim_ids(
+            chains=chain_metadata,
+            aware_claim_ids=turn_known_claim_ids,
+            already_mentioned=already_mentioned,
+            locale=locale,
+        )
+
+        initial_available_ids = set(self.extract_available_claim_ids(initial_gated_chain_metadata))
+        expanded_available_ids = set(self.extract_available_claim_ids(gated_chain_metadata))
+        if expanded_available_ids != initial_available_ids:
+            selector_debug = select_relevant_claims(
+                question=question,
+                recent_exchanges=recent_exchanges,
+                story_background=npc_data.get("story_background"),
+                chains=gated_chain_metadata,
+                locale=locale,
+                prefer_important_claims=True,
+                include_debug=True,
+            )
+        else:
+            selector_debug = first_selector_debug
+
         selector_debug["candidate_limit"] = self._selector_candidate_limit
         selector_debug["candidate_count_before_cap"] = len(uncapped_available_claims)
         selector_debug["candidate_count_after_cap"] = len(available_claims)
-        selector_debug["gated_chain_count"] = len(gated_chain_metadata)
+        selector_debug["initial_gated_chain_count"] = len(initial_gated_chain_metadata)
+        selector_debug["expanded_gated_chain_count"] = len(gated_chain_metadata)
+        selector_debug["first_pass_selected_claim_ids"] = first_selected_claim_ids
         selected_claim_ids = selector_debug.get("selected_claim_ids") or []
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(
