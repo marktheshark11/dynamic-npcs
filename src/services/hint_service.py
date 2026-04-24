@@ -86,6 +86,11 @@ class HintService:
                 matcher=lambda state: state.has_opened_door("door_study") and not state.has_opened_door("object_safe"),
             ), 
             HintRule(
+                    text="Enligt Pamela är koden kopplad till Silvia, du borde undersöka den kopplingen närmre.",
+                    text_en="According to Pamela, the code is linked to Silvia, you should investigate that connection further.",
+                matcher=lambda state: state.has_opened_door("door_study") and state.knows_claim('C118') and not state.has_opened_door("object_safe"),
+            ),
+            HintRule(
                 text="Ta reda på vem som träffade Nils senast. Det kan vara viktigt för att förstå vad som hände.",
                 text_en="Find out who met Nils last. It can be important to understand what happened.",
                 matcher=lambda state: state.has_seen_object("object_letter") and not state.knows_claim("C151"),
@@ -99,7 +104,8 @@ class HintService:
                     text="Blodet du hittade i arbetsrummet pekar på att mordet skedde där. Eftersom rummet vara låst kan det vara värt att ta reda på vem som haft möjlighet att låsa det.",
                     text_en="The blood you found in the study indicates that the murder took place there. Since the room was locked, it may be worth finding out who had the opportunity to lock it.",
                 matcher=lambda state: state.has_seen_object("object_blood") and not state.knows_claim("C159"),
-            )
+            ),
+            
         ]
 
     @staticmethod
