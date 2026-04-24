@@ -385,6 +385,7 @@ def _build_chain_payload(
             "prefix": chain_claim.get("prefix"),
             "suffix": chain_claim.get("suffix"),
             "overwrite_suffix": chain_claim.get("overwrite_suffix"),
+            "required_claim_ids": list(chain_claim.get("required_claim_ids") or []),
             "type": chain_claim.get("type"),
             "important": bool(chain_claim.get("important")),
         }
@@ -435,6 +436,32 @@ def build_claim_chains(
             continue
         final_chains.append(_build_chain_payload(chain_nodes, already_mentioned, locale))
     return final_chains
+
+
+def filter_claim_chains_by_required_claim_ids(
+    chains: list[dict[str, Any]],
+    aware_claim_ids: set[str],
+    already_mentioned: set[str] | None = None,
+    locale: str = "sv",
+) -> list[dict[str, Any]]:
+    aware_lookup = {claim_id.upper() for claim_id in aware_claim_ids if isinstance(claim_id, str)}
+    filtered_chains: list[dict[str, Any]] = []
+
+    for chain in chains:
+        filtered_claims: list[dict[str, Any]] = []
+        for claim in chain.get("claims") or []:
+            required_claim_ids = [
+                claim_id.upper()
+                for claim_id in claim.get("required_claim_ids") or []
+                if isinstance(claim_id, str)
+            ]
+            if required_claim_ids and not set(required_claim_ids).issubset(aware_lookup):
+                continue
+            filtered_claims.append(claim)
+        if filtered_claims:
+            filtered_chains.append(_build_chain_payload(filtered_claims, already_mentioned, locale))
+
+    return filtered_chains
 
 
 def split_chain_content(

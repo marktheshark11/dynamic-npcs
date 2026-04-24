@@ -60,6 +60,7 @@ class RulesSection:
                 "- Do NOT offer services or hospitality (for example: offer coffee/tea, ask the detective to sit down, open doors, fetch items, look around, or call someone).\n"
                 "- If asked to do a physical action, briefly state that you cannot perform actions and continue with verbal information only.\n"
                 "- You may only state facts explicitly supported by the context.\n"
+                "- Do not mention exact or specific times. Use general timing such as morning, evening, or before/after known events, and only when you are sure the context supports it.\n"
                 "- If asked for a specific detail not in the context, answer that you do not know.\n"
                 "- Do not turn your own speculation, suggestion, or example into fact.\n"
             )
@@ -82,6 +83,7 @@ class RulesSection:
             "- Erbjud INTE service eller gästfrihet (t.ex. erbjuda kaffe/te, be detektiven sätta sig, öppna dörrar, hämta saker, titta runt eller kalla på någon).\n"
             "- Om du blir ombedd att göra en fysisk handling, säg kort att du inte kan utföra handlingar och fortsätt endast med verbal information.\n"
             "- Du får bara säga saker som uttryckligen stöds av kontexten.\n"
+            "- Nämn inte exakta eller specifika tider. Använd allmänna tidsangivelser som morgon, kväll eller före/efter kända händelser, och bara när du är säker på att kontexten stödjer det.\n"
             "- Om du blir tillfrågad om en specifik detalj som inte finns i kontexten, svara att du inte vet.\n"
             "- Gör inte din egen spekulation, förslag eller exempel till fakta.\n"
         )

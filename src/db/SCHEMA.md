@@ -163,6 +163,7 @@ The core knowledge relationship. Represents that an NPC or GROUP holds a subject
 | `suffix_en` | string? | - | English translation of `suffix` |
 | `overwrite_suffix` | string? | - | Swedish suffix used when the player already knows the claim |
 | `overwrite_suffix_en` | string? | - | English translation of `overwrite_suffix` |
+| `required_claim_ids` | string[] | - | Claim IDs the player must already know via persisted `AWARE_OF` before this opinion can be sent through wide-select RAG |
 
 ```
 (NPC:Anna) -[:HAS_OPINION {belief_in: 0.8, openness: -0.5}]-> (CLAIM:C3 "Erik stal fran butiken")

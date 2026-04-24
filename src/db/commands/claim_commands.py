@@ -8,6 +8,27 @@ from ..models.mystery import Mystery
 from ..ui import InputHelpers
 
 
+def _select_required_claim_ids(
+    claim_repo: ClaimRepo,
+    ui: InputHelpers,
+    excluded_claim_id: str | None = None,
+) -> list[str]:
+    required_claim_ids: list[str] = []
+    while ui.confirm("Vill du lägga till en claim som krävs för att låsa upp denna opinion?"):
+        claims = [
+            claim
+            for claim in claim_repo.list_all()
+            if claim.claim_id != excluded_claim_id and claim.claim_id not in required_claim_ids
+        ]
+        claim = ui.select_from_list(claims, Claim.short_str, "Välj required claim")
+        if not claim:
+            ui.display.error("Ingen required claim tillagd")
+            continue
+        required_claim_ids.append(claim.claim_id)
+        ui.display.success(f"Required claim tillagd: {claim.claim_id}")
+    return required_claim_ids
+
+
 class CreateClaimCommand(Command):
     def __init__(self, claim_repo: ClaimRepo, npc_repo: NPCRepo,
                  group_repo: GroupRepo, constant_repo: ConstantRepo,
@@ -92,6 +113,11 @@ class CreateClaimCommand(Command):
             suffix = self._ui.prompt_optional("suffix")
             prefix_en = self._ui.prompt_optional("prefix_en")
             suffix_en = self._ui.prompt_optional("suffix_en")
+            required_claim_ids = _select_required_claim_ids(
+                self._claim_repo,
+                self._ui,
+                excluded_claim_id=claim.claim_id,
+            )
 
             if self._opinion_repo.create(
                 entity_id,
@@ -101,11 +127,13 @@ class CreateClaimCommand(Command):
                 suffix,
                 prefix_en,
                 suffix_en,
+                required_claim_ids=required_claim_ids,
             ):
                 self._ui.display.success(
                     f"HAS_OPINION: {entity_id} -> {claim.claim_id} "
                     f"(prefix: {prefix or '-'}, suffix: {suffix or '-'}, "
-                    f"prefix_en: {prefix_en or '-'}, suffix_en: {suffix_en or '-'})"
+                    f"prefix_en: {prefix_en or '-'}, suffix_en: {suffix_en or '-'}, "
+                    f"required_claim_ids: {required_claim_ids or '-'})"
                 )
             else:
                 self._ui.display.error(

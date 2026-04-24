@@ -45,8 +45,8 @@ class RAGRepo(BaseRepository):
         records = self._run(
             f"""
             MATCH (n:NPC {{id: $npc_id}})
-            OPTIONAL MATCH (n)-[:HAS_OPINION]->(c1:CLAIM)
-            OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(c2:CLAIM)
+            OPTIONAL MATCH (n)-[o1:HAS_OPINION]->(c1:CLAIM)
+            OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[o2:HAS_OPINION]->(c2:CLAIM)
 
             WITH collect(c1) + collect(c2) AS all_c
             UNWIND all_c AS c
@@ -77,8 +77,8 @@ class RAGRepo(BaseRepository):
         records = self._run(
             f"""
             MATCH (n:NPC {{id: $npc_id}})
-            OPTIONAL MATCH (n)-[:HAS_OPINION]->(c1:CLAIM)
-            OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[:HAS_OPINION]->(c2:CLAIM)
+            OPTIONAL MATCH (n)-[o1:HAS_OPINION]->(c1:CLAIM)
+            OPTIONAL MATCH (n)-[:MEMBER_OF]->(:GROUP)-[o2:HAS_OPINION]->(c2:CLAIM)
 
             WITH collect(c1) + collect(c2) AS all_c
             UNWIND all_c AS c
@@ -193,7 +193,8 @@ class RAGRepo(BaseRepository):
                 WITH ref, depth,
                      COALESCE({opinion_prefix_expr}, {group_prefix_expr}) AS prefix,
                      COALESCE({opinion_suffix_expr}, {group_suffix_expr}) AS suffix,
-                     COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix
+                     COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix,
+                     CASE WHEN o IS NOT NULL THEN coalesce(o.required_claim_ids, []) ELSE coalesce(go.required_claim_ids, []) END AS required_claim_ids
                 RETURN DISTINCT elementId(ref) AS id,
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
@@ -202,7 +203,8 @@ class RAGRepo(BaseRepository):
                        depth,
                        prefix,
                        suffix,
-                       overwrite_suffix
+                       overwrite_suffix,
+                       required_claim_ids
             """
         else:
             query = f"""
@@ -214,7 +216,8 @@ class RAGRepo(BaseRepository):
                 WITH ref, depth,
                      {opinion_prefix_expr} AS prefix,
                      {opinion_suffix_expr} AS suffix,
-                     {opinion_overwrite_suffix_expr} AS overwrite_suffix
+                     {opinion_overwrite_suffix_expr} AS overwrite_suffix,
+                     coalesce(o.required_claim_ids, []) AS required_claim_ids
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
@@ -223,7 +226,8 @@ class RAGRepo(BaseRepository):
                        depth,
                        prefix,
                        suffix,
-                       overwrite_suffix
+                       overwrite_suffix,
+                       required_claim_ids
             """
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)
@@ -248,7 +252,8 @@ class RAGRepo(BaseRepository):
                 WITH ref, depth,
                      COALESCE({opinion_prefix_expr}, {group_prefix_expr}) AS prefix,
                      COALESCE({opinion_suffix_expr}, {group_suffix_expr}) AS suffix,
-                     COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix
+                     COALESCE({opinion_overwrite_suffix_expr}, {group_overwrite_suffix_expr}) AS overwrite_suffix,
+                     CASE WHEN o IS NOT NULL THEN coalesce(o.required_claim_ids, []) ELSE coalesce(go.required_claim_ids, []) END AS required_claim_ids
                 RETURN DISTINCT elementId(ref) AS id,
                        {content_expr} AS content,
                        ref.claim_id AS claim_id,
@@ -257,7 +262,8 @@ class RAGRepo(BaseRepository):
                        depth,
                        prefix,
                        suffix,
-                       overwrite_suffix
+                       overwrite_suffix,
+                       required_claim_ids
             """
         else:
             query = f"""
@@ -269,7 +275,8 @@ class RAGRepo(BaseRepository):
                 WITH ref, depth,
                      {opinion_prefix_expr} AS prefix,
                      {opinion_suffix_expr} AS suffix,
-                     {opinion_overwrite_suffix_expr} AS overwrite_suffix
+                     {opinion_overwrite_suffix_expr} AS overwrite_suffix,
+                     coalesce(o.required_claim_ids, []) AS required_claim_ids
                 RETURN DISTINCT elementId(ref) AS id,
                        ref.claim_id AS claim_id,
                        {content_expr} AS content,
@@ -278,7 +285,8 @@ class RAGRepo(BaseRepository):
                        depth,
                        prefix,
                        suffix,
-                       overwrite_suffix
+                       overwrite_suffix,
+                       required_claim_ids
             """
 
         records = self._run(query, claim_id=claim_id, npc_id=npc_id)

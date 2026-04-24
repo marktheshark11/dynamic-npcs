@@ -12,6 +12,7 @@ from .rag_helpers import (
     combine_claim_hits,
     create_query_embedding,
     expand_candidate_claims,
+    filter_claim_chains_by_required_claim_ids,
     filter_claim_chains_by_selected_claim_ids,
     get_already_mentioned_claim_ids,
     get_npc_data,
@@ -94,11 +95,22 @@ class WideSelectRAGPipeline(ChatPipeline):
             up_steps=self._up_steps,
             locale=locale,
         )
+        aware_claim_ids = (
+            self._services.player_repo.get_aware_claim_ids(player_id)
+            if player_id
+            else set()
+        )
+        gated_chain_metadata = filter_claim_chains_by_required_claim_ids(
+            chains=chain_metadata,
+            aware_claim_ids=aware_claim_ids,
+            already_mentioned=already_mentioned,
+            locale=locale,
+        )
         selector_debug = select_relevant_claims(
             question=question,
             recent_exchanges=recent_exchanges,
             story_background=npc_data.get("story_background"),
-            chains=chain_metadata,
+            chains=gated_chain_metadata,
             locale=locale,
             prefer_important_claims=True,
             include_debug=True,
@@ -106,15 +118,16 @@ class WideSelectRAGPipeline(ChatPipeline):
         selector_debug["candidate_limit"] = self._selector_candidate_limit
         selector_debug["candidate_count_before_cap"] = len(uncapped_available_claims)
         selector_debug["candidate_count_after_cap"] = len(available_claims)
+        selector_debug["gated_chain_count"] = len(gated_chain_metadata)
         selected_claim_ids = selector_debug.get("selected_claim_ids") or []
         print("Selected claim IDs for RAG context:", selected_claim_ids)
         filtered_chain_metadata = filter_claim_chains_by_selected_claim_ids(
-            chains=chain_metadata,
+            chains=gated_chain_metadata,
             selected_claim_ids=selected_claim_ids,
             already_mentioned=already_mentioned,
             locale=locale,
         )
-        final_chain_metadata = filtered_chain_metadata or chain_metadata
+        final_chain_metadata = filtered_chain_metadata or gated_chain_metadata
         rag_context = build_rag_context(final_chain_metadata, constants)
         prompt_request = build_prompt_request(
             question=question,

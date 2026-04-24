@@ -15,6 +15,7 @@ class OpinionData:
     suffix_en: str | None = None
     overwrite_suffix: str | None = None  # Används istället för default när claim är aware_of
     overwrite_suffix_en: str | None = None
+    required_claim_ids: list[str] | None = None
 
 
 class OpinionRepo(BaseRepository):
@@ -31,6 +32,7 @@ class OpinionRepo(BaseRepository):
         suffix_en: str | None = None,
         overwrite_suffix: str | None = None,
         overwrite_suffix_en: str | None = None,
+        required_claim_ids: list[str] | None = None,
     ) -> bool:
         """Create a HAS_OPINION relation from NPC/GROUP to CLAIM.
 
@@ -42,20 +44,21 @@ class OpinionRepo(BaseRepository):
             query = """
             MATCH (npc:NPC {id: $entity_id})
             MATCH (c:CLAIM {claim_id: $claim_id})
-            CREATE (npc)-[o:HAS_OPINION {prefix: $prefix, suffix: $suffix, prefix_en: $prefix_en, suffix_en: $suffix_en, overwrite_suffix: $overwrite_suffix, overwrite_suffix_en: $overwrite_suffix_en}]->(c)
+            CREATE (npc)-[o:HAS_OPINION {prefix: $prefix, suffix: $suffix, prefix_en: $prefix_en, suffix_en: $suffix_en, overwrite_suffix: $overwrite_suffix, overwrite_suffix_en: $overwrite_suffix_en, required_claim_ids: $required_claim_ids}]->(c)
             RETURN o
             """
         else:
             query = """
             MATCH (g:GROUP {name: $entity_id})
             MATCH (c:CLAIM {claim_id: $claim_id})
-            CREATE (g)-[o:HAS_OPINION {prefix: $prefix, suffix: $suffix, prefix_en: $prefix_en, suffix_en: $suffix_en, overwrite_suffix: $overwrite_suffix, overwrite_suffix_en: $overwrite_suffix_en}]->(c)
+            CREATE (g)-[o:HAS_OPINION {prefix: $prefix, suffix: $suffix, prefix_en: $prefix_en, suffix_en: $suffix_en, overwrite_suffix: $overwrite_suffix, overwrite_suffix_en: $overwrite_suffix_en, required_claim_ids: $required_claim_ids}]->(c)
             RETURN o
             """
         record = self._run_single(
             query, entity_id=entity_id, claim_id=claim_id,
             prefix=prefix, suffix=suffix, prefix_en=prefix_en, suffix_en=suffix_en,
             overwrite_suffix=overwrite_suffix, overwrite_suffix_en=overwrite_suffix_en,
+            required_claim_ids=required_claim_ids or [],
         )
         return record is not None
 
@@ -66,7 +69,8 @@ class OpinionRepo(BaseRepository):
             MATCH (npc:NPC {id: $entity_id})-[o:HAS_OPINION]->(c:CLAIM)
             RETURN npc.id AS eid, c.claim_id AS claim_id, c.content AS content,
                    o.prefix AS prefix, o.suffix AS suffix, o.prefix_en AS prefix_en, o.suffix_en AS suffix_en,
-                   o.overwrite_suffix AS overwrite_suffix, o.overwrite_suffix_en AS overwrite_suffix_en
+                   o.overwrite_suffix AS overwrite_suffix, o.overwrite_suffix_en AS overwrite_suffix_en,
+                   coalesce(o.required_claim_ids, []) AS required_claim_ids
             ORDER BY c.claim_id
             """
         else:
@@ -74,7 +78,8 @@ class OpinionRepo(BaseRepository):
             MATCH (g:GROUP {name: $entity_id})-[o:HAS_OPINION]->(c:CLAIM)
             RETURN g.name AS eid, c.claim_id AS claim_id, c.content AS content,
                    o.prefix AS prefix, o.suffix AS suffix, o.prefix_en AS prefix_en, o.suffix_en AS suffix_en,
-                   o.overwrite_suffix AS overwrite_suffix, o.overwrite_suffix_en AS overwrite_suffix_en
+                   o.overwrite_suffix AS overwrite_suffix, o.overwrite_suffix_en AS overwrite_suffix_en,
+                   coalesce(o.required_claim_ids, []) AS required_claim_ids
             ORDER BY c.claim_id
             """
         records = self._run(query, entity_id=entity_id)
@@ -90,6 +95,7 @@ class OpinionRepo(BaseRepository):
                 suffix_en=r.get("suffix_en"),
                 overwrite_suffix=r.get("overwrite_suffix"),
                 overwrite_suffix_en=r.get("overwrite_suffix_en"),
+                required_claim_ids=list(r.get("required_claim_ids") or []),
             )
             for r in records
         ]
@@ -122,20 +128,23 @@ class OpinionRepo(BaseRepository):
         suffix_en: str | None = None,
         overwrite_suffix: str | None = None,
         overwrite_suffix_en: str | None = None,
+        required_claim_ids: list[str] | None = None,
     ) -> bool:
         """Update prefix, suffix and overwrite_suffix for an existing HAS_OPINION relation."""
         if entity_type == "NPC":
             query = """
             MATCH (npc:NPC {id: $entity_id})-[o:HAS_OPINION]->(c:CLAIM {claim_id: $claim_id})
             SET o.prefix = $prefix, o.suffix = $suffix, o.prefix_en = $prefix_en, o.suffix_en = $suffix_en,
-                o.overwrite_suffix = $overwrite_suffix, o.overwrite_suffix_en = $overwrite_suffix_en
+                o.overwrite_suffix = $overwrite_suffix, o.overwrite_suffix_en = $overwrite_suffix_en,
+                o.required_claim_ids = $required_claim_ids
             RETURN o
             """
         else:
             query = """
             MATCH (g:GROUP {name: $entity_id})-[o:HAS_OPINION]->(c:CLAIM {claim_id: $claim_id})
             SET o.prefix = $prefix, o.suffix = $suffix, o.prefix_en = $prefix_en, o.suffix_en = $suffix_en,
-                o.overwrite_suffix = $overwrite_suffix, o.overwrite_suffix_en = $overwrite_suffix_en
+                o.overwrite_suffix = $overwrite_suffix, o.overwrite_suffix_en = $overwrite_suffix_en,
+                o.required_claim_ids = $required_claim_ids
             RETURN o
             """
 
@@ -149,5 +158,6 @@ class OpinionRepo(BaseRepository):
             suffix_en=suffix_en,
             overwrite_suffix=overwrite_suffix,
             overwrite_suffix_en=overwrite_suffix_en,
+            required_claim_ids=required_claim_ids or [],
         )
         return record is not None
