@@ -181,10 +181,10 @@ class ClaimRepo(BaseRepository):
         claim_type: str | None | object = _NO_CHANGE,
         important: bool | object = _NO_CHANGE,
     ) -> bool:
-        """Update a claim. Use None for 'no change', empty string to remove a property.
+        """Update a claim. Use sentinel defaults for no change, empty string to remove optional properties.
 
-        Note: claim_type uses sentinel default (...) to distinguish
-        'not provided' from 'set to None'.
+        Note: optional properties use sentinel defaults to distinguish
+        'not provided' from 'remove this property'.
         """
         record = self._run_single(
             "MATCH (c:CLAIM {claim_id: $claim_id}) RETURN c",
@@ -204,7 +204,9 @@ class ClaimRepo(BaseRepository):
             params["embedding"] = embedding
 
         if content_en is not _NO_CHANGE:
-            if content_en is None or content_en == "":
+            if content_en is None:
+                pass
+            elif content_en == "":
                 updates.append("c.content_en = null")
                 updates.append("c.embedding_en = null")
             else:

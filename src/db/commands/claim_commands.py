@@ -208,8 +208,6 @@ class EditClaimCommand(Command):
         if not selected:
             return
 
-        keep_current = object()
-
         self._ui.display.info(f"Nuvarande content: {selected.content}")
         self._ui.display.info(f"Nuvarande content_en: {selected.content_en or '(ingen)'}")
         self._ui.display.info(f"Nuvarande type: {selected.type or '(ingen)'}")
@@ -226,37 +224,23 @@ class EditClaimCommand(Command):
             ["ja", "nej", "behall nuvarande"],
             "Ar claimen viktig?",
         )
-        important_value: bool | object
+        updates: dict = {}
+        if new_content is not None:
+            updates["content"] = new_content
+        if new_content_en is not None:
+            updates["content_en"] = new_content_en
+
         if important_choice == "ja":
-            important_value = True
+            updates["important"] = True
         elif important_choice == "nej":
-            important_value = False
-        else:
-            important_value = keep_current
+            updates["important"] = False
 
         if type_choice == "relation":
-            update_ok = self._repo.update(
-                selected.claim_id,
-                content=new_content,
-                content_en=new_content_en,
-                claim_type="relation",
-                important=important_value,
-            )
+            updates["claim_type"] = "relation"
         elif type_choice == "ta bort type":
-            update_ok = self._repo.update(
-                selected.claim_id,
-                content=new_content,
-                content_en=new_content_en,
-                claim_type="",
-                important=important_value,
-            )
-        else:
-            update_ok = self._repo.update(
-                selected.claim_id,
-                content=new_content,
-                content_en=new_content_en,
-                important=important_value,
-            )
+            updates["claim_type"] = ""
+
+        update_ok = self._repo.update(selected.claim_id, **updates) if updates else False
 
         if update_ok:
             self._ui.display.success(f"CLAIM {selected.claim_id} uppdaterad")
