@@ -1,6 +1,34 @@
 import os
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    normalized_value = raw_value.strip().lower()
+    if normalized_value in {"1", "true", "yes", "on"}:
+        return True
+    if normalized_value in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"Invalid {name} '{raw_value}'. Expected true or false.")
+
+
+def _env_temperature(name: str, default: float) -> float:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    try:
+        temperature = float(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid {name} '{raw_value}'. Expected a number.") from exc
+
+    if not 0.0 <= temperature <= 2.0:
+        raise RuntimeError(f"Invalid {name} '{raw_value}'. Expected a value between 0.0 and 2.0.")
+    return temperature
+
+
 def _default_prompt_guard_model() -> str:
     prompt_guard_provider = os.getenv("PROMPT_GUARD_PROVIDER", "groq").strip().lower()
     if prompt_guard_provider == "mistral":
@@ -16,9 +44,12 @@ PROMPT_GUARD_PROVIDER = os.getenv("PROMPT_GUARD_PROVIDER", "groq").strip().lower
 PROMPT_GUARD_MODEL = os.getenv("PROMPT_GUARD_MODEL", _default_prompt_guard_model())
 PROMPT_GUARD_THRESHOLD = float(os.getenv("PROMPT_GUARD_THRESHOLD", "0.5"))
 
-DEFAULT_CHAT_TEMPERATURE = 0.2
-DEFAULT_SUMMARY_TEMPERATURE = 0.2
-PLAYER_TEMPERATURE_RANDOMIZATION_ENABLED = False
+DEFAULT_CHAT_TEMPERATURE = _env_temperature("CHAT_TEMPERATURE", 0.2)
+DEFAULT_SUMMARY_TEMPERATURE = _env_temperature("SUMMARY_TEMPERATURE", 0.2)
+PLAYER_TEMPERATURE_RANDOMIZATION_ENABLED = _env_bool(
+    "PLAYER_TEMPERATURE_RANDOMIZATION_ENABLED",
+    True,
+)
 
 SUPPORTED_CHAT_PROVIDERS = {"groq", "gemini", "mistral"}
 MISTRAL_MODEL_PREFIXES = ("mistral", "ministral", "codestral", "pixtral")
