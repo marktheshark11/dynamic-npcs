@@ -339,8 +339,16 @@ class PlayerAnalyticsService:
             "timeline": timeline,
         }
 
-    def export_players(self, player_ids: list[str] | None = None) -> dict:
-        resolved_player_ids = player_ids or self.player_repo.list_all_ids()
+    def export_players(
+        self,
+        player_ids: list[str] | None = None,
+        created_after: str | None = None,
+    ) -> dict:
+        resolved_player_ids = (
+            self.player_repo.list_all_ids(created_after=created_after)
+            if player_ids is None
+            else player_ids
+        )
         users_by_id: dict[str, dict] = {}
         for player_id in resolved_player_ids:
             export = self.export_player_analytics(player_id)
@@ -382,6 +390,6 @@ class PlayerAnalyticsService:
             "users": users,
         }
 
-    def export_players_for_user(self, user_id: str) -> dict:
-        player_ids = [player.player_id for player in self.player_repo.list_by_user(user_id)]
+    def export_players_for_user(self, user_id: str, created_after: str | None = None) -> dict:
+        player_ids = self.player_repo.list_ids_by_user(user_id, created_after=created_after)
         return self.export_players(player_ids=player_ids)

@@ -124,11 +124,28 @@ class PlayerRepo(BaseRepository):
             for r in records
         ]
 
-    def list_all_ids(self) -> list[str]:
+    def list_all_ids(self, created_after: str | None = None) -> list[str]:
+        where_clause = "WHERE p.created_at > datetime($created_after) " if created_after else ""
         records = self._run(
             "MATCH (p:PLAYER) "
+            f"{where_clause}"
             "RETURN p.player_id AS player_id "
-            "ORDER BY p.player_id"
+            "ORDER BY p.player_id",
+            created_after=created_after,
+        )
+        return [r["player_id"] for r in records if r.get("player_id")]
+
+    def list_ids_by_user(self, user_id: str, created_after: str | None = None) -> list[str]:
+        where_clauses = ["coalesce(p.has_completed_game, false) = false"]
+        if created_after:
+            where_clauses.append("p.created_at > datetime($created_after)")
+        records = self._run(
+            "MATCH (u:USER {user_id: $user_id})-[:HAS_CHARACTER]->(p:PLAYER) "
+            f"WHERE {' AND '.join(where_clauses)} "
+            "RETURN p.player_id AS player_id "
+            "ORDER BY p.player_id",
+            user_id=user_id,
+            created_after=created_after,
         )
         return [r["player_id"] for r in records if r.get("player_id")]
 

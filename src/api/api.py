@@ -551,6 +551,20 @@ def _infer_temperature_from_player_name(name: str) -> float | None:
     return infer_temperature_override_from_player_name(name)
 
 
+def _normalize_iso_datetime(value: str, field_name: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail=f"{field_name} cannot be empty")
+    try:
+        datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} must be an ISO 8601 timestamp",
+        ) from exc
+    return normalized
+
+
 def _ensure_player_not_completed(player_profile: dict, locale: str = "sv") -> None:
     if player_profile.get("has_completed_game"):
         raise HTTPException(
@@ -967,16 +981,28 @@ async def export_player_analytics(player_id: str, config: Config = Depends(get_c
 
 
 @app.get("/analytics/export", response_model=PlayerAnalyticsBulkExportResponse)
-async def export_all_player_analytics(user_id: str | None = None, config: Config = Depends(get_config)):
+async def export_all_player_analytics(
+    user_id: str | None = None,
+    created_after: str | None = None,
+    config: Config = Depends(get_config),
+):
     try:
         analytics_service = PlayerAnalyticsService(config.driver)
+        normalized_created_after = (
+            _normalize_iso_datetime(created_after, "created_after")
+            if created_after is not None
+            else None
+        )
         if user_id is not None:
             user_id = user_id.strip()
             if not user_id:
                 raise HTTPException(status_code=400, detail="user_id cannot be empty")
-            export = analytics_service.export_players_for_user(user_id)
+            export = analytics_service.export_players_for_user(
+                user_id,
+                created_after=normalized_created_after,
+            )
         else:
-            export = analytics_service.export_players()
+            export = analytics_service.export_players(created_after=normalized_created_after)
         return PlayerAnalyticsBulkExportResponse(**export)
     except HTTPException:
         raise
@@ -985,14 +1011,26 @@ async def export_all_player_analytics(user_id: str | None = None, config: Config
 
 
 @app.get("/users/{user_id}/analytics/export", response_model=PlayerAnalyticsBulkExportResponse)
-async def export_user_player_analytics(user_id: str, config: Config = Depends(get_config)):
+async def export_user_player_analytics(
+    user_id: str,
+    created_after: str | None = None,
+    config: Config = Depends(get_config),
+):
     normalized_user_id = user_id.strip()
     if not normalized_user_id:
         raise HTTPException(status_code=400, detail="user_id cannot be empty")
+    normalized_created_after = (
+        _normalize_iso_datetime(created_after, "created_after")
+        if created_after is not None
+        else None
+    )
 
     try:
         analytics_service = PlayerAnalyticsService(config.driver)
-        export = analytics_service.export_players_for_user(normalized_user_id)
+        export = analytics_service.export_players_for_user(
+            normalized_user_id,
+            created_after=normalized_created_after,
+        )
         return PlayerAnalyticsBulkExportResponse(**export)
     except HTTPException:
         raise
