@@ -448,6 +448,7 @@ class ChatService:
         cls,
         *,
         question: str,
+        npc_name: str,
         response_text: str,
         used_claims: list[str],
         claim_content_by_id: dict[str, str],
@@ -463,6 +464,9 @@ class ChatService:
         if cls._is_english(locale):
             instruction = (
                 "You repair claim usage tracking for an NPC dialogue response.\n"
+                f"You are repairing the response for {npc_name or 'the NPC'}. Keep the response in first person from that character's perspective.\n"
+                f"If a claim mentions {npc_name or 'the NPC'}, rewrite that reference as I, me, or my as appropriate.\n"
+                f"Never refer to {npc_name or 'the NPC'} as another person.\n"
                 "Return ONLY valid JSON with exactly the keys 'response' and 'used_claim_ids'.\n"
                 "The response must stay brief, in character, and directly answer the detective's question.\n"
                 "For every claim ID you keep, the response itself must explicitly express "
@@ -474,6 +478,7 @@ class ChatService:
                 "Do not add facts that are not in the listed claims or original response."
             )
             user_text = (
+                f"NPC WHO IS SPEAKING:\n{npc_name or '(unknown)'}\n\n"
                 f"DETECTIVE QUESTION:\n{question or '(start of conversation)'}\n\n"
                 f"CURRENT RESPONSE:\n{response_text}\n\n"
                 f"CLAIMS CURRENTLY MARKED AS USED:\n{claims_text}\n\n"
@@ -482,6 +487,9 @@ class ChatService:
         else:
             instruction = (
                 "Du reparerar claim-användning för ett NPC-dialogsvar.\n"
+                f"Du reparerar svaret för {npc_name or 'NPC:n'}. Behåll svaret i jag-perspektiv från den karaktären.\n"
+                f"Om en claim nämner {npc_name or 'NPC:n'}, skriv om den referensen som jag, mig eller min/mitt/mina där det passar.\n"
+                f"Nämn aldrig {npc_name or 'NPC:n'} som en annan person.\n"
                 "Returnera ENDAST giltig JSON med exakt nycklarna 'response' och 'used_claim_ids'.\n"
                 "Svaret ska fortsätta vara kort, i karaktär och direkt besvara detektivens fråga.\n"
                 "För varje claim-ID du behåller måste själva svaret uttryckligen säga hela "
@@ -494,6 +502,7 @@ class ChatService:
                 "Lägg inte till fakta som inte finns i de listade claimsen eller originalsvaret."
             )
             user_text = (
+                f"NPC SOM TALAR:\n{npc_name or '(okänd)'}\n\n"
                 f"DETEKTIVENS FRÅGA:\n{question or '(start på samtal)'}\n\n"
                 f"NUVARANDE SVAR:\n{response_text}\n\n"
                 f"CLAIMS SOM JUST NU MARKERAS SOM ANVÄNDA:\n{claims_text}\n\n"
@@ -642,6 +651,7 @@ class ChatService:
             original_used_claims = list(used_claims)
             repaired_claim_usage_text = self._repair_claim_usage_payload(
                 question=normalized_question,
+                npc_name=localized_npc_name,
                 response_text=response_text,
                 used_claims=used_claims,
                 claim_content_by_id=self._build_claim_content_lookup(chain_metadata),
