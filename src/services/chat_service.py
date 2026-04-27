@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 from time import perf_counter
 
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo, UserRepo
@@ -637,6 +638,8 @@ class ChatService:
                 allowed_ids=available_claim_ids,
             )
         if repair_claim_usage and response_text and used_claims:
+            original_response_text = response_text
+            original_used_claims = list(used_claims)
             repaired_claim_usage_text = self._repair_claim_usage_payload(
                 question=normalized_question,
                 response_text=response_text,
@@ -651,6 +654,16 @@ class ChatService:
                     allowed_ids=available_claim_ids,
                 )
                 if repaired_response_text:
+                    response_changed = repaired_response_text != original_response_text
+                    claims_changed = repaired_used_claims != original_used_claims
+                    if response_changed or claims_changed:
+                        print("[claim_usage_repair] changed response", file=sys.stderr)
+                        print(f"from: {original_response_text}", file=sys.stderr)
+                        print(f"to: {repaired_response_text}", file=sys.stderr)
+                        original_claims_text = ", ".join(original_used_claims) or "(none)"
+                        repaired_claims_text = ", ".join(repaired_used_claims) or "(none)"
+                        print(f"used_claim_ids from: {original_claims_text}", file=sys.stderr)
+                        print(f"used_claim_ids to: {repaired_claims_text}", file=sys.stderr)
                     response_text = repaired_response_text
                     used_claims = repaired_used_claims
         llm_end = perf_counter()
