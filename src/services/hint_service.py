@@ -103,7 +103,7 @@ class HintService:
             HintRule(
                     text="Du har hittat ett brev i kassaskåpet som påstår att Beatrice inte är Nils biologiska dotter. Det är nog bra att ta upp detta med henne.",
                     text_en="You have found a letter in the safe which claims that Beatrice is not Nils biological daughter. You should talk to her about it.",
-                    matcher=lambda state: state.has_seen_object("item_letter") and not state.konws_claim("C175"),
+                    matcher=lambda state: state.has_seen_object("item_letter") and not state.knows_claim("C175"),
             ),
             HintRule(
                 text="Brevet i kassaskåpet kan ha planterats av Herr Bergström enligt Beatrice. Undersök detta vidare.",
