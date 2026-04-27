@@ -453,6 +453,7 @@ class ChatService:
         used_claims: list[str],
         claim_content_by_id: dict[str, str],
         model: str,
+        temperature: float,
         locale: str,
     ) -> str | None:
         from llms.chat import chat as llm_chat
@@ -552,7 +553,7 @@ class ChatService:
                 {"role": "user", "content": user_text},
             ],
             model=model,
-            temperature=0,
+            temperature=temperature,
             max_tokens=512,
         )
 
@@ -693,6 +694,7 @@ class ChatService:
                 used_claims=used_claims,
                 claim_content_by_id=self._build_claim_content_lookup(chain_metadata),
                 model=resolved_model,
+                temperature=resolved_temperature,
                 locale=locale,
             )
             if repaired_claim_usage_text:
