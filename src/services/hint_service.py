@@ -76,6 +76,11 @@ class HintService:
                 matcher=lambda state: state.has_seen_door("door_study") and not state.has_item("item_key_study"),
             ),
             HintRule(
+                text="Du har nyckeln till arbetsrummet, du borde gå in och undersöka det nu.",
+                text_en="You have the key to the study, you should go in and investigate it now.",
+                matcher=lambda state: state.has_item("item_key_study") and not state.has_opened_door("door_study"),
+            ),
+            HintRule(
                 text="Nyckeln till arbetsrummet verkar ligga på Marianas säng i hennes sovrum, klicka på nyckeln för att plocka upp den.",
                 text_en="The key to the study seems to be on Mariana's bed in her bedroom, click on the key to pick it up.",
                 matcher=lambda state: state.knows_claim("C141") and not state.has_item("item_key_study"),
