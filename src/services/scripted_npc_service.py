@@ -31,34 +31,6 @@ class ScriptedNpcService:
     _CORRECT_MURDERER_ID = "npc_beatrice"
     _ABOUT_GAME_TEXT ="Det här är ett mordmysteriumspel där du är detektiven som ska lösa mordet. Behöver du hjälp? Gå in på Clues eller fråga mig om ledtrådar. Lycka till."
     _ABOUT_GAME_TEXT_EN = "This is a murder mystery game where you are the detective solving the murder. Need help? Go to Clues or ask me for hints. Good luck."
-    _CORRECT_ACCUSATION_TEXT = (
-        "Ja. Det stämmer.\n\n"
-        "Sent i går kväll, efter Nils möte med Herr Bergström, bad Nils Beatrice "
-        "komma till arbetsrummet. Där berättade han om brevet i kassaskåpet och "
-        "vad det innebar: hon var inte hans biologiska dotter. För en man som var "
-        "besatt av blodsband förändrade det allt. Det nya testamentet skulle ha "
-        "gjort henne arvslös.\n\n"
-        "Beatrice tappade kontrollen. I arbetsrummet knuffade hon hans stol så "
-        "att han föll och slog huvudet. När hon insåg vad hon hade gjort flyttade "
-        "hon Nils kropp till huvudsovrummet för att få det att se ut som om Pamela "
-        "var inblandad. Beatrice hade alltid hatat Pamela, och att sätta dit henne "
-        "var både bekvämt och grymt.\n\n"
-        "Till slut var blodet det enda arv Beatrice aldrig kunde förfalska."
-    )
-    _CORRECT_ACCUSATION_TEXT_EN = (
-        "Yes. That is correct.\n\n"
-        "Late last night, after Nils's meeting with Mr. Bergström, Nils invited "
-        "Beatrice into his study. He told her about the letter in the safe and "
-        "what it meant: she was not his biological daughter. For a man obsessed "
-        "with bloodlines, that changed everything. The new will would have "
-        "disinherited her.\n\n"
-        "Beatrice lost control. In the study, she pushed his chair, causing him "
-        "to fall and strike his head. When she realized what she had done, she "
-        "moved Nils's body to the master bedroom to make it look as if Pamela was "
-        "involved. Beatrice had always hated Pamela, and framing her was both "
-        "convenient and cruel.\n\n"
-        "In the end, blood was the one inheritance Beatrice could never fake."
-    )
 
     def __init__(self, driver):
         self.conversation_repo = ConversationRepo(driver)
@@ -323,11 +295,7 @@ class ScriptedNpcService:
 
         if is_correct:
             return ScriptedNpcReply(
-                response=(
-                    self._CORRECT_ACCUSATION_TEXT_EN
-                    if is_english
-                    else self._CORRECT_ACCUSATION_TEXT
-                ),
+                response=self._format_accusation_response(accused_npc.name, locale),
                 game_completed=True,
                 accused_correct_npc=True,
                 accused_npc_id=accused_npc_id,
@@ -335,12 +303,17 @@ class ScriptedNpcService:
             )
 
         return ScriptedNpcReply(
-            response="Unfortunately, you are wrong." if is_english else "Tyvärr, du har fel.",
+            response=self._format_accusation_response(accused_npc.name, locale),
             game_completed=True,
             accused_correct_npc=False,
             accused_npc_id=accused_npc_id,
             completed_at=result.get("completed_at"),
         )
+
+    def _format_accusation_response(self, accused_name: str, locale: str) -> str:
+        if self._is_english(locale):
+            return f"So you accuse {accused_name}. Let's hope for their sake you're correct."
+        return f"Så du anklagar {accused_name}. Låt oss hoppas för deras skull att du har rätt."
 
     def _finalize_game(
         self,
