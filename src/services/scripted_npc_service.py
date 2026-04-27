@@ -47,7 +47,7 @@ class ScriptedNpcService:
         "Pamela Smith Wolmarsson är gift med Nils. Du hittar henne i köket, första dörren till höger.\n"
         "Mariana Martinsson är hushållerskan på Wolmars Slott. Du hittar henne bakom första dörren till vänster.\n"
         "Beatrice Wolmarsson är Nils dotter. Du hittar henne bakom andra dörren till vänster på övervåningen.\n"
-        "Wilhelm Wolmarsson är Nils son. Du hittar honom bakom första dörren till höger på övervåningen.\n"
+        "Wilhelm Wolmarsson är Nils son. Du hittar honom bakom första dörren till left på övervåningen.\n"
         "Herr Bergström är Nils Wolmarssons advokat. Du hittar honom i biblioteket, andra dörren till vänster på undervåningen."
     )
     _SUSPECTS_TEXT_EN = (
@@ -56,7 +56,7 @@ class ScriptedNpcService:
         "Pamela Smith Wolmarsson is married to Nils. You can find her in the kitchen, the first door to the right.\n"
         "Mariana Martinsson is the housekeeper of Wolmar's Castle. You can find her in the first door to the left..\n"
         "Beatrice Wolmarsson is Nils's daughter. You can find her in the second door to the left on the upper floor.\n"
-        "Wilhelm Wolmarsson is Nils's son. You can find him in the first door to the right on the upper floor.\n"
+        "Wilhelm Wolmarsson is Nils's son. You can find him in the first door to the left on the upper floor.\n"
         "Mr. Bergström is Nils Wolmarsson's lawyer. You can find him in the library, the second door to the left on the lower floor."
     )
 
