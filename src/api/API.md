@@ -628,6 +628,7 @@ If the conversation does not exist, the API returns:
 Create a new player.
 
 The backend stores `created_at` and initializes game state fields on the `PLAYER` node.
+Only the first player created for a new user is marked as `main_player` and assigned a temperature from the temperature bucket. Later players use the default chat temperature and are not included in study-oriented bulk analytics exports.
 
 Request body:
 
@@ -660,7 +661,9 @@ Response:
 {
   "player_id": "player_4",
   "name": "Kalle",
-  "appearance": "Lång, brun kappa"
+  "appearance": "Lång, brun kappa",
+  "temperature": 0.7,
+  "main_player": true
 }
 ```
 
@@ -707,12 +710,16 @@ Response:
   {
     "player_id": "player_1",
     "name": "Anna",
-    "appearance": "Röd kappa"
+    "appearance": "Röd kappa",
+    "temperature": 0.7,
+    "main_player": true
   },
   {
     "player_id": "player_2",
     "name": "Kalle",
-    "appearance": "Lång, brun kappa"
+    "appearance": "Lång, brun kappa",
+    "temperature": 0.7,
+    "main_player": false
   }
 ]
 ```
@@ -793,6 +800,8 @@ Example response:
   "profile": {
     "name": "Kalle",
     "appearance": "Lång, brun kappa",
+    "temperature": 0.7,
+    "main_player": true,
     "created_at": "2026-04-17T10:15:00Z",
     "completed_at": null
   },
@@ -990,7 +999,7 @@ This is the recommended endpoint if you want to download one player's analytics 
 
 ## GET /analytics/export
 
-Return analytics exports grouped by owning user.
+Return analytics exports for `main_player` study players, grouped by owning user.
 
 Query parameters:
 
@@ -1022,7 +1031,7 @@ Example response shape:
         "locale": "sv",
         "created_at": "2026-04-17T10:15:00Z"
       },
-      "player_count": 2,
+      "player_count": 1,
       "players": [
         {
           "player_id": "player_1",
@@ -1040,15 +1049,15 @@ Example response shape:
 }
 ```
 
-This is the recommended endpoint for downloading JSON to analyze with pandas or other external tooling.
+This is the recommended endpoint for downloading study JSON to analyze with pandas or other external tooling. Players without `main_player: true` are excluded.
 
 The `user` block intentionally excludes the user's password.
 
-If `user_id` is provided but no players belong to that user, the endpoint returns an empty `users` list.
+If `user_id` is provided but no `main_player` players belong to that user, the endpoint returns an empty `users` list.
 
 ## GET /users/{user_id}/analytics/export
 
-Return analytics exports grouped under one specific user.
+Return analytics exports for one specific user's `main_player` study player.
 
 Example request:
 

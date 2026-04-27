@@ -172,6 +172,7 @@ class CreatePlayerResponse(BaseModel):
     name: str
     appearance: str | None = None
     temperature: float
+    main_player: bool
 
 
 class PlayerResponse(BaseModel):
@@ -179,6 +180,7 @@ class PlayerResponse(BaseModel):
     name: str
     appearance: str | None = None
     temperature: float
+    main_player: bool
 
 
 class UpdatePlayerRequest(BaseModel):
@@ -190,6 +192,7 @@ class AnalyticsProfileResponse(BaseModel):
     name: str | None = None
     appearance: str | None = None
     temperature: float | None = None
+    main_player: bool = False
     created_at: str | None = None
     completed_at: str | None = None
 
@@ -808,10 +811,20 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
 
     try:
         player_repo = PlayerRepo(config.driver)
-        temperature_repo = PlayerTemperatureRepo(config.driver)
-        temperature_service = PlayerTemperatureService(temperature_repo)
-        temperature = temperature_service.resolve_for_new_player(name)
-        player = player_repo.create(name=name, appearance=appearance, user_id=user_id, temperature=temperature)
+        main_player = not player_repo.user_has_players(user_id)
+        if main_player:
+            temperature_repo = PlayerTemperatureRepo(config.driver)
+            temperature_service = PlayerTemperatureService(temperature_repo)
+            temperature = temperature_service.resolve_for_new_player(name)
+        else:
+            temperature = DEFAULT_CHAT_TEMPERATURE
+        player = player_repo.create(
+            name=name,
+            appearance=appearance,
+            user_id=user_id,
+            temperature=temperature,
+            main_player=main_player,
+        )
         return CreatePlayerResponse(
             player_id=player.player_id,
             name=player.name,
@@ -821,6 +834,7 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
                 if player.temperature is not None
                 else DEFAULT_CHAT_TEMPERATURE
             ),
+            main_player=player.main_player,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -851,6 +865,7 @@ async def list_players(user_id: str | None = None, config: Config = Depends(get_
                     if player.temperature is not None
                     else DEFAULT_CHAT_TEMPERATURE
                 ),
+                main_player=player.main_player,
             )
             for player in players
         ]
@@ -917,6 +932,7 @@ async def update_player(
             name=updated_player["name"],
             appearance=updated_player.get("appearance"),
             temperature=float(updated_player.get("temperature") or DEFAULT_CHAT_TEMPERATURE),
+            main_player=bool(updated_player.get("main_player")),
         )
     except HTTPException:
         raise

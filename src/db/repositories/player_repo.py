@@ -37,12 +37,23 @@ class PlayerRepo(BaseRepository):
         next_id = 1 if not record else record["next_id"]
         return f"player_{next_id}"
 
+    def user_has_players(self, user_id: str | None = None) -> bool:
+        actual_user_id = user_id or ADMIN_USER_ID
+        record = self._run_single(
+            "MATCH (:USER {user_id: $user_id})-[:HAS_CHARACTER]->(p:PLAYER) "
+            "RETURN p.player_id AS player_id "
+            "LIMIT 1",
+            user_id=actual_user_id,
+        )
+        return record is not None
+
     def create(
         self,
         name: str,
         appearance: str | None = None,
         user_id: str | None = None,
         temperature: float = DEFAULT_CHAT_TEMPERATURE,
+        main_player: bool = False,
     ) -> Player:
         player_id = self._next_player_id()
         # Use admin user as fallback if no user_id provided
@@ -51,7 +62,7 @@ class PlayerRepo(BaseRepository):
             "MATCH (u:USER {user_id: $user_id}) "
             "CREATE (p:PLAYER {"
             "player_id: $player_id, name: $name, appearance: $appearance, temperature: $temperature, "
-            "created_at: datetime(), has_completed_game: false, "
+            "main_player: $main_player, created_at: datetime(), has_completed_game: false, "
             "accused_correct_npc: NULL, accused_npc_id: NULL, completed_at: NULL"
             "}) "
             "CREATE (u)-[:HAS_CHARACTER]->(p)",
@@ -60,14 +71,22 @@ class PlayerRepo(BaseRepository):
             appearance=appearance,
             user_id=actual_user_id,
             temperature=temperature,
+            main_player=main_player,
         )
-        return Player(player_id=player_id, name=name, appearance=appearance, temperature=temperature)
+        return Player(
+            player_id=player_id,
+            name=name,
+            appearance=appearance,
+            temperature=temperature,
+            main_player=main_player,
+        )
 
     def get_profile_by_id(self, player_id: str) -> dict | None:
         record = self._run_single(
             "MATCH (p:PLAYER {player_id: $player_id}) "
             "RETURN p.name AS name, p.appearance AS appearance, "
             f"coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature, "
+            "coalesce(p.main_player, false) AS main_player, "
             "coalesce(p.has_completed_game, false) AS has_completed_game, "
             "p.accused_correct_npc AS accused_correct_npc, "
             "p.accused_npc_id AS accused_npc_id, "
@@ -81,6 +100,7 @@ class PlayerRepo(BaseRepository):
             "name": record["name"],
             "appearance": record.get("appearance"),
             "temperature": float(record.get("temperature", DEFAULT_CHAT_TEMPERATURE)),
+            "main_player": bool(record.get("main_player")),
             "has_completed_game": bool(record.get("has_completed_game")),
             "accused_correct_npc": record.get("accused_correct_npc"),
             "accused_npc_id": record.get("accused_npc_id"),
@@ -92,7 +112,9 @@ class PlayerRepo(BaseRepository):
         records = self._run(
             "MATCH (p:PLAYER) "
             "WHERE coalesce(p.has_completed_game, false) = false "
-            f"RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance, coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature "
+            "RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance, "
+            f"coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature, "
+            "coalesce(p.main_player, false) AS main_player "
             "ORDER BY p.player_id"
         )
         return [
@@ -101,6 +123,7 @@ class PlayerRepo(BaseRepository):
                 name=r["name"],
                 appearance=r["appearance"],
                 temperature=float(r.get("temperature", DEFAULT_CHAT_TEMPERATURE)),
+                main_player=bool(r.get("main_player")),
             )
             for r in records
         ]
@@ -110,7 +133,9 @@ class PlayerRepo(BaseRepository):
         records = self._run(
             "MATCH (u:USER {user_id: $user_id})-[:HAS_CHARACTER]->(p:PLAYER) "
             "WHERE coalesce(p.has_completed_game, false) = false "
-            f"RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance, coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature "
+            "RETURN p.player_id AS player_id, p.name AS name, p.appearance AS appearance, "
+            f"coalesce(p.temperature, {DEFAULT_CHAT_TEMPERATURE}) AS temperature, "
+            "coalesce(p.main_player, false) AS main_player "
             "ORDER BY p.player_id",
             user_id=user_id,
         )
@@ -120,12 +145,22 @@ class PlayerRepo(BaseRepository):
                 name=r["name"],
                 appearance=r["appearance"],
                 temperature=float(r.get("temperature", DEFAULT_CHAT_TEMPERATURE)),
+                main_player=bool(r.get("main_player")),
             )
             for r in records
         ]
 
-    def list_all_ids(self, created_after: str | None = None) -> list[str]:
-        where_clause = "WHERE p.created_at > datetime($created_after) " if created_after else ""
+    def list_all_ids(
+        self,
+        created_after: str | None = None,
+        main_only: bool = False,
+    ) -> list[str]:
+        where_clauses = []
+        if created_after:
+            where_clauses.append("p.created_at > datetime($created_after)")
+        if main_only:
+            where_clauses.append("coalesce(p.main_player, false) = true")
+        where_clause = f"WHERE {' AND '.join(where_clauses)} " if where_clauses else ""
         records = self._run(
             "MATCH (p:PLAYER) "
             f"{where_clause}"
@@ -135,10 +170,17 @@ class PlayerRepo(BaseRepository):
         )
         return [r["player_id"] for r in records if r.get("player_id")]
 
-    def list_ids_by_user(self, user_id: str, created_after: str | None = None) -> list[str]:
+    def list_ids_by_user(
+        self,
+        user_id: str,
+        created_after: str | None = None,
+        main_only: bool = False,
+    ) -> list[str]:
         where_clauses = ["coalesce(p.has_completed_game, false) = false"]
         if created_after:
             where_clauses.append("p.created_at > datetime($created_after)")
+        if main_only:
+            where_clauses.append("coalesce(p.main_player, false) = true")
         records = self._run(
             "MATCH (u:USER {user_id: $user_id})-[:HAS_CHARACTER]->(p:PLAYER) "
             f"WHERE {' AND '.join(where_clauses)} "

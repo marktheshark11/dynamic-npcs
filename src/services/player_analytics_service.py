@@ -96,6 +96,7 @@ class PlayerAnalyticsService:
                 "name": profile.get("name"),
                 "appearance": profile.get("appearance"),
                 "temperature": profile.get("temperature"),
+                "main_player": bool(profile.get("main_player")),
                 "created_at": created_at,
                 "completed_at": completed_at,
             },
@@ -345,7 +346,7 @@ class PlayerAnalyticsService:
         created_after: str | None = None,
     ) -> dict:
         resolved_player_ids = (
-            self.player_repo.list_all_ids(created_after=created_after)
+            self.player_repo.list_all_ids(created_after=created_after, main_only=True)
             if player_ids is None
             else player_ids
         )
@@ -391,5 +392,9 @@ class PlayerAnalyticsService:
         }
 
     def export_players_for_user(self, user_id: str, created_after: str | None = None) -> dict:
-        player_ids = self.player_repo.list_ids_by_user(user_id, created_after=created_after)
+        player_ids = self.player_repo.list_ids_by_user(
+            user_id,
+            created_after=created_after,
+            main_only=True,
+        )
         return self.export_players(player_ids=player_ids)

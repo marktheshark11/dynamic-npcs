@@ -291,6 +291,8 @@ Links a user to a player character they own. No properties.
 
 A user can own multiple characters, and this relationship is used to manage character ownership and access control.
 
+The first player created for a new user is marked with `main_player: true` on the `PLAYER` node. Existing players without the property are treated as `false` and are excluded from study-oriented bulk analytics exports.
+
 ---
 
 ### HAS_ITEM (PLAYER --> OBJECT:ITEM)
