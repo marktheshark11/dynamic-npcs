@@ -91,24 +91,24 @@ class HintService:
                 matcher=lambda state: state.has_opened_door("door_study") and state.knows_claim('C118') and not state.has_opened_door("object_safe"),
             ),
             HintRule(
-                text="Ta reda på vem som träffade Nils senast. Det kan vara viktigt för att förstå vad som hände.",
-                text_en="Find out who met Nils last. It can be important to understand what happened.",
-                matcher=lambda state: state.has_seen_object("object_letter") and not state.knows_claim("C151"),
-            ),
-            HintRule(
-                text="Herr Bergström verkar ha sett Beatrice gå in till Nils på kvällen. Det kan vara värt att prata med Beatrice om det.",
-                text_en="Mr. Bergström seems to have seen Beatrice go into Nils' room in the evening. It may be worth talking to Beatrice about that.",
-                matcher=lambda state: state.knows_claim("C151") or state.knows_claim("C152") and state.has_seen_object("object_letter"),
-            ),
-            HintRule(
                     text="Blodet du hittade i arbetsrummet pekar på att mordet skedde där. Eftersom rummet vara låst kan det vara värt att ta reda på vem som haft möjlighet att låsa det.",
                     text_en="The blood you found in the study indicates that the murder took place there. Since the room was locked, it may be worth finding out who had the opportunity to lock it.",
                     matcher=lambda state: state.has_seen_object("object_blood") and not state.knows_claim("C159"),
             ),
             HintRule(
+                    text="Du har hittat ett brev i kassaskåpet som påstår att Beatrice inte är Nils biologiska dotter. Det är nog bra att ta upp detta med henne.",
+                    text_en="You have found a letter in the safe which claims that Beatrice is not Nils biological daughter. You should talk to her about it.",
+                    matcher=lambda state: state.has_seen_object("item_letter") and not state.konws_claim("C175"),
+            ),
+            HintRule(
+                text="Brevet i kassaskåpet kan ha planterats av Herr Bergström enligt Beatrice. Undersök detta vidare.",
+                text_en="It is possible that the letter in the safe has been planted by Mr. Bergström. Investigate this further.",
+                matcher=lambda state: state.knows_claim("C175") and not state.knows_claim("C179"),
+            ),
+            HintRule(
                     text="Du verkar ha tillräckligt med bevis för att konfrontera den misstänkte och få den att erkänna. Gör det och återkom sedan till mig och rapportera in personen.",
                     text_en="You seem to have enough evidence to confront the suspect and make them confess. Do it, then get back to me and report the person.",
-                    matcher=lambda state: state.knows_claim("C179") and state.knows_claim("159"),
+                    matcher=lambda state: state.knows_claim("C179"),
             ),
         ]
 

@@ -42,7 +42,7 @@ class ScriptedNpcService:
         "Someone in the castle killed him. Find out who had the motive, the opportunity, and the means."
     )
     _SUSPECTS_TEXT = (
-        "De misstänkta:\n"
+        "Personerna i slottet:\n"
         "Nils Wolmarsson, offret, var patriarken av familjen Wollmarsson och ägaren av Wolmars Slott. Hans kropp finns i sovrummet. Andra dörren till höger på övervåningen.\n"
         "Pamela Smith Wolmarsson är gift med Nils. Du hittar henne i köket, första dörren till höger.\n"
         "Mariana Martinsson är hushållerskan på Wolmars Slott. Du hittar henne bakom första dörren till vänster.\n"
@@ -51,7 +51,7 @@ class ScriptedNpcService:
         "Herr Bergström är Nils Wolmarssons advokat. Du hittar honom i biblioteket, andra dörren till vänster på undervåningen."
     )
     _SUSPECTS_TEXT_EN = (
-        "The suspects:\n"
+        "People at the castle:\n"
         "Nils Wolmarsson, the victim, was the patriarch of the Wollmarsson family and owner of Wolmars Castle. His body can be found in the master bedroom. The second door on the right on the upper floor..\n"
         "Pamela Smith Wolmarsson is married to Nils. You can find her in the kitchen, the first door to the right.\n"
         "Mariana Martinsson is the housekeeper of Wolmar's Castle. You can find her in the first door to the left..\n"
