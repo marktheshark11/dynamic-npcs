@@ -335,16 +335,35 @@ class ChatService:
 
     @staticmethod
     def _format_claims_for_repair(
-        used_claims: list[str],
+        claim_ids: list[str],
         claim_content_by_id: dict[str, str],
     ) -> str:
         lines: list[str] = []
-        for claim_id in used_claims:
+        for claim_id in claim_ids:
             normalized_claim_id = claim_id.upper() if isinstance(claim_id, str) else ""
             content = claim_content_by_id.get(normalized_claim_id)
             if normalized_claim_id and content:
                 lines.append(f"- {normalized_claim_id}: {content}")
         return "\n".join(lines)
+
+    @staticmethod
+    def _format_grounding_sections(sections: dict[str, str] | None) -> str:
+        if not sections:
+            return ""
+
+        included_keys = [
+            "identity",
+            "story_background",
+            "detective_context",
+            "conversation_memory",
+            "scene_event",
+        ]
+        blocks: list[str] = []
+        for key in included_keys:
+            value = sections.get(key)
+            if isinstance(value, str) and value.strip():
+                blocks.append(value.strip())
+        return "\n\n".join(blocks)
 
     @staticmethod
     def _extract_json_object(raw_text: str) -> dict | None:
@@ -444,31 +463,35 @@ class ChatService:
         )
 
     @classmethod
-    def _repair_claim_usage_payload(
+    def _repair_grounding_payload(
         cls,
         *,
         question: str,
         npc_name: str,
         response_text: str,
         used_claims: list[str],
+        available_claims: list[str],
         claim_content_by_id: dict[str, str],
+        grounding_context: str,
         model: str,
         temperature: float,
         locale: str,
     ) -> str | None:
         from llms.chat import chat as llm_chat
 
-        claims_text = cls._format_claims_for_repair(used_claims, claim_content_by_id)
-        if not claims_text:
+        claims_text = cls._format_claims_for_repair(available_claims, claim_content_by_id)
+        used_claims_text = ", ".join(used_claims) if used_claims else "(none)"
+        grounding_context = (grounding_context or "").strip()
+        if not claims_text and not grounding_context:
             return None
 
         if cls._is_english(locale):
             instruction = (
-                "You repair claim usage tracking for an NPC dialogue response.\n"
+                "You repair grounding for an NPC dialogue response.\n"
                 f"You are repairing the response for {npc_name or 'the NPC'}. Keep the "
                 "response in first person from that character's perspective.\n"
                 "Preserve the original response as much as possible. Only change text needed "
-                "to make the used claim IDs fully supported.\n"
+                "to remove or soften facts that are not supported by the context.\n"
                 f"Only rewrite the speaking NPC's own exact name or title, such as "
                 f"{npc_name or 'the NPC'}, as I, me, or my when needed.\n"
                 "Do not rewrite a third-person claim subject into first person unless that "
@@ -484,6 +507,14 @@ class ChatService:
                 f"Never refer to {npc_name or 'the NPC'} as another person.\n"
                 "Return ONLY valid JSON with exactly the keys 'response' and 'used_claim_ids'.\n"
                 "The response must stay brief, in character, and directly answer the detective's question.\n"
+                "Every concrete factual statement in the response must be supported by the "
+                "supporting context, available claims, or previous conversation.\n"
+                "If a specific detail is unsupported, do not invent a replacement. Remove it, "
+                "soften it, or answer naturally with uncertainty. Do not always use the exact "
+                "phrase 'I don't know'.\n"
+                "If an unsupported answer needs softening, prefer neutral uncertainty. You may "
+                "briefly refer to supported circumstances, for example 'since the murder', but "
+                "do not invent stress, memory loss, or emotions not supported by context.\n"
                 "For every claim ID you keep, the response itself must explicitly express "
                 "the full concrete information in that claim, including actors, objects, "
                 "qualifiers, negations, and timing.\n"
@@ -494,22 +525,25 @@ class ChatService:
                 "fact. Take that wording into account when deciding how the claim should be "
                 "expressed. If the prefix or suffix is an instruction about how to answer, "
                 "follow it when relevant, but do not repeat the instruction itself as a fact.\n"
-                "Do not add facts that are not in the listed claims or original response."
+                "Do not add facts that are not in the supporting context, available claims, "
+                "previous conversation, or original response."
             )
             user_text = (
                 f"NPC WHO IS SPEAKING:\n{npc_name or '(unknown)'}\n\n"
                 f"DETECTIVE QUESTION:\n{question or '(start of conversation)'}\n\n"
                 f"CURRENT RESPONSE:\n{response_text}\n\n"
-                f"CLAIMS CURRENTLY MARKED AS USED:\n{claims_text}\n\n"
+                f"CURRENTLY MARKED USED CLAIM IDS:\n{used_claims_text}\n\n"
+                f"SUPPORTING CONTEXT:\n{grounding_context or '(none)'}\n\n"
+                f"AVAILABLE CLAIMS:\n{claims_text or '(none)'}\n\n"
                 "Return repaired JSON now."
             )
         else:
             instruction = (
-                "Du reparerar claim-användning för ett NPC-dialogsvar.\n"
+                "Du reparerar faktastöd för ett NPC-dialogsvar.\n"
                 f"Du reparerar svaret för {npc_name or 'NPC:n'}. Behåll svaret i "
                 "jag-perspektiv från den karaktären.\n"
-                "Bevara originalsvaret så mycket som möjligt. Ändra bara text som behöver "
-                "ändras för att använda claim-ID:n ska stödjas fullt ut.\n"
+                "Bevara originalsvaret så mycket som möjligt. Ändra bara text som behövs "
+                "för att ta bort eller tona ner fakta som inte stöds av kontexten.\n"
                 f"Skriv bara om den talande NPC:ns eget exakta namn eller titel, till "
                 f"exempel {npc_name or 'NPC:n'}, som jag, mig eller min/mitt/mina när "
                 "det behövs.\n"
@@ -526,6 +560,14 @@ class ChatService:
                 f"Nämn aldrig {npc_name or 'NPC:n'} som en annan person.\n"
                 "Returnera ENDAST giltig JSON med exakt nycklarna 'response' och 'used_claim_ids'.\n"
                 "Svaret ska fortsätta vara kort, i karaktär och direkt besvara detektivens fråga.\n"
+                "Varje konkret faktapåstående i svaret måste stödjas av stödkontexten, "
+                "tillgängliga claims eller tidigare samtal.\n"
+                "Om en specifik detalj saknar stöd, hitta inte på en ersättning. Ta bort "
+                "den, tona ner den eller svara naturligt med osäkerhet. Använd inte alltid "
+                "exakt frasen 'jag vet inte'.\n"
+                "Om ett osupportat svar behöver tonas ner, föredra neutral osäkerhet. Du får "
+                "kort hänvisa till stödda omständigheter, till exempel 'sedan mordet', men "
+                "hitta inte på stress, minnesluckor eller känslor som inte stöds av kontexten.\n"
                 "För varje claim-ID du behåller måste själva svaret uttryckligen säga hela "
                 "den konkreta informationen i claimen, inklusive aktörer, objekt, "
                 "förbehåll, negationer och tidsangivelser.\n"
@@ -537,13 +579,16 @@ class ChatService:
                 "Ta hänsyn till den texten när du avgör hur claimen ska uttryckas. Om prefix "
                 "eller suffix är en instruktion om hur du ska svara, följ den när den är "
                 "relevant, men upprepa inte själva instruktionen som fakta.\n"
-                "Lägg inte till fakta som inte finns i de listade claimsen eller originalsvaret."
+                "Lägg inte till fakta som inte finns i stödkontexten, tillgängliga claims, "
+                "tidigare samtal eller originalsvaret."
             )
             user_text = (
                 f"NPC SOM TALAR:\n{npc_name or '(okänd)'}\n\n"
                 f"DETEKTIVENS FRÅGA:\n{question or '(start på samtal)'}\n\n"
                 f"NUVARANDE SVAR:\n{response_text}\n\n"
-                f"CLAIMS SOM JUST NU MARKERAS SOM ANVÄNDA:\n{claims_text}\n\n"
+                f"CLAIM-IDN SOM JUST NU MARKERAS SOM ANVÄNDA:\n{used_claims_text}\n\n"
+                f"STÖDKONTEXT:\n{grounding_context or '(ingen)'}\n\n"
+                f"TILLGÄNGLIGA CLAIMS:\n{claims_text or '(inga)'}\n\n"
                 "Returnera reparerad JSON nu."
             )
 
@@ -684,17 +729,25 @@ class ChatService:
                 raw_response=repaired_response_text,
                 allowed_ids=available_claim_ids,
             )
-        if repair_claim_usage and response_text and used_claims:
+        if repair_claim_usage and response_text:
             original_response_text = response_text
             original_used_claims = list(used_claims)
-            repaired_claim_usage_text = self._repair_claim_usage_payload(
+            claim_content_by_id = self._build_claim_content_lookup(chain_metadata)
+            available_claims_for_repair = [
+                claim_id
+                for claim_id in pipeline_result.available_claim_ids
+                if claim_id.upper() in claim_content_by_id
+            ]
+            repaired_claim_usage_text = self._repair_grounding_payload(
                 question=normalized_question,
                 npc_name=localized_npc_name,
                 response_text=response_text,
                 used_claims=used_claims,
-                claim_content_by_id=self._build_claim_content_lookup(chain_metadata),
+                available_claims=available_claims_for_repair,
+                claim_content_by_id=claim_content_by_id,
+                grounding_context=self._format_grounding_sections(prompt_result.sections),
                 model=resolved_model,
-                temperature=resolved_temperature,
+                temperature=0,
                 locale=locale,
             )
             if repaired_claim_usage_text:
@@ -706,7 +759,7 @@ class ChatService:
                     response_changed = repaired_response_text != original_response_text
                     claims_changed = repaired_used_claims != original_used_claims
                     if response_changed or claims_changed:
-                        print("[claim_usage_repair] changed response", file=sys.stderr)
+                        print("[grounding_repair] changed response", file=sys.stderr)
                         print(f"from: {original_response_text}", file=sys.stderr)
                         print(f"to: {repaired_response_text}", file=sys.stderr)
                         original_claims_text = ", ".join(original_used_claims) or "(none)"
