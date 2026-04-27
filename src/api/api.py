@@ -812,7 +812,10 @@ async def create_player(payload: CreatePlayerRequest, config: Config = Depends(g
     try:
         player_repo = PlayerRepo(config.driver)
         main_player = not player_repo.user_has_players(user_id)
-        if main_player:
+        override_temperature = _infer_temperature_from_player_name(name)
+        if override_temperature is not None:
+            temperature = override_temperature
+        elif main_player:
             temperature_repo = PlayerTemperatureRepo(config.driver)
             temperature_service = PlayerTemperatureService(temperature_repo)
             temperature = temperature_service.resolve_for_new_player(name)

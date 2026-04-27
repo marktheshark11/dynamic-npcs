@@ -628,7 +628,7 @@ If the conversation does not exist, the API returns:
 Create a new player.
 
 The backend stores `created_at` and initializes game state fields on the `PLAYER` node.
-Only the first player created for a new user is marked as `main_player` and assigned a temperature from the temperature bucket. Later players use the default chat temperature and are not included in study-oriented bulk analytics exports.
+Only the first player created for a new user is marked as `main_player` and assigned a temperature from the temperature bucket. Later players use the default chat temperature and are not included in study-oriented bulk analytics exports. A name in the form `temp2.0` always overrides the assigned temperature without consuming the bucket.
 
 Request body:
 
