@@ -63,12 +63,12 @@ class HintService:
             HintRule(
                 text="Du bör även tala med Wilhelm, den avlidnes son. Han befinner sig i sitt sovrum, den första dörren till vänster på övervåningen. Han verkar ha hört någonting under kvällen undersök var ljudet kom ifrån.",
                 text_en="You should also talk to Wilhelm, the son of the deceased. He is in his bedroom, the first door to the left upstairs. He seems to have heard something during the evening, investigate where the sound came from.",
-                matcher=lambda state: not state.knows_claim("C79"),
+                matcher=lambda state: not state.knows_claim("C78"),
             ),
             HintRule(
                 text="Wilhelm sa att han hörde ett ljud från arbetsrummet. Det kan vara värt att undersöka det rummet lite mer noggrant.",
                 text_en="Wilhelm said that he heard a sound from the study. It may be worth investigating that room more carefully.",
-                matcher=lambda state: state.knows_claim("C79") and not state.has_seen_door("door_study"),
+                matcher=lambda state: state.knows_claim("C78") and not state.has_seen_door("door_study"),
             ),
             HintRule(
                 text="Det verkar som att du behöver en nyckel för att kunna komma in i arbetsrummet. Fråga runt efter den.",
