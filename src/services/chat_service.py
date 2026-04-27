@@ -321,7 +321,7 @@ class ChatService:
         for chain in chain_metadata or []:
             for claim in chain.get("claims") or []:
                 claim_id = claim.get("claim_id")
-                content = claim.get("content")
+                content = claim.get("rendered_content") or claim.get("content")
                 if not isinstance(claim_id, str) or not isinstance(content, str):
                     continue
                 normalized_claim_id = claim_id.upper()
@@ -464,8 +464,10 @@ class ChatService:
         if cls._is_english(locale):
             instruction = (
                 "You repair claim usage tracking for an NPC dialogue response.\n"
-                f"You are repairing the response for {npc_name or 'the NPC'}. Keep the response in first person from that character's perspective.\n"
-                f"If a claim mentions {npc_name or 'the NPC'}, rewrite that reference as I, me, or my as appropriate.\n"
+                f"You are repairing the response for {npc_name or 'the NPC'}. Keep the "
+                "response in first person from that character's perspective.\n"
+                f"If a claim mentions {npc_name or 'the NPC'}, rewrite that reference as "
+                "I, me, or my as appropriate.\n"
                 f"Never refer to {npc_name or 'the NPC'} as another person.\n"
                 "Return ONLY valid JSON with exactly the keys 'response' and 'used_claim_ids'.\n"
                 "The response must stay brief, in character, and directly answer the detective's question.\n"
@@ -475,6 +477,10 @@ class ChatService:
                 "If a claim is relevant and socially natural to say, revise the response "
                 "so it says the full claim content.\n"
                 "If a claim is not relevant or would make the answer unnatural, remove that claim ID instead.\n"
+                "The listed claim text may include prefix or suffix wording around the core "
+                "fact. Take that wording into account when deciding how the claim should be "
+                "expressed. If the prefix or suffix is an instruction about how to answer, "
+                "follow it when relevant, but do not repeat the instruction itself as a fact.\n"
                 "Do not add facts that are not in the listed claims or original response."
             )
             user_text = (
@@ -487,8 +493,10 @@ class ChatService:
         else:
             instruction = (
                 "Du reparerar claim-användning för ett NPC-dialogsvar.\n"
-                f"Du reparerar svaret för {npc_name or 'NPC:n'}. Behåll svaret i jag-perspektiv från den karaktären.\n"
-                f"Om en claim nämner {npc_name or 'NPC:n'}, skriv om den referensen som jag, mig eller min/mitt/mina där det passar.\n"
+                f"Du reparerar svaret för {npc_name or 'NPC:n'}. Behåll svaret i "
+                "jag-perspektiv från den karaktären.\n"
+                f"Om en claim nämner {npc_name or 'NPC:n'}, skriv om den referensen som "
+                "jag, mig eller min/mitt/mina där det passar.\n"
                 f"Nämn aldrig {npc_name or 'NPC:n'} som en annan person.\n"
                 "Returnera ENDAST giltig JSON med exakt nycklarna 'response' och 'used_claim_ids'.\n"
                 "Svaret ska fortsätta vara kort, i karaktär och direkt besvara detektivens fråga.\n"
@@ -499,6 +507,10 @@ class ChatService:
                 "att hela claimens innehåll sägs.\n"
                 "Om en claim inte är relevant eller skulle göra svaret onaturligt, ta "
                 "bort claim-ID:t istället.\n"
+                "Den listade claimtexten kan innehålla prefix eller suffix runt kärnfaktat. "
+                "Ta hänsyn till den texten när du avgör hur claimen ska uttryckas. Om prefix "
+                "eller suffix är en instruktion om hur du ska svara, följ den när den är "
+                "relevant, men upprepa inte själva instruktionen som fakta.\n"
                 "Lägg inte till fakta som inte finns i de listade claimsen eller originalsvaret."
             )
             user_text = (

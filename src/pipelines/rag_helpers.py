@@ -359,6 +359,19 @@ def _render_chain_content(
     return " ".join(rendered_claims)
 
 
+def _render_single_claim_content(
+    chain_claim: dict[str, Any],
+    already_mentioned: set[str] | None,
+    locale: str,
+) -> str:
+    return Rendering.render_claim_static(
+        chain_claim.get("claim_id"),
+        chain_claim["content"],
+        prefix=chain_claim.get("prefix"),
+        suffix=_resolve_chain_suffix(chain_claim, already_mentioned, locale),
+    )
+
+
 def _resolve_chain_suffix(
     chain_claim: dict[str, Any],
     already_mentioned: set[str] | None,
@@ -366,9 +379,16 @@ def _resolve_chain_suffix(
 ) -> str | None:
     claim_id = chain_claim.get("claim_id")
     if already_mentioned and claim_id in already_mentioned:
-        return chain_claim.get("overwrite_suffix") or (
-            "and you have already mentioned this" if locale == "en" else "och detta har du redan nämnt"
+        already_mentioned_suffix = (
+            "and you have already mentioned this"
+            if locale == "en"
+            else "och detta har du redan nämnt"
         )
+        if chain_claim.get("overwrite_suffix"):
+            return chain_claim.get("overwrite_suffix")
+        if chain_claim.get("suffix"):
+            return f"{chain_claim['suffix']} {already_mentioned_suffix}"
+        return already_mentioned_suffix
     return chain_claim.get("suffix")
 
 
@@ -382,6 +402,11 @@ def _build_chain_payload(
             "id": chain_claim["id"],
             "claim_id": chain_claim.get("claim_id"),
             "content": chain_claim["content"],
+            "rendered_content": _render_single_claim_content(
+                chain_claim,
+                already_mentioned,
+                locale,
+            ),
             "prefix": chain_claim.get("prefix"),
             "suffix": chain_claim.get("suffix"),
             "overwrite_suffix": chain_claim.get("overwrite_suffix"),

@@ -63,6 +63,10 @@ class RulesSection:
                 "- Do not mention exact or specific times. Use general timing such as morning, evening, or before/after known events, and only when you are sure the context supports it.\n"
                 "- If asked for a specific detail not in the context, answer that you do not know.\n"
                 "- Do not turn your own speculation, suggestion, or example into fact.\n"
+                "- If a claim includes extra wording before or after the core fact, take that "
+                "wording into account when deciding how to use or express the claim. If the "
+                "extra wording is an instruction about how to answer, follow it when relevant, "
+                "but do not repeat the instruction itself as a fact.\n"
                 "- If you use a claim in your answer, you must convey the full informational content of the claim in the answer for the claim to count as used, including all mentioned actors, objects, qualifiers, negations, and time points."
             )
         return (
@@ -87,6 +91,10 @@ class RulesSection:
             "- Nämn inte exakta eller specifika tider. Använd allmänna tidsangivelser som morgon, kväll eller före/efter kända händelser, och bara när du är säker på att kontexten stödjer det.\n"
             "- Om du blir tillfrågad om en specifik detalj som inte finns i kontexten, svara att du inte vet.\n"
             "- Gör inte din egen spekulation, förslag eller exempel till fakta.\n"
+            "- Om en claim innehåller extra text före eller efter kärnfaktat, ta hänsyn "
+            "till den texten när du avgör hur claimen ska användas eller uttryckas. Om "
+            "den extra texten är en instruktion om hur du ska svara, följ den när den är "
+            "relevant, men upprepa inte själva instruktionen som fakta.\n"
             "- Om du använder en claim i ditt svar, måste du meddela hela claimens informationsinnehåll i svaret för att få räkna med claimen som använd, inklusive alla nämnda aktörer, objekt, kvalificerare, negationer och tidpunkter."
         )
 
