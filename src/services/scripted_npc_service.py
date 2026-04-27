@@ -31,6 +31,24 @@ class ScriptedNpcService:
     _CORRECT_MURDERER_ID = "npc_beatrice"
     _ABOUT_GAME_TEXT ="Det här är ett mordmysteriumspel där du är detektiven som ska lösa mordet. Behöver du hjälp? Gå in på Clues eller fråga mig om ledtrådar. Lycka till."
     _ABOUT_GAME_TEXT_EN = "This is a murder mystery game where you are the detective solving the murder. Need help? Go to Clues or ask me for hints. Good luck."
+    _SUSPECTS_TEXT = (
+        "De misstänkta:\n"
+        "Lord Nils Wolmarsson är ägare av Wolmars Slott, make till Pamela och far till Beatrice och Wilhelm. Han är mördad.\n"
+        "Pamela Smith Wolmarsson är gift med Nils och finns i köket.\n"
+        "Mariana Martinsson är hushållerskan och är på undervåningen.\n"
+        "Beatrice Wolmarsson är Nils dotter och finns på övervåningen.\n"
+        "Wilhelm Wolmarsson är Nils son och finns på övervåningen.\n"
+        "Herr Bergström är Nils Wolmarssons advokat och är på undervåningen."
+    )
+    _SUSPECTS_TEXT_EN = (
+        "The suspects:\n"
+        "Lord Nils Wolmarsson owns Wolmars Castle, is Pamela's husband, and the father of Beatrice and Wilhelm. He has been murdered.\n"
+        "Pamela Smith Wolmarsson is married to Nils and is in the kitchen.\n"
+        "Mariana Martinsson is the housekeeper and is downstairs.\n"
+        "Beatrice Wolmarsson is Nils's daughter and is upstairs.\n"
+        "Wilhelm Wolmarsson is Nils's son and is upstairs.\n"
+        "Mr. Bergström is Nils Wolmarsson's lawyer and is downstairs."
+    )
     _CORRECT_ACCUSATION_TEXT = (
         "Ja. Det stämmer.\n\n"
         "Sent i går kväll, efter Nils möte med Herr Bergström, bad Nils Beatrice "
@@ -69,15 +87,17 @@ class ScriptedNpcService:
         self._session_states: dict[tuple[str, str, str], ScriptedNpcSessionState] = {}
         self._menu_text = (
             "1. Om spelet\n"
-            "2. Få ledtråd\n"
-            "3. Jag vet vem mördaren är, jag vill anklaga den och sedan avsluta spelet\n"
-            "4. Vad är mitt player_id?"
+            "2. De misstänkta\n"
+            "3. Få ledtråd\n"
+            "4. Jag vet vem mördaren är, jag vill anklaga den och sedan avsluta spelet\n"
+            "5. Vad är mitt player_id?"
         )
         self._menu_text_en = (
             "1. About the game\n"
-            "2. Get a hint\n"
-            "3. I know who the murderer is, I want to accuse them and then end the game\n"
-            "4. What is my player_id?"
+            "2. The suspects\n"
+            "3. Get a hint\n"
+            "4. I know who the murderer is, I want to accuse them and then end the game\n"
+            "5. What is my player_id?"
         )
 
     @staticmethod
@@ -190,7 +210,7 @@ class ScriptedNpcService:
             return int(raw_choice)
         except ValueError as exc:
             is_english = ScriptedNpcService._is_english(locale)
-            raise ValueError("Invalid choice. Send a whole number, for example 1, 2, 3 or 4." if is_english else "Ogiltigt val. Skicka ett heltal, till exempel 1, 2, 3 eller 4.") from exc
+            raise ValueError("Invalid choice. Send a whole number, for example 1, 2, 3, 4 or 5." if is_english else "Ogiltigt val. Skicka ett heltal, till exempel 1, 2, 3, 4 eller 5.") from exc
 
     def _handle_choice(
         self,
@@ -204,17 +224,19 @@ class ScriptedNpcService:
         if choice == 1:
             return ScriptedNpcReply(response=self._ABOUT_GAME_TEXT_EN if is_english else self._ABOUT_GAME_TEXT)
         if choice == 2:
+            return ScriptedNpcReply(response=self._SUSPECTS_TEXT_EN if is_english else self._SUSPECTS_TEXT)
+        if choice == 3:
             if not player_id:
                 raise ValueError("player_id is required to fetch hints." if is_english else "player_id krävs för att hämta hintar.")
             return ScriptedNpcReply(response=self.hint_service.get_hint_text(player_id=player_id))
-        if choice == 3:
+        if choice == 4:
             return self._begin_accusation_flow(
                 npc_id=npc_id,
                 player_id=player_id,
                 conversation_id=conversation_id,
                 locale=locale,
             )
-        if choice == 4:
+        if choice == 5:
             if not player_id:
                 raise ValueError("player_id is required to show your player_id." if is_english else "player_id krävs för att visa ditt player_id.")
             return ScriptedNpcReply(
@@ -224,7 +246,7 @@ class ScriptedNpcService:
                     else f"Ditt player_id är: {player_id}"
                 )
             )
-        return ScriptedNpcReply(response="Invalid choice. Send an empty message to see the menu or type 1, 2, 3 or 4." if is_english else "Ogiltigt val. Skicka tomt för att se menyn eller skriv 1, 2, 3 eller 4.")
+        return ScriptedNpcReply(response="Invalid choice. Send an empty message to see the menu or type 1, 2, 3, 4 or 5." if is_english else "Ogiltigt val. Skicka tomt för att se menyn eller skriv 1, 2, 3, 4 eller 5.")
 
     def _begin_accusation_flow(
         self,
