@@ -103,9 +103,13 @@ class HintService:
             HintRule(
                     text="Blodet du hittade i arbetsrummet pekar på att mordet skedde där. Eftersom rummet vara låst kan det vara värt att ta reda på vem som haft möjlighet att låsa det.",
                     text_en="The blood you found in the study indicates that the murder took place there. Since the room was locked, it may be worth finding out who had the opportunity to lock it.",
-                matcher=lambda state: state.has_seen_object("object_blood") and not state.knows_claim("C159"),
+                    matcher=lambda state: state.has_seen_object("object_blood") and not state.knows_claim("C159"),
             ),
-            
+            HintRule(
+                    text="Du verkar ha tillräckligt med bevis för att konfrontera den misstänkte och få den att erkänna. Gör det och återkom sedan till mig och rapportera in personen.",
+                    text_en="You seem to have enough evidence to confront the suspect and make them confess. Do it, then get back to me and report the person.",
+                    matcher=lambda state: state.knows_claim("C179") and state.knows_claim("159"),
+            ),
         ]
 
     @staticmethod
