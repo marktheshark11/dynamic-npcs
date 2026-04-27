@@ -3,7 +3,11 @@ import re
 from time import perf_counter
 
 from db.repositories import ConversationRepo, NPCRepo, PlayerRepo, UserRepo
-from llms.config import DEFAULT_CHAT_MODEL, DEFAULT_CHAT_TEMPERATURE, DEFAULT_SUMMARY_TEMPERATURE
+from llms.config import (
+    DEFAULT_CHAT_MODEL,
+    DEFAULT_CHAT_TEMPERATURE,
+    DEFAULT_SUMMARY_TEMPERATURE,
+)
 from pipelines import ChatPipeline
 
 
@@ -311,6 +315,37 @@ class ChatService:
         return text
 
     @staticmethod
+    def _build_claim_content_lookup(chain_metadata: list[dict]) -> dict[str, str]:
+        claim_content_by_id: dict[str, str] = {}
+        for chain in chain_metadata or []:
+            for claim in chain.get("claims") or []:
+                claim_id = claim.get("claim_id")
+                content = claim.get("content")
+                if not isinstance(claim_id, str) or not isinstance(content, str):
+                    continue
+                normalized_claim_id = claim_id.upper()
+                if (
+                    normalized_claim_id
+                    and content.strip()
+                    and normalized_claim_id not in claim_content_by_id
+                ):
+                    claim_content_by_id[normalized_claim_id] = content.strip()
+        return claim_content_by_id
+
+    @staticmethod
+    def _format_claims_for_repair(
+        used_claims: list[str],
+        claim_content_by_id: dict[str, str],
+    ) -> str:
+        lines: list[str] = []
+        for claim_id in used_claims:
+            normalized_claim_id = claim_id.upper() if isinstance(claim_id, str) else ""
+            content = claim_content_by_id.get(normalized_claim_id)
+            if normalized_claim_id and content:
+                lines.append(f"- {normalized_claim_id}: {content}")
+        return "\n".join(lines)
+
+    @staticmethod
     def _extract_json_object(raw_text: str) -> dict | None:
         text = (raw_text or "").strip()
         if not text:
@@ -407,7 +442,82 @@ class ChatService:
             max_tokens=256,
         )
 
-    def ask_npc(self, npc_id, question, model=None, conversation_id=None, player_id=None):
+    @classmethod
+    def _repair_claim_usage_payload(
+        cls,
+        *,
+        question: str,
+        response_text: str,
+        used_claims: list[str],
+        claim_content_by_id: dict[str, str],
+        model: str,
+        locale: str,
+    ) -> str | None:
+        from llms.chat import chat as llm_chat
+
+        claims_text = cls._format_claims_for_repair(used_claims, claim_content_by_id)
+        if not claims_text:
+            return None
+
+        if cls._is_english(locale):
+            instruction = (
+                "You repair claim usage tracking for an NPC dialogue response.\n"
+                "Return ONLY valid JSON with exactly the keys 'response' and 'used_claim_ids'.\n"
+                "The response must stay brief, in character, and directly answer the detective's question.\n"
+                "For every claim ID you keep, the response itself must explicitly express "
+                "the full concrete information in that claim, including actors, objects, "
+                "qualifiers, negations, and timing.\n"
+                "If a claim is relevant and socially natural to say, revise the response "
+                "so it says the full claim content.\n"
+                "If a claim is not relevant or would make the answer unnatural, remove that claim ID instead.\n"
+                "Do not add facts that are not in the listed claims or original response."
+            )
+            user_text = (
+                f"DETECTIVE QUESTION:\n{question or '(start of conversation)'}\n\n"
+                f"CURRENT RESPONSE:\n{response_text}\n\n"
+                f"CLAIMS CURRENTLY MARKED AS USED:\n{claims_text}\n\n"
+                "Return repaired JSON now."
+            )
+        else:
+            instruction = (
+                "Du reparerar claim-användning för ett NPC-dialogsvar.\n"
+                "Returnera ENDAST giltig JSON med exakt nycklarna 'response' och 'used_claim_ids'.\n"
+                "Svaret ska fortsätta vara kort, i karaktär och direkt besvara detektivens fråga.\n"
+                "För varje claim-ID du behåller måste själva svaret uttryckligen säga hela "
+                "den konkreta informationen i claimen, inklusive aktörer, objekt, "
+                "förbehåll, negationer och tidsangivelser.\n"
+                "Om en claim är relevant och socialt naturlig att säga, ändra svaret så "
+                "att hela claimens innehåll sägs.\n"
+                "Om en claim inte är relevant eller skulle göra svaret onaturligt, ta "
+                "bort claim-ID:t istället.\n"
+                "Lägg inte till fakta som inte finns i de listade claimsen eller originalsvaret."
+            )
+            user_text = (
+                f"DETEKTIVENS FRÅGA:\n{question or '(start på samtal)'}\n\n"
+                f"NUVARANDE SVAR:\n{response_text}\n\n"
+                f"CLAIMS SOM JUST NU MARKERAS SOM ANVÄNDA:\n{claims_text}\n\n"
+                "Returnera reparerad JSON nu."
+            )
+
+        return llm_chat(
+            messages=[
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": user_text},
+            ],
+            model=model,
+            temperature=0,
+            max_tokens=512,
+        )
+
+    def ask_npc(
+        self,
+        npc_id,
+        question,
+        model=None,
+        conversation_id=None,
+        player_id=None,
+        repair_claim_usage=True,
+    ):
         from llms.chat import chat as llm_chat
         from llms.prompt_guard import is_malicious
 
@@ -511,8 +621,6 @@ class ChatService:
             model=resolved_model,
             temperature=resolved_temperature,
         )
-        llm_end = perf_counter()
-        llm_latency_ms = self._duration_ms(llm_start, llm_end)
         available_claim_ids = {claim_id.upper() for claim_id in pipeline_result.available_claim_ids}
         response_text, used_claims = self._parse_llm_chat_payload(
             raw_response=raw_response_text,
@@ -528,6 +636,25 @@ class ChatService:
                 raw_response=repaired_response_text,
                 allowed_ids=available_claim_ids,
             )
+        if repair_claim_usage and response_text and used_claims:
+            repaired_claim_usage_text = self._repair_claim_usage_payload(
+                question=normalized_question,
+                response_text=response_text,
+                used_claims=used_claims,
+                claim_content_by_id=self._build_claim_content_lookup(chain_metadata),
+                model=resolved_model,
+                locale=locale,
+            )
+            if repaired_claim_usage_text:
+                repaired_response_text, repaired_used_claims = self._parse_llm_chat_payload(
+                    raw_response=repaired_claim_usage_text,
+                    allowed_ids=available_claim_ids,
+                )
+                if repaired_response_text:
+                    response_text = repaired_response_text
+                    used_claims = repaired_used_claims
+        llm_end = perf_counter()
+        llm_latency_ms = self._duration_ms(llm_start, llm_end)
         if not response_text:
             response_text = self._fallback_response_text(
                 locale=locale,
