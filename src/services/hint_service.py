@@ -107,7 +107,7 @@ class HintService:
             ),
             HintRule(
                 text="Brevet i kassaskåpet kan ha planterats av Herr Bergström enligt Beatrice. Undersök detta vidare.",
-                text_en="It is possible that the letter in the safe has been planted by Mr. Bergström. Investigate this further.",
+                text_en="Beatrice claims that the letter in the safe has been planted by Mr. Bergström. Investigate this further.",
                 matcher=lambda state: state.knows_claim("C175") and not state.knows_claim("C179"),
             ),
             HintRule(
